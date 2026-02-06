@@ -7,9 +7,10 @@ import EventEmitter from 'node:events'
  * This decouples channels, agents, providers, and tools.
  *
  * Standard events:
- * - message:in  {text, chatId, userId, channel, timestamp}
- * - message:out {text, chatId, channel}
- * - error       {source, error, context}
+ * - message:in   {text, chatId, userId, channel, timestamp}
+ * - message:out  {text, chatId, channel}
+ * - thinking:start {chatId, channel}
+ * - error        {source, error, context}
  */
 class MessageBus extends EventEmitter {
   constructor() {

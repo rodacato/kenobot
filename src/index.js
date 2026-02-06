@@ -49,11 +49,17 @@ bus.on('message:in', async (message) => {
     length: message.text.length
   })
 
+  // Show typing indicator while waiting for provider
+  const typingPayload = { chatId: message.chatId, channel: message.channel }
+  bus.emit('thinking:start', typingPayload)
+  const typingInterval = setInterval(() => bus.emit('thinking:start', typingPayload), 4000)
+
   try {
     const start = Date.now()
     const response = await provider.chat([
       { role: 'user', content: message.text }
     ])
+    clearInterval(typingInterval)
 
     logger.info(config.provider, 'response_received', {
       durationMs: Date.now() - start,
@@ -66,6 +72,8 @@ bus.on('message:in', async (message) => {
       channel: message.channel
     })
   } catch (error) {
+    clearInterval(typingInterval)
+
     logger.error('system', 'message_processing_failed', {
       error: error.message,
       chatId: message.chatId

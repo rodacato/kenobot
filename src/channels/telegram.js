@@ -32,6 +32,14 @@ export default class TelegramChannel extends BaseChannel {
       })
     })
 
+    // Listen for typing indicator from the bus
+    this.bus.on('thinking:start', async ({ chatId, channel }) => {
+      if (channel !== this.name) return
+      try {
+        await this.bot.api.sendChatAction(chatId, 'typing')
+      } catch { /* ignore typing failures */ }
+    })
+
     // Listen for outgoing messages from the bus
     this.bus.on('message:out', async ({ chatId, text, channel }) => {
       // Only handle messages for this channel
