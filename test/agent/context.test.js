@@ -131,4 +131,97 @@ describe('ContextBuilder', () => {
       expect(result.messages[0]).toEqual({ role: 'user', content: 'first message' })
     })
   })
+
+  describe('build with memory', () => {
+    let mockMemory
+
+    beforeEach(() => {
+      mockMemory = {
+        getLongTermMemory: vi.fn().mockResolvedValue(''),
+        getRecentDays: vi.fn().mockResolvedValue('')
+      }
+
+      context = new ContextBuilder(
+        { identityFile: 'identities/kenobot.md', memoryDays: 3 },
+        mockStorage,
+        mockMemory
+      )
+
+      vi.clearAllMocks()
+    })
+
+    it('should include memory instructions in system prompt', async () => {
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).toContain('## Memory')
+      expect(result.system).toContain('<memory>')
+      expect(result.system).toContain('How to remember things')
+    })
+
+    it('should include long-term memory when available', async () => {
+      mockMemory.getLongTermMemory.mockResolvedValue('# Facts\n- User likes Star Wars')
+
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).toContain('### Long-term memory')
+      expect(result.system).toContain('User likes Star Wars')
+    })
+
+    it('should include recent daily notes when available', async () => {
+      mockMemory.getRecentDays.mockResolvedValue('### 2026-02-07\n## 10:30 — User prefers Spanish')
+
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).toContain('### Recent notes')
+      expect(result.system).toContain('User prefers Spanish')
+    })
+
+    it('should skip long-term memory section when empty', async () => {
+      mockMemory.getLongTermMemory.mockResolvedValue('')
+
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).not.toContain('### Long-term memory')
+    })
+
+    it('should skip recent notes section when empty', async () => {
+      mockMemory.getRecentDays.mockResolvedValue('')
+
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).not.toContain('### Recent notes')
+    })
+
+    it('should use memoryDays from config', async () => {
+      const ctx = new ContextBuilder(
+        { identityFile: 'identities/kenobot.md', memoryDays: 7 },
+        mockStorage,
+        mockMemory
+      )
+
+      await ctx.build('telegram-123', { text: 'hello' })
+
+      expect(mockMemory.getRecentDays).toHaveBeenCalledWith(7)
+    })
+
+    it('should default to 3 days when memoryDays not configured', async () => {
+      const ctx = new ContextBuilder(
+        { identityFile: 'identities/kenobot.md' },
+        mockStorage,
+        mockMemory
+      )
+
+      await ctx.build('telegram-123', { text: 'hello' })
+
+      expect(mockMemory.getRecentDays).toHaveBeenCalledWith(3)
+    })
+
+    it('should still include identity at the start of system prompt', async () => {
+      mockMemory.getLongTermMemory.mockResolvedValue('some memory')
+
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system.startsWith('# KenoBot Identity')).toBe(true)
+    })
+  })
 })

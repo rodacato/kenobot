@@ -8,11 +8,15 @@ import logger from '../logger.js'
  *   - claude-api: native system param + messages array
  *   - claude-cli: prepends system to prompt string
  *   - mock: ignores system, pattern-matches last message
+ *
+ * System prompt structure:
+ *   [IDENTITY.md] + [Memory instructions + MEMORY.md + recent daily logs]
  */
 export default class ContextBuilder {
-  constructor(config, storage) {
+  constructor(config, storage, memoryManager) {
     this.config = config
     this.storage = storage
+    this.memory = memoryManager || null
     this._identity = null
   }
 
@@ -38,6 +42,9 @@ export default class ContextBuilder {
       await this.loadIdentity()
     }
 
+    // Build system prompt: identity + memory
+    const system = await this._buildSystemPrompt()
+
     // Load session history (last 20 messages)
     const history = await this.storage.loadSession(sessionId)
 
@@ -47,9 +54,50 @@ export default class ContextBuilder {
     // Append current user message
     messages.push({ role: 'user', content: message.text })
 
-    return {
-      system: this._identity,
-      messages
+    return { system, messages }
+  }
+
+  /**
+   * Assemble system prompt from identity + memory context.
+   * @private
+   */
+  async _buildSystemPrompt() {
+    const parts = [this._identity]
+
+    if (this.memory) {
+      const memoryDays = this.config.memoryDays ?? 3
+      const [longTerm, recentNotes] = await Promise.all([
+        this.memory.getLongTermMemory(),
+        this.memory.getRecentDays(memoryDays)
+      ])
+
+      const memorySection = [
+        '\n---\n',
+        '## Memory\n',
+        'You have persistent memory across conversations. Use it wisely.\n',
+        '### How to remember things',
+        'When you learn something worth remembering (user preferences, important facts, project context, decisions made), include it in your response:\n',
+        '<memory>Short title: fact to remember</memory>\n',
+        'Rules:',
+        '- Only save things that matter across conversations',
+        '- Be concise: one line per memory',
+        '- Don\'t save things already in your long-term memory',
+        '- You can include multiple <memory> tags in one response\n'
+      ]
+
+      if (longTerm) {
+        memorySection.push('### Long-term memory')
+        memorySection.push(longTerm + '\n')
+      }
+
+      if (recentNotes) {
+        memorySection.push('### Recent notes')
+        memorySection.push(recentNotes)
+      }
+
+      parts.push(memorySection.join('\n'))
     }
+
+    return parts.join('\n')
   }
 }
