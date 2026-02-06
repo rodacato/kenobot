@@ -23,25 +23,11 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.egg-info/
-dist/
-build/
-.venv/
-venv/
+# Runtime data (all under data/)
+data/
 
-# Runtime data
+# Heartbeat (session-specific, not source)
 heartbeat.md
-memory/
-sessions/
-logs/
-*.db
-*.db-journal
-*.sqlite
-*.sqlite-journal
 
 # OS
 .DS_Store
