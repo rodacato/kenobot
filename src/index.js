@@ -4,6 +4,7 @@ import config from './config.js'
 import bus from './bus.js'
 import TelegramChannel from './channels/telegram.js'
 import ClaudeCLIProvider from './providers/claude-cli.js'
+import ClaudeAPIProvider from './providers/claude-api.js'
 import MockProvider from './providers/mock.js'
 
 /**
@@ -33,6 +34,9 @@ switch (config.provider) {
     break
   case 'claude-cli':
     provider = new ClaudeCLIProvider(config)
+    break
+  case 'claude-api':
+    provider = new ClaudeAPIProvider(config)
     break
   default:
     console.error(`❌ Unknown provider: ${config.provider}`)
