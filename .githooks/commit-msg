@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# Validate conventional commit format and optional [changelog] section
+# Types: feat, fix, docs, style, refactor, test, chore, ci, perf, build
+
+commit_msg_file="$1"
+commit_msg=$(head -1 "$commit_msg_file")
+full_msg=$(cat "$commit_msg_file")
+
+# Allow merge commits
+if echo "$commit_msg" | grep -qE "^Merge "; then
+  exit 0
+fi
+
+# === Check 1: Conventional commit format ===
+pattern="^(feat|fix|docs|style|refactor|test|chore|ci|perf|build)(\(.+\))?: .{1,72}$"
+
+if ! echo "$commit_msg" | grep -qE "$pattern"; then
+  echo ""
+  echo "  Invalid commit message format."
+  echo ""
+  echo "  Expected: type(scope): description"
+  echo "  Types:    feat, fix, docs, style, refactor, test, chore, ci, perf, build"
+  echo "  Max:      72 characters for the first line"
+  echo ""
+  echo "  Examples:"
+  echo "    feat(telegram): add voice message support"
+  echo "    fix(memory): prevent duplicate entries on restart"
+  echo "    chore: update dependencies"
+  echo ""
+  echo "  Your message: $commit_msg"
+  echo ""
+  echo "  See CONTRIBUTING.md for guidelines."
+  echo ""
+  exit 1
+fi
+
+# === Check 2: Require [changelog] or [no-changelog] ===
+has_changelog=$(echo "$full_msg" | grep -c "^\[changelog\]" || true)
+has_no_changelog=$(echo "$full_msg" | grep -c "^\[no-changelog\]" || true)
+
+if [ "$has_changelog" -eq 0 ] && [ "$has_no_changelog" -eq 0 ]; then
+  echo ""
+  echo "  Missing [changelog] or [no-changelog] section."
+  echo ""
+  echo "  Every commit must include either:"
+  echo "    - [changelog] with entries for the release notes"
+  echo "    - [no-changelog] if this commit doesn't need release notes"
+  echo ""
+  echo "  Example with changelog:"
+  echo "    feat(telegram): add voice message support"
+  echo ""
+  echo "    Adds support for transcribing voice messages."
+  echo ""
+  echo "    [changelog]"
+  echo "    added: Voice message support via Telegram"
+  echo ""
+  echo "  Example without changelog:"
+  echo "    chore: fix typo in comment"
+  echo ""
+  echo "    [no-changelog]"
+  echo ""
+  echo "  See CONTRIBUTING.md for guidelines."
+  echo ""
+  exit 1
+fi
+
+# === Check 3: Validate [changelog] section if present ===
+if echo "$full_msg" | grep -q "^\[changelog\]"; then
+  valid_categories="added|changed|deprecated|removed|fixed|security"
+  in_changelog=false
+  found_issues=0
+  line_num=0
+
+  while IFS= read -r line; do
+    line_num=$((line_num + 1))
+
+    if echo "$line" | grep -q "^\[changelog\]"; then
+      in_changelog=true
+      continue
+    fi
+
+    if [ "$in_changelog" = true ]; then
+      # Skip empty lines
+      if [ -z "$line" ]; then
+        continue
+      fi
+
+      # Skip comment lines (git comments start with #)
+      if echo "$line" | grep -q "^#"; then
+        break
+      fi
+
+      # Validate format: category: description
+      if ! echo "$line" | grep -qE "^($valid_categories): .+$"; then
+        if [ $found_issues -eq 0 ]; then
+          echo ""
+          echo "  Invalid [changelog] entry:"
+        fi
+        echo "    Line $line_num: $line"
+        found_issues=$((found_issues + 1))
+      fi
+    fi
+  done <<< "$full_msg"
+
+  if [ $found_issues -ne 0 ]; then
+    echo ""
+    echo "  Expected format: category: description"
+    echo "  Valid categories: added, changed, deprecated, removed, fixed, security"
+    echo ""
+    echo "  Example:"
+    echo "    [changelog]"
+    echo "    added: Voice message support via Telegram"
+    echo "    fixed: Memory duplication on restart"
+    echo ""
+    echo "  See CONTRIBUTING.md for guidelines."
+    echo ""
+    exit 1
+  fi
+fi

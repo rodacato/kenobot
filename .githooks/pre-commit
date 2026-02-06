@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# Pre-commit hook: prevent committing secrets and sensitive data
+
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# Files staged for commit
+staged_files=$(git diff --cached --name-only --diff-filter=ACM)
+
+if [ -z "$staged_files" ]; then
+  exit 0
+fi
+
+found_issues=0
+
+# === Check 1: Forbidden files ===
+forbidden_patterns=(
+  "\.env$"
+  "\.env\."
+  "\.pem$"
+  "\.key$"
+  "\.p12$"
+  "\.secret$"
+  "auth-profiles\.json"
+  "service\.env"
+  "credentials\.json"
+)
+
+for file in $staged_files; do
+  for pattern in "${forbidden_patterns[@]}"; do
+    if echo "$file" | grep -qE "$pattern"; then
+      # Allow .env.example
+      if [ "$file" = ".env.example" ]; then
+        continue
+      fi
+      echo -e "${RED}BLOCKED${NC}: $file matches forbidden pattern ($pattern)"
+      found_issues=1
+    fi
+  done
+done
+
+# === Check 2: Secret patterns in file content ===
+secret_patterns=(
+  "sk-[a-zA-Z0-9]{20,}"
+  "sk-ant-[a-zA-Z0-9]+"
+  "sk-or-v1-[a-zA-Z0-9]+"
+  "AIza[0-9A-Za-z_-]{35}"
+  "ghp_[a-zA-Z0-9]{36}"
+  "gho_[a-zA-Z0-9]{36}"
+  "AKIA[0-9A-Z]{16}"
+  "-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----"
+  "-----BEGIN CERTIFICATE-----"
+)
+
+for file in $staged_files; do
+  # Skip safe files
+  if [ "$file" = ".env.example" ]; then
+    continue
+  fi
+
+  # Skip git hooks (they contain detection patterns)
+  if echo "$file" | grep -q "^\.githooks/"; then
+    continue
+  fi
+
+  if ! git show ":$file" 2>/dev/null | file - | grep -q "text"; then
+    continue
+  fi
+
+  content=$(git show ":$file" 2>/dev/null)
+
+  for pattern in "${secret_patterns[@]}"; do
+    if echo "$content" | grep -qE -- "$pattern"; then
+      echo -e "${RED}BLOCKED${NC}: $file contains what looks like a secret ($pattern)"
+      found_issues=1
+    fi
+  done
+done
+
+# === Check 3: Large files (> 1MB) ===
+for file in $staged_files; do
+  file_size=$(git show ":$file" 2>/dev/null | wc -c | tr -d ' ')
+  if [ "$file_size" -gt 1048576 ] 2>/dev/null; then
+    echo -e "${YELLOW}WARNING${NC}: $file is larger than 1MB (${file_size} bytes)"
+  fi
+done
+
+if [ $found_issues -ne 0 ]; then
+  echo ""
+  echo -e "${RED}Commit blocked.${NC} Fix the issues above. See CONTRIBUTING.md for guidelines."
+  echo ""
+  exit 1
+fi
+
+exit 0

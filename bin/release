@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Release script: collects [changelog] entries from commits, updates CHANGELOG.md, commits, and tags.
+# Usage: bin/release 2026.02.0
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+# --- Helpers ---
+
+die() {
+  echo -e "${RED}Error:${NC} $1" >&2
+  exit 1
+}
+
+info() {
+  echo -e "${GREEN}=>${NC} $1"
+}
+
+warn() {
+  echo -e "${YELLOW}Warning:${NC} $1"
+}
+
+# --- Validation ---
+
+version="${1:-}"
+
+if [ -z "$version" ]; then
+  echo "Usage: bin/release <version>"
+  echo "  Version format: YYYY.MM.patch (CalVer)"
+  echo "  Example: bin/release 2026.02.0"
+  exit 1
+fi
+
+# Validate CalVer format
+if ! echo "$version" | grep -qE "^[0-9]{4}\.[0-9]{2}\.[0-9]+$"; then
+  die "Invalid version format: $version (expected YYYY.MM.patch, e.g. 2026.02.0)"
+fi
+
+# Check we're in repo root
+if [ ! -f "CHANGELOG.md" ]; then
+  die "CHANGELOG.md not found. Run this from the project root."
+fi
+
+# Check for uncommitted changes
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  die "You have uncommitted changes. Commit or stash them first."
+fi
+
+# Check tag doesn't exist
+tag="v${version}"
+if git tag -l "$tag" | grep -q "$tag"; then
+  die "Tag $tag already exists."
+fi
+
+# --- Find last tag ---
+
+last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+if [ -z "$last_tag" ]; then
+  info "No previous tags found. Collecting entries from all commits."
+  commit_range="HEAD"
+else
+  info "Last tag: $last_tag"
+  commit_range="${last_tag}..HEAD"
+fi
+
+# --- Parse commits for [changelog] entries ---
+
+declare -a added changed deprecated removed fixed security
+
+while IFS= read -r commit_hash; do
+  msg=$(git log --format="%B" -1 "$commit_hash")
+  in_changelog=false
+
+  while IFS= read -r line; do
+    if echo "$line" | grep -q "^\[changelog\]"; then
+      in_changelog=true
+      continue
+    fi
+
+    if [ "$in_changelog" = true ]; then
+      [ -z "$line" ] && continue
+      echo "$line" | grep -q "^#" && break
+
+      category=$(echo "$line" | sed -n 's/^\([a-z]*\): .*/\1/p')
+      description=$(echo "$line" | sed -n 's/^[a-z]*: \(.*\)/\1/p')
+
+      case "$category" in
+        added)      added+=("$description") ;;
+        changed)    changed+=("$description") ;;
+        deprecated) deprecated+=("$description") ;;
+        removed)    removed+=("$description") ;;
+        fixed)      fixed+=("$description") ;;
+        security)   security+=("$description") ;;
+      esac
+    fi
+  done <<< "$msg"
+done < <(git log --format="%H" --reverse "$commit_range")
+
+# --- Check if we have entries ---
+
+total=$(( ${#added[@]} + ${#changed[@]} + ${#deprecated[@]} + ${#removed[@]} + ${#fixed[@]} + ${#security[@]} ))
+
+if [ "$total" -eq 0 ]; then
+  warn "No [changelog] entries found in commits since ${last_tag:-initial commit}."
+  echo ""
+  read -rp "Continue with empty release? (y/N) " confirm
+  if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+    echo "Aborted."
+    exit 0
+  fi
+fi
+
+# --- Build changelog section ---
+
+today=$(date +%Y-%m-%d)
+new_section="## [$version] - $today"
+
+append_category() {
+  local title="$1"
+  shift
+  local entries=("$@")
+  if [ ${#entries[@]} -gt 0 ]; then
+    new_section="${new_section}
+
+### $title"
+    for entry in "${entries[@]}"; do
+      new_section="${new_section}
+- $entry"
+    done
+  fi
+}
+
+append_category "Added" "${added[@]}"
+append_category "Changed" "${changed[@]}"
+append_category "Deprecated" "${deprecated[@]}"
+append_category "Removed" "${removed[@]}"
+append_category "Fixed" "${fixed[@]}"
+append_category "Security" "${security[@]}"
+
+# --- Update CHANGELOG.md ---
+
+changelog_content=$(cat CHANGELOG.md)
+
+# Replace [Unreleased] section with new version + fresh [Unreleased]
+# Find the line with ## [Unreleased] and everything until next ## or EOF
+new_changelog=$(echo "$changelog_content" | awk -v new_section="$new_section" '
+  /^## \[Unreleased\]/ {
+    print "## [Unreleased]"
+    print ""
+    print new_section
+    skip = 1
+    next
+  }
+  /^## \[/ && skip {
+    skip = 0
+  }
+  !skip { print }
+')
+
+echo "$new_changelog" > CHANGELOG.md
+
+info "Updated CHANGELOG.md"
+
+# --- Show summary ---
+
+echo ""
+echo -e "${BOLD}Release $version summary:${NC}"
+echo ""
+echo "$new_section"
+echo ""
+
+# --- Commit and tag ---
+
+git add CHANGELOG.md
+git commit -m "chore: release v${version}
+
+[changelog]
+changed: Release v${version}"
+
+git tag -a "$tag" -m "Release $version"
+
+info "Created commit and tag $tag"
+echo ""
+echo -e "${GREEN}Done!${NC} To push: git push && git push --tags"

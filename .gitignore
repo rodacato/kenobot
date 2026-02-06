@@ -1,0 +1,72 @@
+# Claude Code (local settings and session plans)
+.claude/
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+
+# Credentials & tokens
+config/secrets/
+*.secret
+auth-profiles.json
+service.env
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Runtime data
+heartbeat.md
+memory/
+sessions/
+logs/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Build & artifacts
+*.tgz
+*.tar.gz
+*.zip
+
+# n8n workflow exports with credentials
+workflows/*.credentials.json
+
+# Temporary
+tmp/
+temp/
+scratchpad/
