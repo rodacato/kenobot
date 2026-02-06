@@ -8,6 +8,7 @@ import ClaudeCLIProvider from './providers/claude-cli.js'
 import ClaudeAPIProvider from './providers/claude-api.js'
 import MockProvider from './providers/mock.js'
 import FilesystemStorage from './storage/filesystem.js'
+import MemoryManager from './agent/memory.js'
 import ContextBuilder from './agent/context.js'
 import AgentLoop from './agent/loop.js'
 
@@ -38,10 +39,11 @@ switch (config.provider) {
     process.exit(1)
 }
 
-// Initialize storage and agent
+// Initialize storage, memory, and agent
 const storage = new FilesystemStorage(config)
-const contextBuilder = new ContextBuilder(config, storage)
-const agent = new AgentLoop(bus, provider, contextBuilder, storage)
+const memory = new MemoryManager(config.dataDir)
+const contextBuilder = new ContextBuilder(config, storage, memory)
+const agent = new AgentLoop(bus, provider, contextBuilder, storage, memory)
 
 // Initialize channel
 const telegram = new TelegramChannel(bus, {

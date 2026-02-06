@@ -1,4 +1,5 @@
 import logger from '../logger.js'
+import { extractMemories } from './memory-extractor.js'
 
 /**
  * AgentLoop - Core message handler with session persistence
@@ -6,14 +7,15 @@ import logger from '../logger.js'
  * Replaces the inline handler in index.js with proper context building,
  * session routing, and history persistence.
  *
- * Flow: message:in → build context → provider.chat → save session → message:out
+ * Flow: message:in → build context → provider.chat → extract memories → save session → message:out
  */
 export default class AgentLoop {
-  constructor(bus, provider, contextBuilder, storage) {
+  constructor(bus, provider, contextBuilder, storage, memoryManager) {
     this.bus = bus
     this.provider = provider
     this.contextBuilder = contextBuilder
     this.storage = storage
+    this.memory = memoryManager || null
     this._handler = null
   }
 
@@ -70,23 +72,35 @@ export default class AgentLoop {
       clearInterval(typingInterval)
 
       const durationMs = Date.now() - start
+
+      // Extract memory tags from response
+      const { cleanText, memories } = extractMemories(response.content)
+
       logger.info('agent', 'response_generated', {
         sessionId,
         durationMs,
-        contentLength: response.content.length
+        contentLength: cleanText.length,
+        memoriesExtracted: memories.length
       })
 
-      // Save both messages to session history
+      // Save memories to daily log
+      if (this.memory && memories.length > 0) {
+        for (const entry of memories) {
+          await this.memory.appendDaily(entry)
+        }
+      }
+
+      // Save both messages to session history (clean text without memory tags)
       const now = Date.now()
       await this.storage.saveSession(sessionId, [
         { role: 'user', content: message.text, timestamp: now - 1 },
-        { role: 'assistant', content: response.content, timestamp: now }
+        { role: 'assistant', content: cleanText, timestamp: now }
       ])
 
-      // Emit response
+      // Emit response (clean text without memory tags)
       this.bus.emit('message:out', {
         chatId: message.chatId,
-        text: response.content,
+        text: cleanText,
         channel: message.channel
       })
     } catch (error) {

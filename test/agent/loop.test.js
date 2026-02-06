@@ -176,4 +176,96 @@ describe('AgentLoop', () => {
       })
     })
   })
+
+  describe('memory extraction', () => {
+    let memoryManager
+
+    const message = {
+      text: 'remember I prefer Spanish',
+      chatId: '123',
+      userId: '456',
+      channel: 'telegram'
+    }
+
+    beforeEach(() => {
+      memoryManager = {
+        appendDaily: vi.fn().mockResolvedValue(undefined)
+      }
+
+      agent = new AgentLoop(bus, provider, contextBuilder, storage, memoryManager)
+      vi.clearAllMocks()
+    })
+
+    it('should extract memory tags and save to daily log', async () => {
+      provider.chat.mockResolvedValue({
+        content: 'Got it!\n<memory>User prefers Spanish</memory>'
+      })
+
+      await agent._handleMessage(message)
+
+      expect(memoryManager.appendDaily).toHaveBeenCalledWith('User prefers Spanish')
+    })
+
+    it('should send clean text without memory tags to user', async () => {
+      provider.chat.mockResolvedValue({
+        content: 'Got it!\n<memory>User prefers Spanish</memory>'
+      })
+
+      await agent._handleMessage(message)
+
+      expect(bus.emit).toHaveBeenCalledWith('message:out', {
+        chatId: '123',
+        text: 'Got it!',
+        channel: 'telegram'
+      })
+    })
+
+    it('should save clean text to session history', async () => {
+      provider.chat.mockResolvedValue({
+        content: 'Sure!\n<memory>some fact</memory>'
+      })
+
+      await agent._handleMessage(message)
+
+      const savedMessages = storage.saveSession.mock.calls[0][1]
+      expect(savedMessages[1].content).toBe('Sure!')
+      expect(savedMessages[1].content).not.toContain('<memory>')
+    })
+
+    it('should handle multiple memory tags', async () => {
+      provider.chat.mockResolvedValue({
+        content: 'OK!\n<memory>fact one</memory>\n<memory>fact two</memory>'
+      })
+
+      await agent._handleMessage(message)
+
+      expect(memoryManager.appendDaily).toHaveBeenCalledTimes(2)
+      expect(memoryManager.appendDaily).toHaveBeenCalledWith('fact one')
+      expect(memoryManager.appendDaily).toHaveBeenCalledWith('fact two')
+    })
+
+    it('should not call memoryManager when no tags present', async () => {
+      provider.chat.mockResolvedValue({ content: 'plain response' })
+
+      await agent._handleMessage(message)
+
+      expect(memoryManager.appendDaily).not.toHaveBeenCalled()
+    })
+
+    it('should work without memoryManager (backward compatible)', async () => {
+      const agentNoMemory = new AgentLoop(bus, provider, contextBuilder, storage)
+      provider.chat.mockResolvedValue({
+        content: 'response\n<memory>orphan tag</memory>'
+      })
+
+      await agentNoMemory._handleMessage(message)
+
+      // Should still clean the tags even without memoryManager
+      expect(bus.emit).toHaveBeenCalledWith('message:out', {
+        chatId: '123',
+        text: 'response',
+        channel: 'telegram'
+      })
+    })
+  })
 })

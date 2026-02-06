@@ -37,5 +37,8 @@ export default {
   },
 
   // Data directories
-  dataDir: process.env.DATA_DIR || './data'
+  dataDir: process.env.DATA_DIR || './data',
+
+  // Memory
+  memoryDays: parseInt(process.env.MEMORY_DAYS || '3', 10)
 }
