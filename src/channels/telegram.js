@@ -1,5 +1,6 @@
 import { Bot } from 'grammy'
 import BaseChannel from './base.js'
+import { markdownToHTML } from '../format/telegram.js'
 import logger from '../logger.js'
 
 /**
@@ -67,14 +68,17 @@ export default class TelegramChannel extends BaseChannel {
     await this.bot.stop()
   }
 
-  async send(chatId, text, options = {}) {
-    // Split long messages (Telegram limit: 4096 chars)
-    const chunks = this._chunkMessage(text, 4000)
+  async send(chatId, text) {
+    const html = markdownToHTML(text)
+    const chunks = this._chunkMessage(html, 4000)
 
     for (const chunk of chunks) {
-      await this.bot.api.sendMessage(chatId, chunk, {
-        parse_mode: options.markdown ? 'Markdown' : undefined
-      })
+      try {
+        await this.bot.api.sendMessage(chatId, chunk, { parse_mode: 'HTML' })
+      } catch {
+        // HTML parse failed — fall back to plain text
+        await this.bot.api.sendMessage(chatId, chunk)
+      }
     }
   }
 
