@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+# KenoBot startup script
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+# Check if node is installed
+if ! command -v node &> /dev/null; then
+  echo "❌ Node.js not found. Please install Node.js 22+"
+  exit 1
+fi
+
+# Check Node version
+NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
+if [ "$NODE_VERSION" -lt 22 ]; then
+  echo "❌ Node.js 22+ required. Current version: $(node -v)"
+  exit 1
+fi
+
+# Check if dependencies are installed
+if [ ! -d "node_modules" ]; then
+  echo "📦 Installing dependencies..."
+  npm install
+fi
+
+# Check if .env exists
+if [ ! -f ".env" ]; then
+  echo "❌ .env file not found"
+  echo "Create .env with:"
+  echo "  TELEGRAM_BOT_TOKEN=your_token_here"
+  echo "  TELEGRAM_ALLOWED_CHAT_IDS=your_chat_id_here"
+  exit 1
+fi
+
+# Start the bot
+echo "🚀 Starting KenoBot..."
+node src/index.js "$@"
