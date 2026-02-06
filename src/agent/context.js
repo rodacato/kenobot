@@ -21,7 +21,7 @@ export default class ContextBuilder {
    * Called once at startup by AgentLoop.
    */
   async loadIdentity() {
-    const identityFile = this.config.identityFile || 'IDENTITY.md'
+    const identityFile = this.config.identityFile || 'identities/kenobot.md'
     this._identity = await this.storage.readFile(identityFile)
     logger.info('context', 'identity_loaded', { file: identityFile, length: this._identity.length })
   }

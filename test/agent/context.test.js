@@ -22,7 +22,7 @@ describe('ContextBuilder', () => {
     }
 
     context = new ContextBuilder(
-      { identityFile: 'IDENTITY.md' },
+      { identityFile: 'identities/kenobot.md' },
       mockStorage
     )
 
@@ -33,7 +33,7 @@ describe('ContextBuilder', () => {
     it('should read identity file from storage', async () => {
       await context.loadIdentity()
 
-      expect(mockStorage.readFile).toHaveBeenCalledWith('IDENTITY.md')
+      expect(mockStorage.readFile).toHaveBeenCalledWith('identities/kenobot.md')
     })
 
     it('should cache identity after first load', async () => {
@@ -49,13 +49,13 @@ describe('ContextBuilder', () => {
       const ctx = new ContextBuilder({}, mockStorage)
       await ctx.loadIdentity()
 
-      expect(mockStorage.readFile).toHaveBeenCalledWith('IDENTITY.md')
+      expect(mockStorage.readFile).toHaveBeenCalledWith('identities/kenobot.md')
     })
 
     it('should throw if identity file is missing', async () => {
-      mockStorage.readFile.mockRejectedValue(new Error('File not found: IDENTITY.md'))
+      mockStorage.readFile.mockRejectedValue(new Error('File not found: identities/kenobot.md'))
 
-      await expect(context.loadIdentity()).rejects.toThrow('File not found: IDENTITY.md')
+      await expect(context.loadIdentity()).rejects.toThrow('File not found: identities/kenobot.md')
     })
   })
 
@@ -109,7 +109,7 @@ describe('ContextBuilder', () => {
     it('should auto-load identity on first build if not loaded', async () => {
       await context.build('telegram-123', { text: 'hello' })
 
-      expect(mockStorage.readFile).toHaveBeenCalledWith('IDENTITY.md')
+      expect(mockStorage.readFile).toHaveBeenCalledWith('identities/kenobot.md')
       expect(context._identity).toBe('# KenoBot Identity\nI am KenoBot.')
     })
 
