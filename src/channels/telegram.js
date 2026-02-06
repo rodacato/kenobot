@@ -1,5 +1,6 @@
 import { Bot } from 'grammy'
 import BaseChannel from './base.js'
+import logger from '../logger.js'
 
 /**
  * TelegramChannel - Telegram Bot API integration via grammy
@@ -14,7 +15,7 @@ export default class TelegramChannel extends BaseChannel {
   }
 
   async start() {
-    console.log('[telegram] Starting Telegram bot...')
+    logger.info('telegram', 'starting')
 
     // Handle incoming text messages
     this.bot.on('message:text', async (ctx) => {
@@ -39,7 +40,7 @@ export default class TelegramChannel extends BaseChannel {
       try {
         await this.send(chatId, text)
       } catch (error) {
-        console.error('[telegram] Failed to send message:', error.message)
+        logger.error('telegram', 'send_failed', { error: error.message, chatId })
         this.bus.emit('error', {
           source: this.name,
           error: error.message,
@@ -50,11 +51,11 @@ export default class TelegramChannel extends BaseChannel {
 
     // Start polling
     await this.bot.start()
-    console.log('[telegram] ✓ Bot started successfully')
+    logger.info('telegram', 'started')
   }
 
   async stop() {
-    console.log('[telegram] Stopping bot...')
+    logger.info('telegram', 'stopping')
     await this.bot.stop()
   }
 

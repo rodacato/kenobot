@@ -1,36 +1,28 @@
 #!/usr/bin/env node
 
 import config from './config.js'
+import logger from './logger.js'
 import bus from './bus.js'
 import TelegramChannel from './channels/telegram.js'
 import ClaudeCLIProvider from './providers/claude-cli.js'
 import ClaudeAPIProvider from './providers/claude-api.js'
 import MockProvider from './providers/mock.js'
 
-/**
- * KenoBot - Phase 0: Prototype
- *
- * Goal: Prove the core loop works
- * - Telegram message comes in
- * - Pass to provider (mock or real)
- * - Send response back
- *
- * No agent, no context, no memory yet.
- * Just the basic wiring.
- */
+// Configure logger with data directory for JSONL file output
+logger.configure({ dataDir: config.dataDir })
 
-console.log('🤖 KenoBot starting...')
-console.log(`   Provider: ${config.provider}`)
-console.log(`   Model: ${config.model}`)
-console.log(`   Allowed chat IDs: ${config.telegram.allowedChatIds.join(', ')}`)
-console.log()
+logger.info('system', 'startup', {
+  provider: config.provider,
+  model: config.model,
+  allowedChats: config.telegram.allowedChatIds.length
+})
 
 // Initialize provider based on config
 let provider
 switch (config.provider) {
   case 'mock':
     provider = new MockProvider(config)
-    console.log('   ⚠️  Using MOCK provider (for testing only)')
+    logger.warn('system', 'mock_provider_active')
     break
   case 'claude-cli':
     provider = new ClaudeCLIProvider(config)
@@ -39,10 +31,9 @@ switch (config.provider) {
     provider = new ClaudeAPIProvider(config)
     break
   default:
-    console.error(`❌ Unknown provider: ${config.provider}`)
+    logger.error('system', 'unknown_provider', { provider: config.provider })
     process.exit(1)
 }
-console.log()
 
 // Initialize channel
 const telegram = new TelegramChannel(bus, {
@@ -52,26 +43,34 @@ const telegram = new TelegramChannel(bus, {
 
 // Simple message handler (Phase 0 - no agent yet)
 bus.on('message:in', async (message) => {
-  console.log(`[message:in] ${message.userId}: ${message.text}`)
+  logger.info('telegram', 'message_received', {
+    userId: message.userId,
+    chatId: message.chatId,
+    length: message.text.length
+  })
 
   try {
-    // Call provider
+    const start = Date.now()
     const response = await provider.chat([
       { role: 'user', content: message.text }
     ])
 
-    console.log(`[claude] Response: ${response.content.slice(0, 100)}...`)
+    logger.info(config.provider, 'response_received', {
+      durationMs: Date.now() - start,
+      contentLength: response.content.length
+    })
 
-    // Publish response to bus
     bus.emit('message:out', {
       chatId: message.chatId,
       text: response.content,
       channel: message.channel
     })
   } catch (error) {
-    console.error('[error] Failed to process message:', error.message)
+    logger.error('system', 'message_processing_failed', {
+      error: error.message,
+      chatId: message.chatId
+    })
 
-    // Send error to user
     bus.emit('message:out', {
       chatId: message.chatId,
       text: `Error: ${error.message}`,
@@ -82,24 +81,27 @@ bus.on('message:in', async (message) => {
 
 // Error handler
 bus.on('error', ({ source, error, context }) => {
-  console.error(`[error] ${source}:`, error, context)
+  logger.error('bus', 'event_error', {
+    source,
+    error: typeof error === 'string' ? error : error?.message || String(error)
+  })
 })
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
-  console.log('\n[shutdown] SIGTERM received, shutting down gracefully...')
+  logger.info('system', 'shutdown', { signal: 'SIGTERM' })
   await telegram.stop()
   process.exit(0)
 })
 
 process.on('SIGINT', async () => {
-  console.log('\n[shutdown] SIGINT received, shutting down gracefully...')
+  logger.info('system', 'shutdown', { signal: 'SIGINT' })
   await telegram.stop()
   process.exit(0)
 })
 
 // Start the bot
 telegram.start().catch(error => {
-  console.error('[fatal] Failed to start bot:', error.message)
+  logger.error('system', 'startup_failed', { error: error.message })
   process.exit(1)
 })

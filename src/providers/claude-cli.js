@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import BaseProvider from './base.js'
+import logger from '../logger.js'
 
 /**
  * ClaudeCLIProvider - Wraps the official Claude Code CLI
@@ -42,14 +43,14 @@ export default class ClaudeCLIProvider extends BaseProvider {
       const { stdout, stderr } = await this._spawn('claude', args)
 
       if (stderr) {
-        console.warn('[claude-cli] stderr:', stderr)
+        logger.warn('claude-cli', 'stderr_output', { stderr: stderr.slice(0, 200) })
       }
 
       return {
         content: stdout.trim()
       }
     } catch (error) {
-      console.error('[claude-cli] Error:', error.message)
+      logger.error('claude-cli', 'request_failed', { error: error.message })
       throw new Error(`Claude CLI failed: ${error.message}`)
     }
   }

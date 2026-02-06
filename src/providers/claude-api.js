@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import BaseProvider from './base.js'
+import logger from '../logger.js'
 
 /**
  * ClaudeAPIProvider - Direct API integration with Anthropic
@@ -31,7 +32,7 @@ export default class ClaudeAPIProvider extends BaseProvider {
     }
 
     this.model = modelMap[config.model] || config.model || modelMap.sonnet
-    console.log(`[claude-api] Using model: ${this.model}`)
+    logger.info('claude-api', 'initialized', { model: this.model })
   }
 
   /**
@@ -63,7 +64,7 @@ export default class ClaudeAPIProvider extends BaseProvider {
         }
       }
     } catch (error) {
-      console.error('[claude-api] Error:', error.message)
+      logger.error('claude-api', 'request_failed', { error: error.message })
       throw new Error(`Claude API error: ${error.message}`)
     }
   }

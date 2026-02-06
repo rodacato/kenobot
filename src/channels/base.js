@@ -1,4 +1,5 @@
 import EventEmitter from 'node:events'
+import logger from '../logger.js'
 
 /**
  * BaseChannel - Interface for I/O channels (Telegram, Discord, HTTP, etc.)
@@ -59,7 +60,7 @@ export default class BaseChannel extends EventEmitter {
   _publishMessage(message) {
     // Security: deny by default
     if (!this._isAllowed(message.userId)) {
-      console.warn(`[${this.name}] Rejected message from unauthorized user: ${message.userId}`)
+      logger.warn('channel', 'auth_rejected', { userId: message.userId, channel: this.name })
       return
     }
 
@@ -81,7 +82,7 @@ export default class BaseChannel extends EventEmitter {
 
     // Deny by default (security)
     if (allowFrom.length === 0) {
-      console.error(`[${this.name}] No allowFrom configured, rejecting all messages`)
+      logger.error('channel', 'no_allowlist', { channel: this.name })
       return false
     }
 

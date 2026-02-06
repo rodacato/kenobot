@@ -1,5 +1,6 @@
 import { config as loadEnv } from 'dotenv'
 import { parseArgs } from 'node:util'
+import logger from './logger.js'
 
 // Parse command line arguments
 const { values } = parseArgs({
@@ -17,8 +18,7 @@ loadEnv({ path: values.config, override: true })
 const required = ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_ALLOWED_CHAT_IDS']
 for (const key of required) {
   if (!process.env[key]) {
-    console.error(`❌ Missing required config: ${key}`)
-    console.error(`Create a .env file with: ${key}=your_value`)
+    logger.error('system', 'config_missing', { key, hint: `set ${key} in .env` })
     process.exit(1)
   }
 }
