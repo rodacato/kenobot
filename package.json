@@ -1,0 +1,21 @@
+{
+  "name": "kenobot",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Personal AI assistant with Star Wars personality",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": ["ai", "assistant", "telegram", "claude"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "grammy": "^1.32.0",
+    "dotenv": "^16.4.7"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
