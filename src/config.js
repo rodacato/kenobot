@@ -10,7 +10,8 @@ const { values } = parseArgs({
 })
 
 // Load environment variables from specified config file
-loadEnv({ path: values.config })
+// Use override: true to override any existing env vars (important in containers)
+loadEnv({ path: values.config, override: true })
 
 // Validate required config
 const required = ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_ALLOWED_CHAT_IDS']

@@ -10,11 +10,13 @@ Esta guía te llevará paso a paso desde cero hasta tener KenoBot funcionando.
 
 ## 🚀 Pasos
 
-### Paso 1: Crear tu bot de Telegram
+### Paso 1: Crear tu bot de Telegram (obtener TOKEN)
+
+> 🎯 **Objetivo**: Obtener el **TOKEN** del bot (credencial de autenticación)
 
 1. **Abre Telegram** en tu teléfono o desktop
 
-2. **Busca @BotFather** (es el bot oficial para crear bots)
+2. **Busca @BotFather** (es el bot oficial de Telegram para crear bots)
 
 3. **Envía el comando**:
    ```
@@ -25,30 +27,41 @@ Esta guía te llevará paso a paso desde cero hasta tener KenoBot funcionando.
    - **Bot name**: Elige un nombre (ej: "Mi KenoBot")
    - **Username**: Debe terminar en "bot" (ej: "mi_kenobot_bot")
 
-5. **Copia el token** que te da BotFather. Se ve así:
+5. **Copia el TOKEN** que te da BotFather. Se ve así:
    ```
-   1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
+   7891234567:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw
    ```
 
-   ⚠️ **IMPORTANTE**: Guarda este token, lo necesitarás en el paso 3.
+   ⚠️ **Esto es el TOKEN del bot** (la "contraseña" del bot).
+   📝 Guárdalo en un lugar seguro, lo necesitarás en el paso 3.
 
-### Paso 2: Obtener tu Telegram Chat ID
+### Paso 2: Obtener TU Chat ID (tu identificación personal)
 
-1. **Busca @userinfobot** en Telegram
+> 🎯 **Objetivo**: Obtener **TU CHAT ID** (tu identificación como usuario de Telegram)
+
+**⚠️ IMPORTANTE**: Este es un paso **diferente** al anterior. Ahora necesitas **TU** ID, no el del bot.
+
+1. **Busca @userinfobot** en Telegram (bot diferente a BotFather)
 
 2. **Envía el comando**:
    ```
    /start
    ```
 
-3. **Copia tu ID**. Te responderá algo como:
+3. **Copia el número del "Id:"**. Te responderá algo como:
    ```
-   Id: 123456789
-   First name: Tu Nombre
-   Username: @tu_username
+   @rodacato
+   Id: 63059997          ← COPIA ESTE NÚMERO
+   First: Adrian
+   Last: Castillo
+   Lang: en
    ```
 
-   ⚠️ **Copia solo el número** (ej: `123456789`), lo necesitarás en el paso 3.
+   ⚠️ **Esto es TU CHAT ID** (tu identificación personal).
+   📝 Guárdalo, lo necesitarás en el paso 3.
+
+**💡 ¿Por qué necesito esto?**
+Para que el bot solo te responda **a ti** y no a cualquier persona que le escriba.
 
 ### Paso 3: Configurar KenoBot
 
@@ -302,12 +315,127 @@ Phase 1 agregará:
 
 ---
 
+## ❓ FAQ (Preguntas Frecuentes)
+
+### ¿Cuál es la diferencia entre Token y Chat ID?
+
+Son **dos cosas completamente diferentes**:
+
+| Concepto | Qué es | Dónde lo obtienes | Para qué sirve |
+|----------|--------|-------------------|----------------|
+| **Token del Bot** | Credencial de tu bot | @BotFather | Autenticar tu bot con Telegram |
+| **Chat ID** | TU ID de usuario | @userinfobot | Identificarte como usuario autorizado |
+
+**Analogía**:
+- **Token** = Contraseña del bot (como la llave de una casa)
+- **Chat ID** = Tu identificación personal (como tu cédula)
+
+### ¿Por qué necesito MI chat ID y no el del bot?
+
+Porque KenoBot usa tu Chat ID para **seguridad**:
+
+```javascript
+// Cuando TÚ le envías un mensaje al bot:
+{
+  userId: 63059997,        // TU Chat ID (el que sacaste de @userinfobot)
+  text: "Hello there!"
+}
+
+// El bot verifica:
+if (userId === TELEGRAM_ALLOWED_CHAT_IDS) {
+  // ✅ Eres tú, te respondo
+} else {
+  // ❌ No eres tú, te ignoro
+}
+```
+
+Esto previene que **otras personas** usen tu bot.
+
+### ¿Qué hace cada bot?
+
+| Bot | Función | Comandos |
+|-----|---------|----------|
+| **@BotFather** | Crear y gestionar bots | `/newbot` - Crear bot<br>`/mybots` - Ver tus bots |
+| **@userinfobot** | Ver tu información de usuario | `/start` - Ver tu ID |
+| **@k3noBot** | TU bot (el que creaste) | Lo que tú programes |
+
+### ¿Los números que veo son correctos?
+
+Sí. Ejemplos reales:
+
+```bash
+# Token del bot (de @BotFather)
+TELEGRAM_BOT_TOKEN=7891234567:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw
+#                  ^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#                  Bot ID    Token secreto (no compartir)
+
+# Tu Chat ID (de @userinfobot)
+TELEGRAM_ALLOWED_CHAT_IDS=63059997
+#                         ^^^^^^^^
+#                         Tu ID de usuario
+```
+
+### ¿Puedo usar el mismo bot en varios dispositivos?
+
+Sí. El **token del bot** es el mismo, pero cada **persona** tiene su propio **Chat ID**.
+
+Si quieres que otra persona use el bot:
+```bash
+# Múltiples usuarios (separados por coma)
+TELEGRAM_ALLOWED_CHAT_IDS=63059997,87654321,12345678
+```
+
+### ¿Qué pasa si alguien más envía un mensaje a mi bot?
+
+KenoBot lo rechaza automáticamente (deny by default):
+
+```
+[telegram] Rejected message from unauthorized user: 87654321
+```
+
+Solo TÚ (con tu Chat ID) recibes respuestas.
+
+### ¿Por qué usar mock provider primero?
+
+Porque estamos en **devcontainer como root**, y Claude CLI no permite `--dangerously-skip-permissions` como root (seguridad).
+
+Opciones:
+1. **Mock** (actual): Testing sin LLM real ✅
+2. **Claude API**: Requiere API key de Anthropic
+3. **Claude CLI**: Requiere usuario no-root
+
+Mock te permite probar que **todo el flow funciona** antes de configurar autenticación.
+
+### ¿Cuándo cambio a Claude real?
+
+Después de validar que mock funciona:
+
+```bash
+# Opción 1: Claude API (recomendado)
+PROVIDER=claude-api
+ANTHROPIC_API_KEY=tu_api_key
+
+# Opción 2: Claude CLI (requiere setup de usuario no-root)
+PROVIDER=claude-cli
+```
+
+---
+
 ## 📚 Recursos
 
-- [Telegram BotFather](https://t.me/botfather)
-- [Telegram UserInfo Bot](https://t.me/userinfobot)
-- [KenoBot Plan](./docs/PLAN.md)
-- [Architecture Docs](./docs/AGENTS.md)
+- [Telegram BotFather](https://t.me/botfather) - Crear bots
+- [Telegram UserInfo Bot](https://t.me/userinfobot) - Obtener tu Chat ID
+- [KenoBot Plan](./docs/PLAN.md) - Roadmap completo
+- [Architecture Docs](./docs/AGENTS.md) - Diseño del sistema
+
+---
+
+## 💡 Tips
+
+- **Guarda tu token en lugar seguro**: Cualquiera con el token puede controlar tu bot
+- **No commitees el `.env`**: Ya está en `.gitignore`, pero verifica
+- **Logs son tus amigos**: Si algo falla, `[error]` te dirá qué pasó
+- **Mock es temporal**: Una vez que funcione, cambia a provider real
 
 ---
 
