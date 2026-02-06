@@ -15,23 +15,58 @@ describe('ClaudeCLIProvider', () => {
   })
 
   describe('chat()', () => {
-    it('should use last message content as prompt', async () => {
+    it('should pass single message content as prompt', async () => {
       const spawnSpy = vi.spyOn(provider, '_spawn').mockResolvedValue({
         stdout: 'hello back',
         stderr: ''
       })
 
       const result = await provider.chat([
-        { role: 'user', content: 'first message' },
-        { role: 'user', content: 'second message' }
+        { role: 'user', content: 'hello' }
       ])
 
       expect(result.content).toBe('hello back')
 
-      // Verify prompt is the last message
       const args = spawnSpy.mock.calls[0][1]
-      expect(args[args.length - 1]).toBe('second message')
-      expect(args[args.length - 2]).toBe('-p')
+      const prompt = args[args.length - 1]
+      expect(prompt).toBe('hello')
+    })
+
+    it('should format multi-message history with role prefixes', async () => {
+      const spawnSpy = vi.spyOn(provider, '_spawn').mockResolvedValue({
+        stdout: 'response',
+        stderr: ''
+      })
+
+      await provider.chat([
+        { role: 'user', content: 'first' },
+        { role: 'assistant', content: 'reply' },
+        { role: 'user', content: 'second' }
+      ])
+
+      const args = spawnSpy.mock.calls[0][1]
+      const prompt = args[args.length - 1]
+      expect(prompt).toContain('Human: first')
+      expect(prompt).toContain('Assistant: reply')
+      expect(prompt).toContain('Human: second')
+    })
+
+    it('should prepend system prompt when provided', async () => {
+      const spawnSpy = vi.spyOn(provider, '_spawn').mockResolvedValue({
+        stdout: 'response',
+        stderr: ''
+      })
+
+      await provider.chat(
+        [{ role: 'user', content: 'hello' }],
+        { system: '# Identity\nI am KenoBot.' }
+      )
+
+      const args = spawnSpy.mock.calls[0][1]
+      const prompt = args[args.length - 1]
+      expect(prompt).toContain('# Identity\nI am KenoBot.')
+      expect(prompt).toContain('---')
+      expect(prompt).toContain('hello')
     })
 
     it('should pass Claudio-compatible flags', async () => {

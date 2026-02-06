@@ -43,12 +43,18 @@ export default class ClaudeAPIProvider extends BaseProvider {
    */
   async chat(messages, options = {}) {
     try {
-      const response = await this.client.messages.create({
+      const params = {
         model: this.model,
         max_tokens: options.max_tokens || 4096,
         temperature: options.temperature,
         messages
-      })
+      }
+
+      if (options.system) {
+        params.system = options.system
+      }
+
+      const response = await this.client.messages.create(params)
 
       // Extract text from response
       const content = response.content

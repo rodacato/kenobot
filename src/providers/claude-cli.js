@@ -22,11 +22,8 @@ export default class ClaudeCLIProvider extends BaseProvider {
   async chat(messages, options = {}) {
     const model = options.model || this.config.model
 
-    // Build prompt from messages
-    // For Phase 0, we just use the last user message
-    // Phase 1 will add full context building
-    const lastMessage = messages[messages.length - 1]
-    const prompt = lastMessage?.content || ''
+    // Build prompt from system context + message history
+    const prompt = this._buildPrompt(messages, options)
 
     // Flags aligned with Claudio's approach (github.com/edgarjs/claudio)
     const args = [
@@ -90,6 +87,30 @@ export default class ClaudeCLIProvider extends BaseProvider {
         reject(error)
       })
     })
+  }
+
+  /**
+   * Build a single prompt string from system context + messages.
+   * @private
+   */
+  _buildPrompt(messages, options = {}) {
+    let prompt = ''
+
+    if (options.system) {
+      prompt += options.system + '\n\n---\n\n'
+    }
+
+    if (messages.length === 1) {
+      // Single message — no need for role prefixes
+      return prompt + (messages[0].content || '')
+    }
+
+    for (const msg of messages) {
+      const prefix = msg.role === 'user' ? 'Human' : 'Assistant'
+      prompt += `${prefix}: ${msg.content}\n\n`
+    }
+
+    return prompt.trim()
   }
 
   get name() {
