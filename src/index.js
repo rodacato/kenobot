@@ -4,13 +4,14 @@ import config from './config.js'
 import bus from './bus.js'
 import TelegramChannel from './channels/telegram.js'
 import ClaudeCLIProvider from './providers/claude-cli.js'
+import MockProvider from './providers/mock.js'
 
 /**
  * KenoBot - Phase 0: Prototype
  *
  * Goal: Prove the core loop works
  * - Telegram message comes in
- * - Pass to Claude CLI
+ * - Pass to provider (mock or real)
  * - Send response back
  *
  * No agent, no context, no memory yet.
@@ -23,8 +24,21 @@ console.log(`   Model: ${config.model}`)
 console.log(`   Allowed chat IDs: ${config.telegram.allowedChatIds.join(', ')}`)
 console.log()
 
-// Initialize provider
-const provider = new ClaudeCLIProvider(config)
+// Initialize provider based on config
+let provider
+switch (config.provider) {
+  case 'mock':
+    provider = new MockProvider(config)
+    console.log('   ⚠️  Using MOCK provider (for testing only)')
+    break
+  case 'claude-cli':
+    provider = new ClaudeCLIProvider(config)
+    break
+  default:
+    console.error(`❌ Unknown provider: ${config.provider}`)
+    process.exit(1)
+}
+console.log()
 
 // Initialize channel
 const telegram = new TelegramChannel(bus, {
