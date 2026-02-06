@@ -7,6 +7,9 @@ import TelegramChannel from './channels/telegram.js'
 import ClaudeCLIProvider from './providers/claude-cli.js'
 import ClaudeAPIProvider from './providers/claude-api.js'
 import MockProvider from './providers/mock.js'
+import FilesystemStorage from './storage/filesystem.js'
+import ContextBuilder from './agent/context.js'
+import AgentLoop from './agent/loop.js'
 
 // Configure logger with data directory for JSONL file output
 logger.configure({ dataDir: config.dataDir })
@@ -35,56 +38,15 @@ switch (config.provider) {
     process.exit(1)
 }
 
+// Initialize storage and agent
+const storage = new FilesystemStorage(config)
+const contextBuilder = new ContextBuilder(config, storage)
+const agent = new AgentLoop(bus, provider, contextBuilder, storage)
+
 // Initialize channel
 const telegram = new TelegramChannel(bus, {
   token: config.telegram.token,
   allowFrom: config.telegram.allowedChatIds
-})
-
-// Simple message handler (Phase 0 - no agent yet)
-bus.on('message:in', async (message) => {
-  logger.info('telegram', 'message_received', {
-    userId: message.userId,
-    chatId: message.chatId,
-    length: message.text.length
-  })
-
-  // Show typing indicator while waiting for provider
-  const typingPayload = { chatId: message.chatId, channel: message.channel }
-  bus.emit('thinking:start', typingPayload)
-  const typingInterval = setInterval(() => bus.emit('thinking:start', typingPayload), 4000)
-
-  try {
-    const start = Date.now()
-    const response = await provider.chat([
-      { role: 'user', content: message.text }
-    ])
-    clearInterval(typingInterval)
-
-    logger.info(config.provider, 'response_received', {
-      durationMs: Date.now() - start,
-      contentLength: response.content.length
-    })
-
-    bus.emit('message:out', {
-      chatId: message.chatId,
-      text: response.content,
-      channel: message.channel
-    })
-  } catch (error) {
-    clearInterval(typingInterval)
-
-    logger.error('system', 'message_processing_failed', {
-      error: error.message,
-      chatId: message.chatId
-    })
-
-    bus.emit('message:out', {
-      chatId: message.chatId,
-      text: `Error: ${error.message}`,
-      channel: message.channel
-    })
-  }
 })
 
 // Error handler
@@ -98,18 +60,25 @@ bus.on('error', ({ source, error, context }) => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('system', 'shutdown', { signal: 'SIGTERM' })
+  agent.stop()
   await telegram.stop()
   process.exit(0)
 })
 
 process.on('SIGINT', async () => {
   logger.info('system', 'shutdown', { signal: 'SIGINT' })
+  agent.stop()
   await telegram.stop()
   process.exit(0)
 })
 
-// Start the bot
-telegram.start().catch(error => {
+// Start the bot and agent
+async function start() {
+  await agent.start()
+  await telegram.start()
+}
+
+start().catch(error => {
   logger.error('system', 'startup_failed', { error: error.message })
   process.exit(1)
 })
