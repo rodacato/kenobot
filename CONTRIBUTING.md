@@ -155,6 +155,136 @@ The `pre-commit` hook will block obvious secrets automatically.
 - Self-documenting code; comments only for non-obvious logic
 - Prefer small, focused functions
 
+## Testing
+
+We use [Vitest](https://vitest.dev) for testing (same as OpenClaw).
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Watch mode (re-runs on file changes)
+npm run test:watch
+
+# UI mode (interactive browser interface)
+npm run test:ui
+
+# Coverage report
+npm run test:coverage
+```
+
+### Writing Tests
+
+Tests live in `test/` directory, mirroring the `src/` structure:
+
+```
+test/
+├── core/
+│   └── bus.test.js
+├── providers/
+│   └── mock.test.js
+└── channels/
+    └── telegram.test.js
+```
+
+**Test file naming:** `*.test.js`
+
+**Example test:**
+
+```javascript
+import { describe, it, expect } from 'vitest'
+import MockProvider from '../../src/providers/mock.js'
+
+describe('MockProvider', () => {
+  it('should respond to hello messages', async () => {
+    const provider = new MockProvider({ model: 'sonnet' })
+    const result = await provider.chat([
+      { role: 'user', content: 'hello' }
+    ])
+
+    expect(result.content).toMatch(/General Kenobi/i)
+  })
+})
+```
+
+### Coverage Requirements
+
+Phase 0 baseline (current):
+- Lines: 50%
+- Functions: 35%
+- Branches: 55%
+- Statements: 50%
+
+These thresholds will increase as the project matures. Coverage reports are in `coverage/index.html` (not committed).
+
+### What to Test
+
+**Priority 1 (always test):**
+- Business logic (providers, agent loops)
+- Data transformations (message chunking, parsing)
+- Core utilities (bus, helpers)
+
+**Priority 2 (test when practical):**
+- Integration points (channels, APIs)
+- Configuration loading
+- Error handling paths
+
+**Skip testing:**
+- External library wrappers (test behavior, not the library)
+- Entry points (`src/index.js`) — use E2E tests instead
+- Pure interfaces with no logic
+
+### Testing Guidelines
+
+1. **Test behavior, not implementation**
+   ```javascript
+   // ✅ Good: test what it does
+   expect(result.content).toMatch(/General Kenobi/)
+
+   // ❌ Bad: test how it does it
+   expect(provider.internalState).toBe('ready')
+   ```
+
+2. **One assertion per logical concept**
+   ```javascript
+   // ✅ Good
+   it('should return valid response format', () => {
+     expect(result.content).toBeDefined()
+     expect(result.usage).toBeDefined()
+   })
+
+   // ❌ Bad
+   it('should do everything', () => {
+     expect(x).toBe(1)
+     expect(y).toBe(2)
+     expect(z).toBe(3)
+   })
+   ```
+
+3. **Use descriptive test names**
+   ```javascript
+   // ✅ Good
+   it('should split messages longer than 4000 chars into chunks')
+
+   // ❌ Bad
+   it('chunking works')
+   ```
+
+4. **Async tests**
+   ```javascript
+   it('should handle async operations', async () => {
+     const result = await provider.chat([...])
+     expect(result).toBeDefined()
+   })
+   ```
+
+5. **Mock sparingly**
+   - Use real implementations when possible
+   - Mock external services (Telegram API, Claude API)
+   - Don't mock internal code you control
+
 ## AI Agents Working on This Project
 
 If you're an AI assistant (Claude Code, etc.):

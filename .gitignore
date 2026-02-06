@@ -66,6 +66,9 @@ Thumbs.db
 # n8n workflow exports with credentials
 workflows/*.credentials.json
 
+# Testing
+coverage/
+
 # Temporary
 tmp/
 temp/
