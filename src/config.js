@@ -40,5 +40,14 @@ export default {
   dataDir: process.env.DATA_DIR || './data',
 
   // Memory
-  memoryDays: parseInt(process.env.MEMORY_DAYS || '3', 10)
+  memoryDays: parseInt(process.env.MEMORY_DAYS || '3', 10),
+
+  // HTTP webhook channel (opt-in)
+  http: {
+    enabled: process.env.HTTP_ENABLED === 'true',
+    port: parseInt(process.env.HTTP_PORT || '3000', 10),
+    host: process.env.HTTP_HOST || '127.0.0.1',
+    webhookSecret: process.env.WEBHOOK_SECRET || '',
+    timeout: parseInt(process.env.HTTP_TIMEOUT || '60000', 10)
+  }
 }

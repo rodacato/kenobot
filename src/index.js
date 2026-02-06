@@ -4,6 +4,7 @@ import config from './config.js'
 import logger from './logger.js'
 import bus from './bus.js'
 import TelegramChannel from './channels/telegram.js'
+import HTTPChannel from './channels/http.js'
 import ClaudeCLIProvider from './providers/claude-cli.js'
 import ClaudeAPIProvider from './providers/claude-api.js'
 import MockProvider from './providers/mock.js'
@@ -45,11 +46,24 @@ const memory = new MemoryManager(config.dataDir)
 const contextBuilder = new ContextBuilder(config, storage, memory)
 const agent = new AgentLoop(bus, provider, contextBuilder, storage, memory)
 
-// Initialize channel
+// Initialize channels
+const channels = []
+
 const telegram = new TelegramChannel(bus, {
   token: config.telegram.token,
   allowFrom: config.telegram.allowedChatIds
 })
+channels.push(telegram)
+
+// HTTP channel (opt-in)
+if (config.http.enabled) {
+  if (!config.http.webhookSecret) {
+    logger.error('system', 'config_missing', { key: 'WEBHOOK_SECRET', hint: 'required when HTTP_ENABLED=true' })
+    process.exit(1)
+  }
+  const httpChannel = new HTTPChannel(bus, config.http)
+  channels.push(httpChannel)
+}
 
 // Error handler
 bus.on('error', ({ source, error, context }) => {
@@ -60,24 +74,20 @@ bus.on('error', ({ source, error, context }) => {
 })
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
-  logger.info('system', 'shutdown', { signal: 'SIGTERM' })
+async function shutdown(signal) {
+  logger.info('system', 'shutdown', { signal })
   agent.stop()
-  await telegram.stop()
+  await Promise.all(channels.map(ch => ch.stop()))
   process.exit(0)
-})
+}
 
-process.on('SIGINT', async () => {
-  logger.info('system', 'shutdown', { signal: 'SIGINT' })
-  agent.stop()
-  await telegram.stop()
-  process.exit(0)
-})
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('SIGINT', () => shutdown('SIGINT'))
 
-// Start the bot and agent
+// Start the agent and all channels
 async function start() {
   await agent.start()
-  await telegram.start()
+  await Promise.all(channels.map(ch => ch.start()))
 }
 
 start().catch(error => {
