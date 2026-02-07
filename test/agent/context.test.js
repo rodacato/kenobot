@@ -275,4 +275,112 @@ describe('ContextBuilder', () => {
       expect(result.system).not.toContain('## Available tools')
     })
   })
+
+  describe('build with skills', () => {
+    let mockSkillLoader
+
+    beforeEach(() => {
+      mockSkillLoader = {
+        size: 2,
+        getAll: vi.fn().mockReturnValue([
+          { name: 'weather', description: 'Get weather forecasts' },
+          { name: 'summary', description: 'Summarize your day' }
+        ]),
+        match: vi.fn().mockReturnValue(null),
+        getPrompt: vi.fn().mockResolvedValue(null)
+      }
+
+      context = new ContextBuilder(
+        { identityFile: 'identities/kenobot.md' },
+        mockStorage,
+        null,
+        null,
+        mockSkillLoader
+      )
+
+      vi.clearAllMocks()
+    })
+
+    it('should include skill list in system prompt', async () => {
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).toContain('## Available skills')
+      expect(result.system).toContain('- weather: Get weather forecasts')
+      expect(result.system).toContain('- summary: Summarize your day')
+    })
+
+    it('should not include skill section when loader is empty', async () => {
+      mockSkillLoader.size = 0
+      mockSkillLoader.getAll.mockReturnValue([])
+
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).not.toContain('## Available skills')
+    })
+
+    it('should not include skill section when no loader', async () => {
+      const ctx = new ContextBuilder(
+        { identityFile: 'identities/kenobot.md' },
+        mockStorage
+      )
+
+      const result = await ctx.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).not.toContain('## Available skills')
+    })
+
+    it('should inject active skill prompt when trigger matches', async () => {
+      mockSkillLoader.match.mockReturnValue({ name: 'weather', description: 'Get weather forecasts' })
+      mockSkillLoader.getPrompt.mockResolvedValue('## Weather\nFetch from wttr.in')
+
+      const result = await context.build('telegram-123', { text: 'what is the weather?' })
+
+      expect(result.system).toContain('## Active skill: weather')
+      expect(result.system).toContain('Fetch from wttr.in')
+      expect(mockSkillLoader.match).toHaveBeenCalledWith('what is the weather?')
+      expect(mockSkillLoader.getPrompt).toHaveBeenCalledWith('weather')
+    })
+
+    it('should not inject active skill when no trigger matches', async () => {
+      mockSkillLoader.match.mockReturnValue(null)
+
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).not.toContain('## Active skill')
+      expect(mockSkillLoader.getPrompt).not.toHaveBeenCalled()
+    })
+
+    it('should not inject active skill when prompt load fails', async () => {
+      mockSkillLoader.match.mockReturnValue({ name: 'weather', description: 'Get weather' })
+      mockSkillLoader.getPrompt.mockResolvedValue(null)
+
+      const result = await context.build('telegram-123', { text: 'weather?' })
+
+      expect(result.system).not.toContain('## Active skill')
+    })
+
+    it('should place skills section after tools section', async () => {
+      const mockToolRegistry = {
+        size: 1,
+        getDefinitions: vi.fn().mockReturnValue([
+          { name: 'web_fetch', description: 'Fetch a URL' }
+        ])
+      }
+
+      const ctx = new ContextBuilder(
+        { identityFile: 'identities/kenobot.md' },
+        mockStorage,
+        null,
+        mockToolRegistry,
+        mockSkillLoader
+      )
+
+      const result = await ctx.build('telegram-123', { text: 'hello' })
+
+      const toolsIdx = result.system.indexOf('## Available tools')
+      const skillsIdx = result.system.indexOf('## Available skills')
+      expect(toolsIdx).toBeGreaterThan(-1)
+      expect(skillsIdx).toBeGreaterThan(toolsIdx)
+    })
+  })
 })

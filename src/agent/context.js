@@ -13,11 +13,12 @@ import logger from '../logger.js'
  *   [IDENTITY.md] + [Available tools] + [Memory instructions + MEMORY.md + recent daily logs]
  */
 export default class ContextBuilder {
-  constructor(config, storage, memoryManager, toolRegistry) {
+  constructor(config, storage, memoryManager, toolRegistry, skillLoader) {
     this.config = config
     this.storage = storage
     this.memory = memoryManager || null
     this.toolRegistry = toolRegistry || null
+    this.skillLoader = skillLoader || null
     this._identity = null
   }
 
@@ -43,8 +44,8 @@ export default class ContextBuilder {
       await this.loadIdentity()
     }
 
-    // Build system prompt: identity + memory
-    const system = await this._buildSystemPrompt()
+    // Build system prompt: identity + tools + skills + memory
+    const system = await this._buildSystemPrompt(message.text)
 
     // Load session history (last 20 messages)
     const history = await this.storage.loadSession(sessionId)
@@ -62,7 +63,7 @@ export default class ContextBuilder {
    * Assemble system prompt from identity + memory context.
    * @private
    */
-  async _buildSystemPrompt() {
+  async _buildSystemPrompt(messageText = '') {
     const parts = [this._identity]
 
     // Inject available tool names so the agent knows what it can do
@@ -71,6 +72,21 @@ export default class ContextBuilder {
         .map(t => `- ${t.name}: ${t.description}`)
         .join('\n')
       parts.push(`\n---\n\n## Available tools\n${toolList}\n`)
+    }
+
+    // Inject skill list + active skill prompt (on-demand)
+    if (this.skillLoader?.size > 0) {
+      const skills = this.skillLoader.getAll()
+      const skillList = skills.map(s => `- ${s.name}: ${s.description}`).join('\n')
+      parts.push(`\n---\n\n## Available skills\n${skillList}\n`)
+
+      const activeSkill = this.skillLoader.match(messageText)
+      if (activeSkill) {
+        const prompt = await this.skillLoader.getPrompt(activeSkill.name)
+        if (prompt) {
+          parts.push(`\n---\n\n## Active skill: ${activeSkill.name}\n${prompt}\n`)
+        }
+      }
     }
 
     if (this.memory) {
