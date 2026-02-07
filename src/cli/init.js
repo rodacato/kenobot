@@ -1,21 +1,14 @@
-import { mkdir, cp, access, readdir, readFile } from 'node:fs/promises'
+import { mkdir, cp, readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { GREEN, YELLOW, NC, exists, requiredDirs } from './utils.js'
 
 const execFileAsync = promisify(execFile)
 
-const GREEN = '\x1b[32m'
-const YELLOW = '\x1b[33m'
-const NC = '\x1b[0m'
-
 const info = (msg) => console.log(`${GREEN}[✓]${NC} ${msg}`)
 const skip = (msg) => console.log(`${YELLOW}[–]${NC} ${msg}`)
-
-async function exists(path) {
-  try { await access(path); return true } catch { return false }
-}
 
 async function copyIfMissing(src, dest, label) {
   if (await exists(dest)) {
@@ -26,23 +19,36 @@ async function copyIfMissing(src, dest, label) {
   info(label)
 }
 
+/**
+ * Ensure a directory has all files from the template.
+ * Copies missing files without overwriting existing ones.
+ */
+async function syncDir(srcDir, destDir, label) {
+  await mkdir(destDir, { recursive: true })
+  const tplFiles = await readdir(srcDir)
+  let restored = 0
+
+  for (const file of tplFiles) {
+    const destFile = join(destDir, file)
+    if (!await exists(destFile)) {
+      await cp(join(srcDir, file), destFile, { recursive: true })
+      restored++
+    }
+  }
+
+  if (restored > 0) {
+    info(`${label} (restored ${restored} file${restored > 1 ? 's' : ''})`)
+  } else {
+    skip(`${label} (complete)`)
+  }
+}
+
 export default async function init(args, paths) {
   console.log(`Setting up KenoBot in ${paths.home}\n`)
 
-  // Create directory structure
-  const dirs = [
-    paths.config,
-    paths.identities,
-    paths.skills,
-    paths.data,
-    join(paths.data, 'sessions'),
-    join(paths.data, 'memory'),
-    join(paths.data, 'logs'),
-    paths.backups,
-  ]
-
-  for (const dir of dirs) {
-    await mkdir(dir, { recursive: true })
+  // Create directory structure (from shared requiredDirs)
+  for (const { path } of requiredDirs(paths)) {
+    await mkdir(path, { recursive: true })
   }
 
   // Copy templates
@@ -59,19 +65,19 @@ export default async function init(args, paths) {
     'config/.env'
   )
 
-  // Copy identity template (directory-based with BOOTSTRAP.md for first-conversation onboarding)
-  await copyIfMissing(
+  // Sync identity template (restores missing files without overwriting)
+  await syncDir(
     join(tpl, 'identities', 'kenobot'),
     join(paths.identities, 'kenobot'),
     'config/identities/kenobot/'
   )
 
-  // Copy each skill individually (don't overwrite existing ones)
+  // Sync each skill individually (restores missing files without overwriting)
   const skillsSrc = join(tpl, 'skills')
   if (await exists(skillsSrc)) {
     const skills = await readdir(skillsSrc)
     for (const skill of skills) {
-      await copyIfMissing(
+      await syncDir(
         join(skillsSrc, skill),
         join(paths.skills, skill),
         `config/skills/${skill}/`

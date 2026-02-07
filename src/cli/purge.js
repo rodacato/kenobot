@@ -1,45 +1,12 @@
-import { rm, readdir, mkdir, stat, access, cp } from 'node:fs/promises'
+import { rm, mkdir, stat, cp } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { checkPid } from '../health.js'
 import backup from './backup.js'
-
-const GREEN = '\x1b[32m'
-const RED = '\x1b[31m'
-const YELLOW = '\x1b[33m'
-const BOLD = '\x1b[1m'
-const NC = '\x1b[0m'
+import { GREEN, RED, YELLOW, BOLD, NC, exists, dirSize, formatBytes, requiredDirs } from './utils.js'
 
 const ok = (msg) => console.log(`${GREEN}[✓]${NC} ${msg}`)
 const warn = (msg) => console.log(`${YELLOW}[!]${NC} ${msg}`)
-
-async function exists(path) {
-  try { await access(path); return true } catch { return false }
-}
-
-async function dirSize(dir) {
-  if (!await exists(dir)) return 0
-  let total = 0
-  const entries = await readdir(dir, { withFileTypes: true })
-  for (const entry of entries) {
-    const full = join(dir, entry.name)
-    if (entry.isDirectory()) {
-      total += await dirSize(full)
-    } else {
-      const s = await stat(full)
-      total += s.size
-    }
-  }
-  return total
-}
-
-function formatBytes(bytes) {
-  if (bytes === 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB']
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
-  const val = bytes / Math.pow(1024, i)
-  return `${val.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
-}
 
 async function confirm(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout })
@@ -73,27 +40,22 @@ export default async function purge(args, paths) {
     return
   }
 
-  // Build target list
-  const sessionsDir = join(paths.data, 'sessions')
-  const logsDir = join(paths.data, 'logs')
-  const schedulerDir = join(paths.data, 'scheduler')
-  const memoryDir = join(paths.data, 'memory')
+  // Build target list from shared requiredDirs (purge-tagged entries)
+  const purgeDirs = requiredDirs(paths)
+    .filter(d => d.purge)
+    .filter(d => {
+      if (d.purge === 'always') return true
+      if (d.purge === 'memory') return includeMemory
+      if (d.purge === 'all') return includeAll
+      return false
+    })
+    .map(d => ({ path: d.path, label: d.label }))
 
-  const targets = [
-    { path: sessionsDir, label: 'data/sessions/', always: true },
-    { path: logsDir, label: 'data/logs/', always: true },
-    { path: schedulerDir, label: 'data/scheduler/', always: true },
-    { path: paths.pidFile, label: 'data/kenobot.pid', always: true },
-    { path: memoryDir, label: 'data/memory/', always: false, needs: 'memory' },
-    { path: paths.backups, label: 'backups/', always: false, needs: 'all' },
+  // PID file is always purged (it's a file, not in requiredDirs)
+  const active = [
+    ...purgeDirs,
+    { path: paths.pidFile, label: 'data/kenobot.pid' },
   ]
-
-  const active = targets.filter(t => {
-    if (t.always) return true
-    if (t.needs === 'memory') return includeMemory
-    if (t.needs === 'all') return includeAll
-    return false
-  })
 
   // Calculate sizes and filter to existing paths
   let totalBytes = 0
@@ -163,19 +125,18 @@ export default async function purge(args, paths) {
     ok(`Removed ${t.label}`)
   }
 
-  // Recreate empty directory structure
-  const dirsToRecreate = [sessionsDir, logsDir]
-  if (!includeAll) dirsToRecreate.push(join(paths.data, 'scheduler'))
-  if (includeMemory) dirsToRecreate.push(memoryDir)
-
-  for (const dir of dirsToRecreate) {
-    await mkdir(dir, { recursive: true })
+  // Recreate purged directories (except backups when --all)
+  for (const t of toRemove) {
+    if (t.label.endsWith('/') && !(includeAll && t.label === 'backups/')) {
+      await mkdir(t.path, { recursive: true })
+    }
   }
 
   // Restore MEMORY.md template if memory was purged
   if (includeMemory) {
+    const memoryDir = requiredDirs(paths).find(d => d.purge === 'memory')
     const templateMemory = join(paths.templates, 'memory', 'MEMORY.md')
-    const destMemory = join(memoryDir, 'MEMORY.md')
+    const destMemory = join(memoryDir.path, 'MEMORY.md')
     if (await exists(templateMemory)) {
       await cp(templateMemory, destMemory)
       ok('Restored data/memory/MEMORY.md from template')
@@ -183,4 +144,8 @@ export default async function purge(args, paths) {
   }
 
   console.log(`\n${GREEN}Purge complete.${NC} Freed ${formatBytes(totalBytes)}.`)
+
+  if (includeMemory || includeAll) {
+    console.log(`\nRun ${BOLD}kenobot init${NC} to restore default files.`)
+  }
 }

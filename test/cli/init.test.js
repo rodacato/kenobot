@@ -82,4 +82,35 @@ describe('kenobot init', () => {
     const envContent = await readFile(paths.envFile, 'utf8')
     expect(envContent).toBe('CUSTOM=true\n')
   })
+
+  it('restores missing files inside existing directories', async () => {
+    const paths = makePaths(tmpDir)
+    const { default: init } = await import('../../src/cli/init.js')
+
+    // First run — full install
+    await init([], paths)
+
+    // Delete individual files (simulates corruption or purge --all + partial state)
+    const { rm: rmFile, writeFile } = await import('node:fs/promises')
+    await rmFile(join(paths.identities, 'kenobot', 'BOOTSTRAP.md'))
+    await rmFile(join(paths.identities, 'kenobot', 'USER.md'))
+    await rmFile(join(paths.skills, 'weather', 'SKILL.md'))
+    await rmFile(join(paths.data, 'memory', 'MEMORY.md'))
+
+    // Modify SOUL.md to verify it's NOT overwritten
+    await writeFile(join(paths.identities, 'kenobot', 'SOUL.md'), 'CUSTOM SOUL')
+
+    // Second run — should restore missing files
+    await init([], paths)
+
+    // Missing files restored
+    expect(await exists(join(paths.identities, 'kenobot', 'BOOTSTRAP.md'))).toBe(true)
+    expect(await exists(join(paths.identities, 'kenobot', 'USER.md'))).toBe(true)
+    expect(await exists(join(paths.skills, 'weather', 'SKILL.md'))).toBe(true)
+    expect(await exists(join(paths.data, 'memory', 'MEMORY.md'))).toBe(true)
+
+    // Existing files NOT overwritten
+    const soulContent = await readFile(join(paths.identities, 'kenobot', 'SOUL.md'), 'utf8')
+    expect(soulContent).toBe('CUSTOM SOUL')
+  })
 })
