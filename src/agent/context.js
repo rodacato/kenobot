@@ -112,6 +112,7 @@ export default class ContextBuilder {
     if (this.identityLoader) {
       const bootstrap = await this.identityLoader.getBootstrap()
       if (bootstrap) {
+        logger.info('context', 'bootstrap_injected', { length: bootstrap.length })
         parts.push('\n---\n\n## First Conversation — Bootstrap\n' + bootstrap)
       }
     }

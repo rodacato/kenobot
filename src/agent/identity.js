@@ -33,11 +33,18 @@ export default class IdentityLoader {
     if (this._isDirectory) {
       this._soul = await this._readSafe(join(this.identityPath, 'SOUL.md'))
       this._identity = await this._readSafe(join(this.identityPath, 'IDENTITY.md'))
+      const hasBootstrap = await this._readSafe(join(this.identityPath, 'BOOTSTRAP.md'))
       logger.info('identity', 'loaded_directory', {
         path: this.identityPath,
         soul: this._soul.length,
-        identity: this._identity.length
+        identity: this._identity.length,
+        bootstrap: hasBootstrap.length > 0
       })
+      if (hasBootstrap) {
+        logger.info('identity', 'bootstrap_pending', {
+          hint: 'First conversation will trigger onboarding flow'
+        })
+      }
     } else {
       // File mode: entire file is treated as soul
       this._soul = await this._readSafe(this.identityPath)
@@ -46,6 +53,12 @@ export default class IdentityLoader {
         path: this.identityPath,
         length: this._soul.length
       })
+      if (!this._soul) {
+        logger.warn('identity', 'empty_identity', {
+          path: this.identityPath,
+          hint: 'Bot will run without personality. Check IDENTITY_FILE path or run kenobot init'
+        })
+      }
     }
   }
 

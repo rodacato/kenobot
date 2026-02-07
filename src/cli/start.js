@@ -21,7 +21,7 @@ export default async function start(args, paths) {
   if (!process.env.DATA_DIR) process.env.DATA_DIR = paths.data
   if (!process.env.SKILLS_DIR) process.env.SKILLS_DIR = paths.skills
   if (!process.env.IDENTITY_FILE) {
-    process.env.IDENTITY_FILE = join(paths.identities, 'kenobot.md')
+    process.env.IDENTITY_FILE = join(paths.identities, 'kenobot')
   }
   process.env.KENOBOT_PID_FILE = paths.pidFile
 
