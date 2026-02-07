@@ -44,7 +44,10 @@ export default class ClaudeCLIProvider extends BaseProvider {
       }
 
       return {
-        content: stdout.trim()
+        content: stdout.trim(),
+        toolCalls: null,
+        stopReason: 'end_turn',
+        rawContent: null
       }
     } catch (error) {
       logger.error('claude-cli', 'request_failed', { error: error.message })

@@ -7,9 +7,9 @@
 export default class BaseProvider {
   /**
    * Send messages to LLM and get response
-   * @param {Array<{role: string, content: string}>} messages - Conversation history
-   * @param {Object} options - Provider-specific options (model, temperature, etc.)
-   * @returns {Promise<{content: string, usage?: Object}>}
+   * @param {Array<{role: string, content: string|Array}>} messages - Conversation history
+   * @param {Object} options - Provider-specific options (model, temperature, tools, etc.)
+   * @returns {Promise<{content: string, toolCalls: Array|null, stopReason: string, rawContent: Array|null, usage?: Object}>}
    */
   async chat(messages, options = {}) {
     throw new Error('chat() must be implemented by subclass')

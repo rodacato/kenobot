@@ -37,9 +37,9 @@ export default class ClaudeAPIProvider extends BaseProvider {
 
   /**
    * Send messages to Claude and get response
-   * @param {Array} messages - Array of {role: 'user'|'assistant', content: string}
-   * @param {Object} options - Additional options (max_tokens, temperature, etc.)
-   * @returns {Object} {content: string, usage: object}
+   * @param {Array} messages - Array of {role: 'user'|'assistant', content: string|Array}
+   * @param {Object} options - Additional options (max_tokens, temperature, tools, etc.)
+   * @returns {Object} {content: string, toolCalls: Array|null, stopReason: string, rawContent: Array, usage: object}
    */
   async chat(messages, options = {}) {
     try {
@@ -54,16 +54,26 @@ export default class ClaudeAPIProvider extends BaseProvider {
         params.system = options.system
       }
 
+      if (options.tools?.length) {
+        params.tools = options.tools
+      }
+
       const response = await this.client.messages.create(params)
 
-      // Extract text from response
       const content = response.content
         .filter(block => block.type === 'text')
         .map(block => block.text)
         .join('\n')
 
+      const toolCalls = response.content
+        .filter(block => block.type === 'tool_use')
+        .map(block => ({ id: block.id, name: block.name, input: block.input }))
+
       return {
         content,
+        toolCalls: toolCalls.length > 0 ? toolCalls : null,
+        stopReason: response.stop_reason,
+        rawContent: response.content,
         usage: {
           input_tokens: response.usage.input_tokens,
           output_tokens: response.usage.output_tokens
