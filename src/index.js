@@ -27,6 +27,7 @@ import ApprovalTool from './tools/approval.js'
 import N8nManageTool from './tools/n8n-manage.js'
 import { initWorkspace } from './workspace.js'
 import { writePid, removePid } from './health.js'
+import { setupNotifications } from './notifications.js'
 
 // Configure logger with data directory for JSONL file output
 logger.configure({ dataDir: config.dataDir })
@@ -99,39 +100,8 @@ if (config.n8n.apiUrl) {
   })
 }
 
-// Health event → alert owner via Telegram
-bus.on('health:degraded', ({ detail }) => {
-  const ownerChat = config.telegram.allowedChatIds[0]
-  if (ownerChat) {
-    bus.emit('message:out', { chatId: ownerChat, text: `Health degraded: ${detail}`, channel: 'telegram' })
-  }
-})
-
-bus.on('health:unhealthy', ({ detail }) => {
-  const ownerChat = config.telegram.allowedChatIds[0]
-  if (ownerChat) {
-    bus.emit('message:out', { chatId: ownerChat, text: `UNHEALTHY: ${detail}`, channel: 'telegram' })
-  }
-})
-
-bus.on('health:recovered', ({ previous }) => {
-  const ownerChat = config.telegram.allowedChatIds[0]
-  if (ownerChat) {
-    bus.emit('message:out', { chatId: ownerChat, text: `Recovered (was ${previous})`, channel: 'telegram' })
-  }
-})
-
-// Approval events → notify owner
-bus.on('approval:proposed', ({ id, type, name }) => {
-  const ownerChat = config.telegram.allowedChatIds[0]
-  if (ownerChat) {
-    bus.emit('message:out', {
-      chatId: ownerChat,
-      text: `New proposal: [${type}] ${name} (ID: ${id})\nUse /approve ${id} or /reject ${id}`,
-      channel: 'telegram'
-    })
-  }
-})
+// Route health + approval events to owner's Telegram
+setupNotifications(bus, config)
 
 // Initialize scheduler (loadTasks is async, called in start())
 const scheduler = new Scheduler(bus, config.dataDir)
@@ -165,9 +135,14 @@ const memory = new MemoryManager(config.dataDir)
 // Initialize skill loader (loadAll is async, called in start())
 const skillLoader = new SkillLoader(config.skillsDir)
 
-// Register approval tool (needs skillLoader)
+// Register approval tool (uses callbacks to stay decoupled from bus/skillLoader)
 if (config.workspaceDir && config.selfImprovementEnabled) {
-  toolRegistry.register(new ApprovalTool(config.workspaceDir, bus, { skillLoader }))
+  toolRegistry.register(new ApprovalTool(config.workspaceDir, {
+    onProposed: (p) => bus.emit('approval:proposed', p),
+    onApproved: (p) => bus.emit('approval:approved', p),
+    onRejected: (p) => bus.emit('approval:rejected', p),
+    activateSkill: (name, dir) => skillLoader.loadOne(name, dir)
+  }))
 }
 
 const contextBuilder = new ContextBuilder(config, storage, memory, toolRegistry, skillLoader)
