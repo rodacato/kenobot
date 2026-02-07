@@ -104,3 +104,8 @@ export default class GitHubTool extends BaseTool {
     }
   }
 }
+
+export function register(registry, { config }) {
+  if (!config.workspaceDir) return
+  registry.register(new GitHubTool(config.workspaceDir, { sshKeyPath: config.sshKeyPath }))
+}

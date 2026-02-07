@@ -62,3 +62,8 @@ export default class N8nTriggerTool extends BaseTool {
     return text || `Workflow "${workflow}" triggered successfully`
   }
 }
+
+export function register(registry, { config }) {
+  if (!config.n8n.webhookBase) return
+  registry.register(new N8nTriggerTool(config.n8n))
+}

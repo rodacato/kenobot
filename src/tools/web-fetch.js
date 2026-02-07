@@ -65,3 +65,7 @@ export default class WebFetchTool extends BaseTool {
     return cleaned.slice(0, 10_000)
   }
 }
+
+export function register(registry) {
+  registry.register(new WebFetchTool())
+}

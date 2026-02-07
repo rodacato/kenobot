@@ -84,3 +84,8 @@ export default class WorkspaceTool extends BaseTool {
     }
   }
 }
+
+export function register(registry, { config }) {
+  if (!config.workspaceDir) return
+  registry.register(new WorkspaceTool(config.workspaceDir))
+}

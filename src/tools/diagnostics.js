@@ -43,3 +43,7 @@ export default class DiagnosticsTool extends BaseTool {
     return JSON.stringify(status, null, 2)
   }
 }
+
+export function register(registry, { watchdog, circuitBreaker }) {
+  registry.register(new DiagnosticsTool(watchdog, circuitBreaker))
+}

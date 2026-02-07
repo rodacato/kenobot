@@ -115,7 +115,7 @@ Mocking approach: `vi.mock()` for fs/logger, manual mocks for bus/provider/stora
 - `claude-cli` provider needs ~20s response time with sonnet model. Use `claude-api` for faster responses.
 - Non-root devcontainer: running as `node` user (uid=1000).
 - Skills use `manifest.json` + `SKILL.md` (not `skill.json` + `prompt.md` as originally planned).
-- Tool registry uses explicit registration (not auto-discovery) because tools need config injection.
+- Tool registry uses auto-discovery with self-registration — each tool exports `register(registry, deps)`.
 
 ## Mandatory: Keep Docs Updated
 

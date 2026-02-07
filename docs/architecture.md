@@ -299,7 +299,10 @@ All runtime data lives in `~/.kenobot/data/` (or `$KENOBOT_HOME/data/`):
 1. Create `src/tools/my-tool.js` extending `BaseTool`
 2. Implement `get definition()` and `execute(input)`
 3. Optionally add `get trigger()` and `parseTrigger()` for slash commands
-4. Register in `src/index.js`: `toolRegistry.register(new MyTool())`
+4. Export a `register(registry, deps)` function that conditionally creates and registers the tool
+5. The `ToolLoader` auto-discovers the file — no changes to `index.js` needed
+
+Lifecycle hooks (optional): override `init()` for async setup, `stop()` for cleanup.
 
 ### Add a new Skill
 

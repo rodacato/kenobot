@@ -42,4 +42,16 @@ export default class BaseTool {
   async execute(input) {
     throw new Error('execute() must be implemented by subclass')
   }
+
+  /**
+   * Optional async initialization after registration.
+   * Override in subclass if the tool needs async setup.
+   */
+  async init() {}
+
+  /**
+   * Optional async cleanup during shutdown.
+   * Override in subclass if the tool holds resources.
+   */
+  async stop() {}
 }

@@ -142,3 +142,8 @@ export default class N8nManageTool extends BaseTool {
     return response.json()
   }
 }
+
+export function register(registry, { config }) {
+  if (!config.n8n.apiUrl || !config.n8n.apiKey) return
+  registry.register(new N8nManageTool({ n8nApiUrl: config.n8n.apiUrl, n8nApiKey: config.n8n.apiKey }))
+}

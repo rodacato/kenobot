@@ -281,3 +281,14 @@ export default class ApprovalTool extends BaseTool {
     await writeFile(this.queueFile, JSON.stringify(queue, null, 2))
   }
 }
+
+export function register(registry, { config, bus, skillLoader, identityLoader }) {
+  if (!config.workspaceDir || !config.selfImprovementEnabled) return
+  registry.register(new ApprovalTool(config.workspaceDir, {
+    onProposed: (p) => bus.emit('approval:proposed', p),
+    onApproved: (p) => bus.emit('approval:approved', p),
+    onRejected: (p) => bus.emit('approval:rejected', p),
+    activateSkill: (name, dir) => skillLoader.loadOne(name, dir),
+    reloadIdentity: () => identityLoader.reload()
+  }))
+}

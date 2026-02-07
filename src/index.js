@@ -14,18 +14,11 @@ import IdentityLoader from './agent/identity.js'
 import ContextBuilder from './agent/context.js'
 import AgentLoop from './agent/loop.js'
 import ToolRegistry from './tools/registry.js'
-import WebFetchTool from './tools/web-fetch.js'
-import N8nTriggerTool from './tools/n8n.js'
+import ToolLoader from './tools/loader.js'
 import SkillLoader from './skills/loader.js'
 import Scheduler from './scheduler/scheduler.js'
-import ScheduleTool from './tools/schedule.js'
 import CircuitBreakerProvider from './providers/circuit-breaker.js'
 import Watchdog from './watchdog.js'
-import DiagnosticsTool from './tools/diagnostics.js'
-import WorkspaceTool from './tools/workspace.js'
-import GitHubTool from './tools/github.js'
-import ApprovalTool from './tools/approval.js'
-import N8nManageTool from './tools/n8n-manage.js'
 import ConfigSync from './config-sync.js'
 import { initWorkspace } from './workspace.js'
 import { writePid, removePid } from './health.js'
@@ -123,28 +116,6 @@ bus.on('approval:approved', () => {
 // Initialize scheduler (loadTasks is async, called in start())
 const scheduler = new Scheduler(bus, config.dataDir)
 
-// Initialize tool registry
-const toolRegistry = new ToolRegistry()
-toolRegistry.register(new WebFetchTool())
-toolRegistry.register(new ScheduleTool(scheduler))
-toolRegistry.register(new DiagnosticsTool(watchdog, circuitBreaker))
-if (config.workspaceDir) {
-  toolRegistry.register(new WorkspaceTool(config.workspaceDir))
-  toolRegistry.register(new GitHubTool(config.workspaceDir, { sshKeyPath: config.sshKeyPath }))
-}
-if (config.n8n.webhookBase) {
-  toolRegistry.register(new N8nTriggerTool(config.n8n))
-}
-if (config.n8n.apiUrl && config.n8n.apiKey) {
-  toolRegistry.register(new N8nManageTool(config.n8n))
-}
-for (const def of toolRegistry.getDefinitions()) {
-  const tool = toolRegistry.tools.get(def.name)
-  const trigger = tool.trigger ? String(tool.trigger) : 'none'
-  logger.info('system', 'tool_loaded', { name: def.name, trigger })
-}
-logger.info('system', 'tools_registered', { count: toolRegistry.size })
-
 // Initialize storage and memory
 const storage = new FilesystemStorage(config)
 const memory = new MemoryManager(config.dataDir)
@@ -155,16 +126,11 @@ const identityLoader = new IdentityLoader(config.identityFile)
 // Initialize skill loader (loadAll is async, called in start())
 const skillLoader = new SkillLoader(config.skillsDir)
 
-// Register approval tool (uses callbacks to stay decoupled from bus/skillLoader)
-if (config.workspaceDir && config.selfImprovementEnabled) {
-  toolRegistry.register(new ApprovalTool(config.workspaceDir, {
-    onProposed: (p) => bus.emit('approval:proposed', p),
-    onApproved: (p) => bus.emit('approval:approved', p),
-    onRejected: (p) => bus.emit('approval:rejected', p),
-    activateSkill: (name, dir) => skillLoader.loadOne(name, dir),
-    reloadIdentity: () => identityLoader.reload()
-  }))
-}
+// Initialize tool registry + loader (auto-discovers src/tools/*.js)
+const toolRegistry = new ToolRegistry()
+const toolLoader = new ToolLoader(toolRegistry, {
+  config, scheduler, watchdog, circuitBreaker, bus, skillLoader, identityLoader
+})
 
 const contextBuilder = new ContextBuilder(config, storage, memory, toolRegistry, skillLoader, identityLoader)
 const agent = new AgentLoop(bus, provider, contextBuilder, storage, memory, toolRegistry)
@@ -201,6 +167,7 @@ bus.on('error', ({ source, error, context }) => {
 async function shutdown(signal) {
   logger.info('system', 'shutdown', { signal })
   await removePid()
+  await toolLoader.stop()
   watchdog.stop()
   scheduler.stop()
   agent.stop()
@@ -222,6 +189,8 @@ async function start() {
     await initWorkspace(config.workspaceDir, { sshKeyPath: config.sshKeyPath })
     logger.info('system', 'workspace_initialized', { dir: config.workspaceDir })
   }
+
+  await toolLoader.loadAll()
 
   await skillLoader.loadAll()
   logger.info('system', 'skills_loaded', { count: skillLoader.size })

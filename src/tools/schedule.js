@@ -114,3 +114,7 @@ export default class ScheduleTool extends BaseTool {
     return `Task ${id} removed.`
   }
 }
+
+export function register(registry, { scheduler }) {
+  registry.register(new ScheduleTool(scheduler))
+}
