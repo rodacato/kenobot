@@ -42,6 +42,14 @@ export default {
   // Memory
   memoryDays: parseInt(process.env.MEMORY_DAYS || '3', 10),
 
+  // Tools
+  maxToolIterations: parseInt(process.env.MAX_TOOL_ITERATIONS || '20', 10),
+
+  // n8n (for n8n_trigger tool)
+  n8n: {
+    webhookBase: process.env.N8N_WEBHOOK_BASE || ''
+  },
+
   // HTTP webhook channel (opt-in)
   http: {
     enabled: process.env.HTTP_ENABLED === 'true',

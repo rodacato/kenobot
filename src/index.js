@@ -12,6 +12,9 @@ import FilesystemStorage from './storage/filesystem.js'
 import MemoryManager from './agent/memory.js'
 import ContextBuilder from './agent/context.js'
 import AgentLoop from './agent/loop.js'
+import ToolRegistry from './tools/registry.js'
+import WebFetchTool from './tools/web-fetch.js'
+import N8nTriggerTool from './tools/n8n.js'
 
 // Configure logger with data directory for JSONL file output
 logger.configure({ dataDir: config.dataDir })
@@ -40,11 +43,20 @@ switch (config.provider) {
     process.exit(1)
 }
 
+// Initialize tool registry
+const toolRegistry = new ToolRegistry()
+toolRegistry.register(new WebFetchTool())
+if (config.n8n.webhookBase) {
+  toolRegistry.register(new N8nTriggerTool(config.n8n))
+}
+logger.info('system', 'tools_registered', { count: toolRegistry.size })
+
 // Initialize storage, memory, and agent
 const storage = new FilesystemStorage(config)
 const memory = new MemoryManager(config.dataDir)
-const contextBuilder = new ContextBuilder(config, storage, memory)
-const agent = new AgentLoop(bus, provider, contextBuilder, storage, memory)
+const contextBuilder = new ContextBuilder(config, storage, memory, toolRegistry)
+const agent = new AgentLoop(bus, provider, contextBuilder, storage, memory, toolRegistry)
+agent.maxToolIterations = config.maxToolIterations
 
 // Initialize channels
 const channels = []
