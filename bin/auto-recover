@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+# Auto-recover KenoBot if health check fails
+# Run via cron: * * * * * /path/to/kenobot/bin/auto-recover
+# Throttle: max 1 restart per 180 seconds
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+if ! bin/health > /dev/null 2>&1; then
+  LAST_RESTART=$(cat /tmp/kenobot.last_restart 2>/dev/null || echo 0)
+  NOW=$(date +%s)
+  DIFF=$((NOW - LAST_RESTART))
+
+  if [ "$DIFF" -lt 180 ]; then
+    echo "Throttled: last restart was ${DIFF}s ago (min 180s)"
+    exit 1
+  fi
+
+  echo "KenoBot is down, restarting..."
+  bin/start &
+  echo "$NOW" > /tmp/kenobot.last_restart
+fi
