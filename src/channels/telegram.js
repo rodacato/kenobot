@@ -43,19 +43,8 @@ export default class TelegramChannel extends BaseChannel {
 
     // Listen for outgoing messages from the bus
     this.bus.on('message:out', async ({ chatId, text, channel }) => {
-      // Only handle messages for this channel
       if (channel !== this.name) return
-
-      try {
-        await this.send(chatId, text)
-      } catch (error) {
-        logger.error('telegram', 'send_failed', { error: error.message, chatId })
-        this.bus.emit('error', {
-          source: this.name,
-          error: error.message,
-          context: { chatId }
-        })
-      }
+      await this._safeSend(chatId, text)
     })
 
     // Start polling

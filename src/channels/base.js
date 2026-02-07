@@ -77,6 +77,23 @@ export default class BaseChannel extends EventEmitter {
    * @returns {boolean}
    * @protected
    */
+  /**
+   * Send a message with consistent error handling.
+   * Logs failures and emits bus error events.
+   * @param {string} chatId
+   * @param {string} text
+   * @param {Object} options
+   * @protected
+   */
+  async _safeSend(chatId, text, options = {}) {
+    try {
+      await this.send(chatId, text, options)
+    } catch (error) {
+      logger.error('channel', 'send_failed', { channel: this.name, chatId, error: error.message })
+      this.bus.emit('error', { source: this.name, error })
+    }
+  }
+
   _isAllowed(userId) {
     const allowFrom = this.config.allowFrom || []
 
