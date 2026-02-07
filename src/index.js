@@ -21,6 +21,9 @@ import ScheduleTool from './tools/schedule.js'
 import CircuitBreakerProvider from './providers/circuit-breaker.js'
 import Watchdog from './watchdog.js'
 import DiagnosticsTool from './tools/diagnostics.js'
+import WorkspaceTool from './tools/workspace.js'
+import GitHubTool from './tools/github.js'
+import { initWorkspace } from './workspace.js'
 import { writePid, removePid } from './health.js'
 
 // Configure logger with data directory for JSONL file output
@@ -111,6 +114,10 @@ const toolRegistry = new ToolRegistry()
 toolRegistry.register(new WebFetchTool())
 toolRegistry.register(new ScheduleTool(scheduler))
 toolRegistry.register(new DiagnosticsTool(watchdog, circuitBreaker))
+if (config.workspaceDir) {
+  toolRegistry.register(new WorkspaceTool(config.workspaceDir))
+  toolRegistry.register(new GitHubTool(config.workspaceDir))
+}
 if (config.n8n.webhookBase) {
   toolRegistry.register(new N8nTriggerTool(config.n8n))
 }
@@ -176,6 +183,12 @@ process.on('SIGINT', () => shutdown('SIGINT'))
 // Start the agent and all channels
 async function start() {
   await writePid()
+
+  // Initialize workspace (if configured)
+  if (config.workspaceDir) {
+    await initWorkspace(config.workspaceDir)
+    logger.info('system', 'workspace_initialized', { dir: config.workspaceDir })
+  }
 
   await skillLoader.loadAll()
   logger.info('system', 'skills_loaded', { count: skillLoader.size })

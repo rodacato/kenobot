@@ -56,6 +56,13 @@ export default {
     webhookBase: process.env.N8N_WEBHOOK_BASE || ''
   },
 
+  // Workspace & GitHub
+  workspaceDir: process.env.WORKSPACE_DIR || '',
+  github: {
+    token: process.env.GITHUB_TOKEN || '',
+    repo: process.env.GITHUB_REPO || ''
+  },
+
   // Watchdog
   watchdogInterval: parseInt(process.env.WATCHDOG_INTERVAL || '60000', 10),
   fallbackProvider: process.env.FALLBACK_PROVIDER || '',
