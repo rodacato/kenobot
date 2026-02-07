@@ -25,6 +25,29 @@ for (const key of required) {
   }
 }
 
+/**
+ * Parse and validate an integer environment variable.
+ * Exits on invalid or out-of-range values.
+ */
+function envInt(key, fallback, { min, max } = {}) {
+  const raw = process.env[key]
+  if (!raw) return fallback
+  const val = parseInt(raw, 10)
+  if (Number.isNaN(val)) {
+    logger.error('system', 'config_invalid', { key, value: raw, hint: 'must be a number' })
+    process.exit(1)
+  }
+  if (min !== undefined && val < min) {
+    logger.error('system', 'config_out_of_range', { key, value: val, min })
+    process.exit(1)
+  }
+  if (max !== undefined && val > max) {
+    logger.error('system', 'config_out_of_range', { key, value: val, max })
+    process.exit(1)
+  }
+  return val
+}
+
 // Export config object
 export default {
   // Provider config
@@ -42,16 +65,16 @@ export default {
   dataDir: process.env.DATA_DIR || './data',
 
   // Memory
-  memoryDays: parseInt(process.env.MEMORY_DAYS || '3', 10),
+  memoryDays: envInt('MEMORY_DAYS', 3, { min: 0, max: 30 }),
 
   // Skills
   skillsDir: process.env.SKILLS_DIR || './skills',
 
   // Session
-  sessionHistoryLimit: parseInt(process.env.SESSION_HISTORY_LIMIT || '20', 10),
+  sessionHistoryLimit: envInt('SESSION_HISTORY_LIMIT', 20, { min: 1 }),
 
   // Tools
-  maxToolIterations: parseInt(process.env.MAX_TOOL_ITERATIONS || '20', 10),
+  maxToolIterations: envInt('MAX_TOOL_ITERATIONS', 20, { min: 1, max: 100 }),
 
   // n8n
   n8n: {
@@ -73,21 +96,21 @@ export default {
   },
 
   // Watchdog
-  watchdogInterval: parseInt(process.env.WATCHDOG_INTERVAL || '60000', 10),
+  watchdogInterval: envInt('WATCHDOG_INTERVAL', 60000, { min: 5000 }),
   fallbackProvider: process.env.FALLBACK_PROVIDER || '',
 
   // Circuit breaker
   circuitBreaker: {
-    threshold: parseInt(process.env.CIRCUIT_BREAKER_THRESHOLD || '5', 10),
-    cooldown: parseInt(process.env.CIRCUIT_BREAKER_COOLDOWN || '60000', 10)
+    threshold: envInt('CIRCUIT_BREAKER_THRESHOLD', 5, { min: 1 }),
+    cooldown: envInt('CIRCUIT_BREAKER_COOLDOWN', 60000, { min: 1000 })
   },
 
   // HTTP webhook channel (opt-in)
   http: {
     enabled: process.env.HTTP_ENABLED === 'true',
-    port: parseInt(process.env.HTTP_PORT || '3000', 10),
+    port: envInt('HTTP_PORT', 3000, { min: 1, max: 65535 }),
     host: process.env.HTTP_HOST || '127.0.0.1',
     webhookSecret: process.env.WEBHOOK_SECRET || '',
-    timeout: parseInt(process.env.HTTP_TIMEOUT || '60000', 10)
+    timeout: envInt('HTTP_TIMEOUT', 60000, { min: 1000 })
   }
 }
