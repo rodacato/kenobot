@@ -27,7 +27,7 @@ pnpm-debug.log*
 data/
 
 # Heartbeat (session-specific, not source)
-heartbeat.md
+HEARTBEAT.md
 
 # OS
 .DS_Store

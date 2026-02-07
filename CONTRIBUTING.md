@@ -304,4 +304,4 @@ If you're an AI assistant (Claude Code, etc.):
 2. Follow the commit conventions above
 3. Never hardcode secrets — always use environment variables
 4. Check `memory/` for context from previous sessions
-5. Update `heartbeat.md` when starting/finishing significant work
+5. Update `HEARTBEAT.md` when starting/finishing significant work
