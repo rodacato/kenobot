@@ -25,6 +25,8 @@ class Logger {
         this._writeToFile(entry)
       }
       this._pending = []
+    }).catch(err => {
+      process.stderr.write(`Logger init failed: ${err.message}\n`)
     })
   }
 
