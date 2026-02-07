@@ -15,6 +15,7 @@ import AgentLoop from './agent/loop.js'
 import ToolRegistry from './tools/registry.js'
 import WebFetchTool from './tools/web-fetch.js'
 import N8nTriggerTool from './tools/n8n.js'
+import SkillLoader from './skills/loader.js'
 
 // Configure logger with data directory for JSONL file output
 logger.configure({ dataDir: config.dataDir })
@@ -56,10 +57,14 @@ for (const def of toolRegistry.getDefinitions()) {
 }
 logger.info('system', 'tools_registered', { count: toolRegistry.size })
 
-// Initialize storage, memory, and agent
+// Initialize storage and memory
 const storage = new FilesystemStorage(config)
 const memory = new MemoryManager(config.dataDir)
-const contextBuilder = new ContextBuilder(config, storage, memory, toolRegistry)
+
+// Initialize skill loader (loadAll is async, called in start())
+const skillLoader = new SkillLoader(config.skillsDir)
+
+const contextBuilder = new ContextBuilder(config, storage, memory, toolRegistry, skillLoader)
 const agent = new AgentLoop(bus, provider, contextBuilder, storage, memory, toolRegistry)
 agent.maxToolIterations = config.maxToolIterations
 
@@ -103,6 +108,9 @@ process.on('SIGINT', () => shutdown('SIGINT'))
 
 // Start the agent and all channels
 async function start() {
+  await skillLoader.loadAll()
+  logger.info('system', 'skills_loaded', { count: skillLoader.size })
+
   await agent.start()
   await Promise.all(channels.map(ch => ch.start()))
 }

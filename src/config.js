@@ -42,6 +42,9 @@ export default {
   // Memory
   memoryDays: parseInt(process.env.MEMORY_DAYS || '3', 10),
 
+  // Skills
+  skillsDir: process.env.SKILLS_DIR || './skills',
+
   // Tools
   maxToolIterations: parseInt(process.env.MAX_TOOL_ITERATIONS || '20', 10),
 
