@@ -217,112 +217,19 @@ Checks for exposed secrets, file permissions, and common security issues.
   backups/                    # Backup archives (tar.gz)
 ```
 
-## Workspace & GitHub
+## Integrations
 
-KenoBot can have its own workspace for creating skills, workflows, and notes — versioned in a private GitHub repo.
+KenoBot supports optional integrations for GitHub, n8n automation, Cloudflare tunnels, and Gmail.
 
-### Setup
+See **[Integrations Guide](integrations-guide.md)** for complete step-by-step setup of each integration.
 
-1. Create a GitHub account for the bot (e.g., `kenobot-agent`)
-2. Create a private repo (e.g., `brain`)
-3. Run `kenobot init` — this generates an SSH keypair at `~/.ssh/kenobot_ed25519`
-4. Add the public key to the GitHub account's SSH keys
-5. Clone the repo:
-
-```bash
-GIT_SSH_COMMAND="ssh -i ~/.ssh/kenobot_ed25519 -o IdentitiesOnly=yes" \
-  git clone git@github.com:kenobot-agent/brain.git ~/.kenobot/workspace
-```
-
-6. Configure in `.env`:
-
-```bash
-WORKSPACE_DIR=~/.kenobot/workspace
-SELF_IMPROVEMENT_ENABLED=true    # Enable bot to create skills/workflows
-```
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `WORKSPACE_DIR` | (empty) | Path to bot's workspace directory |
-| `KENOBOT_SSH_KEY` | `~/.ssh/kenobot_ed25519` | SSH key for git operations |
-| `GITHUB_TOKEN` | (empty) | Fine-grained PAT (alternative to SSH) |
-| `GITHUB_REPO` | (empty) | GitHub repo (e.g., `kenobot-agent/brain`) |
-| `SELF_IMPROVEMENT_ENABLED` | `false` | Enable self-improvement capabilities |
-| `APPROVAL_REQUIRED` | `true` | Require owner approval for changes |
-
-## n8n Integration
-
-n8n extends KenoBot's capabilities with external service integrations (Gmail, calendar, etc.).
-
-### Install n8n
-
-```bash
-# Option 1: npm (global)
-npm install -g n8n
-n8n start
-
-# Option 2: Docker
-docker run -d --name n8n -p 5678:5678 n8nio/n8n
-```
-
-### Configure
-
-1. Open n8n at `http://localhost:5678`
-2. Generate an API key: Settings > API > Create API Key
-3. Add to `.env`:
-
-```bash
-# Trigger workflows via webhook
-N8N_WEBHOOK_BASE=http://localhost:5678/webhook
-
-# Manage workflows via API
-N8N_API_URL=http://localhost:5678
-N8N_API_KEY=your-api-key
-```
-
-### Available Tools
-
-| Tool | Description | Trigger |
-|------|-------------|---------|
-| `n8n_trigger` | Trigger workflows via webhook | `/n8n <workflow> [data]` |
-| `n8n_manage` | List/create/activate workflows | `/n8n-manage list` |
-
-### Health Check
-
-When `N8N_API_URL` is configured, the watchdog monitors n8n availability and alerts via Telegram if it goes down.
-
-## Cloudflare Tunnel
-
-Expose KenoBot's HTTP webhook via a Cloudflare Tunnel (zero-trust, no open ports).
-
-### Setup
-
-```bash
-kenobot setup-tunnel --domain bot.example.com
-```
-
-This generates a `cloudflared.yml` config at `~/.kenobot/config/`. Then follow the printed steps:
-
-1. Install cloudflared
-2. `cloudflared tunnel login`
-3. `cloudflared tunnel create kenobot`
-4. Update the credentials file in the config
-5. `cloudflared tunnel route dns kenobot bot.example.com`
-6. Enable HTTP channel in `.env`:
-   ```bash
-   HTTP_ENABLED=true
-   WEBHOOK_SECRET=$(openssl rand -hex 32)
-   ```
-7. Run: `cloudflared tunnel --config ~/.kenobot/config/cloudflared.yml run`
-
-### As systemd service
-
-```bash
-cloudflared service install
-sudo systemctl enable --now cloudflared
-```
+| Integration | What it does | Key env vars |
+|-------------|-------------|--------------|
+| **GitHub Workspace** | Bot's own repo for skills, workflows, notes | `WORKSPACE_DIR`, `KENOBOT_SSH_KEY` |
+| **n8n** | 400+ service integrations (Gmail, calendar, etc.) | `N8N_WEBHOOK_BASE`, `N8N_API_URL` |
+| **Cloudflare Tunnel** | Expose webhooks securely, no open ports | `HTTP_ENABLED`, `WEBHOOK_SECRET` |
+| **Gmail** | Email via n8n workflows | (uses n8n, no extra config) |
+| **Self-Improvement** | Bot creates its own skills/workflows | `SELF_IMPROVEMENT_ENABLED` |
 
 ## Firewall
 
