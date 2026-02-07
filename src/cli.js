@@ -6,6 +6,13 @@ import paths from './paths.js'
 const args = process.argv.slice(2)
 const subcommand = args[0] || 'help'
 
+// Warn if running as root (claude-code doesn't work as root)
+if (process.getuid && process.getuid() === 0) {
+  console.error('\x1b[33mWarning: Running as root is not recommended.\x1b[0m')
+  console.error('The claude-cli provider will not work as root.')
+  console.error('Create a dedicated user: sudo useradd -r -m kenobot\n')
+}
+
 // First run: suggest kenobot init when ~/.kenobot/ doesn't exist
 if (!existsSync(paths.home) && subcommand !== 'init' && subcommand !== 'help' && subcommand !== 'version') {
   console.log('Welcome to KenoBot!\n')
@@ -26,6 +33,7 @@ const commands = {
   migrate:           () => import('./cli/migrate.js'),
   audit:             () => import('./cli/audit.js'),
   'install-service': () => import('./cli/install-service.js'),
+  'setup-tunnel':    () => import('./cli/setup-tunnel.js'),
   version:           () => import('./cli/version.js'),
   help:              () => import('./cli/help.js'),
 }

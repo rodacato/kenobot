@@ -86,6 +86,19 @@ watchdog.registerCheck('memory', () => {
   return { status: 'ok', detail: `${mb}MB RSS` }
 })
 
+// Register n8n health check (if configured)
+if (config.n8n.apiUrl) {
+  watchdog.registerCheck('n8n', async () => {
+    try {
+      const res = await fetch(`${config.n8n.apiUrl}/healthz`, { signal: AbortSignal.timeout(5000) })
+      if (res.ok) return { status: 'ok', detail: 'n8n reachable' }
+      return { status: 'fail', detail: `n8n returned ${res.status}` }
+    } catch (error) {
+      return { status: 'fail', detail: `n8n unreachable: ${error.message}` }
+    }
+  })
+}
+
 // Health event → alert owner via Telegram
 bus.on('health:degraded', ({ detail }) => {
   const ownerChat = config.telegram.allowedChatIds[0]
@@ -130,7 +143,7 @@ toolRegistry.register(new ScheduleTool(scheduler))
 toolRegistry.register(new DiagnosticsTool(watchdog, circuitBreaker))
 if (config.workspaceDir) {
   toolRegistry.register(new WorkspaceTool(config.workspaceDir))
-  toolRegistry.register(new GitHubTool(config.workspaceDir))
+  toolRegistry.register(new GitHubTool(config.workspaceDir, { sshKeyPath: config.sshKeyPath }))
 }
 if (config.n8n.webhookBase) {
   toolRegistry.register(new N8nTriggerTool(config.n8n))
@@ -208,7 +221,7 @@ async function start() {
 
   // Initialize workspace (if configured)
   if (config.workspaceDir) {
-    await initWorkspace(config.workspaceDir)
+    await initWorkspace(config.workspaceDir, { sshKeyPath: config.sshKeyPath })
     logger.info('system', 'workspace_initialized', { dir: config.workspaceDir })
   }
 

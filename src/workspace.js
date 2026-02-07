@@ -13,8 +13,10 @@ const execFileAsync = promisify(execFile)
  * Called once at startup from index.js.
  *
  * @param {string} workspaceDir - Absolute path to workspace directory
+ * @param {Object} options - Optional configuration
+ * @param {string} options.sshKeyPath - Path to SSH key for git operations
  */
-export async function initWorkspace(workspaceDir) {
+export async function initWorkspace(workspaceDir, options = {}) {
   // 1. Ensure directory exists
   await mkdir(workspaceDir, { recursive: true })
 
@@ -46,7 +48,14 @@ export async function initWorkspace(workspaceDir) {
 
   // 6. Pull latest (fast-forward only)
   try {
-    await execFileAsync('git', ['pull', '--ff-only'], { cwd: workspaceDir })
+    const pullOptions = { cwd: workspaceDir }
+    if (options.sshKeyPath) {
+      pullOptions.env = {
+        ...process.env,
+        GIT_SSH_COMMAND: `ssh -i ${options.sshKeyPath} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new`
+      }
+    }
+    await execFileAsync('git', ['pull', '--ff-only'], pullOptions)
     logger.info('workspace', 'synced', { dir: workspaceDir })
   } catch (error) {
     logger.warn('workspace', 'pull_failed', { dir: workspaceDir, error: error.message })

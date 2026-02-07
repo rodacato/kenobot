@@ -14,6 +14,7 @@ Commands:
   migrate <path>      Copy user files from old-style layout
   audit               Run security audit
   install-service     Generate systemd user service
+  setup-tunnel        Generate cloudflared tunnel config
   version             Show version
   help                Show this help
 

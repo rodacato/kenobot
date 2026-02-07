@@ -1,5 +1,7 @@
 import { config as loadEnv } from 'dotenv'
 import { parseArgs } from 'node:util'
+import { join } from 'node:path'
+import { homedir } from 'node:os'
 import logger from './logger.js'
 
 // Parse command line arguments
@@ -64,6 +66,7 @@ export default {
 
   // Workspace & GitHub
   workspaceDir: process.env.WORKSPACE_DIR || '',
+  sshKeyPath: process.env.KENOBOT_SSH_KEY || join(homedir(), '.ssh', 'kenobot_ed25519'),
   github: {
     token: process.env.GITHUB_TOKEN || '',
     repo: process.env.GITHUB_REPO || ''

@@ -15,9 +15,10 @@ const execFileAsync = promisify(execFile)
  * LLM tool_use: github { action: "commit", files: ["path"], message: "..." }
  */
 export default class GitHubTool extends BaseTool {
-  constructor(workspaceDir) {
+  constructor(workspaceDir, { sshKeyPath } = {}) {
     super()
     this.cwd = workspaceDir
+    this.sshKeyPath = sshKeyPath || ''
   }
 
   get definition() {
@@ -89,10 +90,14 @@ export default class GitHubTool extends BaseTool {
 
   async _run(args) {
     try {
-      const { stdout, stderr } = await execFileAsync('git', args, {
-        cwd: this.cwd,
-        timeout: 30000
-      })
+      const options = { cwd: this.cwd, timeout: 30000 }
+      if (this.sshKeyPath) {
+        options.env = {
+          ...process.env,
+          GIT_SSH_COMMAND: `ssh -i ${this.sshKeyPath} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new`
+        }
+      }
+      const { stdout, stderr } = await execFileAsync('git', args, options)
       return (stdout + stderr).trim()
     } catch (error) {
       throw new Error(`git ${args[0]} failed: ${error.message}`)
