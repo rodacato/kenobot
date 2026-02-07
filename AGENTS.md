@@ -93,7 +93,37 @@ Tests in `test/` mirror `src/` structure. File naming: `*.test.js`.
 
 Coverage thresholds: lines 50%, functions 35%, branches 55%, statements 50%.
 
-Mocking approach: `vi.mock()` for fs/logger, manual mocks for bus/provider/storage, real implementations when possible. Mock external services, not internal code.
+#### Guiding principle
+
+**Test behavior, not implementation.** Prefer exercising real code over mocking it. A test that writes data and reads it back is more valuable than one that verifies `appendFile` was called with the right arguments.
+
+#### When to use real implementations
+
+- **Filesystem I/O**: Use real temp directories (`mkdtemp` + `rm` in afterEach). See `identity.test.js`, `memory.test.js`, `filesystem.test.js` as reference.
+- **EventEmitter bus**: Use `new EventEmitter()` — it's lightweight, no side effects.
+- **ToolRegistry, SkillLoader, IdentityLoader, MemoryManager**: Instantiable classes, safe to use with temp dirs.
+- **ContextBuilder**: Use real instance with real deps for integration tests.
+
+#### When to mock
+
+- **`logger.js`**: Always mock — suppresses console noise and file writes.
+- **`config.js`**: Always mock or avoid importing — runs side effects at import time.
+- **Network boundaries**: Mock `fetch`, Anthropic SDK, Grammy bot — never make real HTTP calls.
+- **Provider**: Mock in agent tests — it's the network boundary.
+
+#### Test structure
+
+Each test file should have:
+1. **Unit tests** (`describe('methodName')`) — test individual methods with minimal setup.
+2. **Integration tests** (`describe('integration')`) — wire real collaborators, test the full flow. See `context.test.js` and `loop.test.js` as reference.
+3. **Round-trip tests** (`describe('round-trip')`) — write data, read it back, verify correctness. See `memory.test.js` and `filesystem.test.js`.
+
+#### Anti-patterns to avoid
+
+- `vi.mock('node:fs/promises')` — use real temp dirs instead.
+- `expect(mkdir).toHaveBeenCalledWith(...)` — asserts implementation, not behavior.
+- `obj._privateField = true` to skip internal logic — let the real code run.
+- Mocking internal modules that are safe to instantiate (ToolRegistry, SkillLoader, etc.).
 
 ## Key Technical Decisions
 
