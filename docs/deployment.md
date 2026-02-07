@@ -256,12 +256,23 @@ kenobot.example.com {
 
 ## Troubleshooting
 
+### General diagnostics
+
+Run the doctor command to check for common problems:
+
+```bash
+kenobot doctor
+```
+
+Checks: directory structure, config file, provider readiness, skills validity, identity, stale PID, disk usage, backups, SSH key, and recent log errors.
+
 ### Bot not responding
 
-1. Check if it's running: `kenobot status`
-2. Check logs: `kenobot logs`
-3. Check config: `kenobot config`
-4. Try restarting: `kenobot restart`
+1. Run `kenobot doctor` to identify the issue
+2. Check if it's running: `kenobot status`
+3. Check logs: `kenobot logs`
+4. Check config: `kenobot config`
+5. Try restarting: `kenobot restart`
 
 ### "Config missing" error on startup
 

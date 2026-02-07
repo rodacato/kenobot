@@ -50,6 +50,7 @@ kenobot logs                 # Tail latest log
 kenobot config [edit]        # Show config or open in $EDITOR
 kenobot backup               # Backup config/ and data/
 kenobot purge                # Reset runtime data (sessions, logs, scheduler)
+kenobot doctor               # Diagnose common problems
 kenobot update               # Update to latest release
 ```
 
@@ -150,6 +151,8 @@ kenobot/                       # Engine (framework code, updatable)
       logs.js                  # Tail log files
       backup.js                # Data backup with rotation
       purge.js                 # Reset runtime data (3 levels)
+      doctor.js                # Diagnose common problems (10 checks)
+      utils.js                 # Shared CLI helpers (colors, exists, dirSize)
       config-cmd.js            # Show/edit config
       update.js                # Update to latest release tag
       migrate.js               # Migrate from old layout

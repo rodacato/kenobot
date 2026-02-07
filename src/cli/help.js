@@ -15,6 +15,7 @@ Commands:
                       --all     Clear everything except config
                       --yes     Skip confirmation
                       --no-backup  Skip auto-backup before purge
+  doctor              Diagnose common problems (config, skills, disk)
   update [--check]    Update to latest release tag
   migrate <path>      Copy user files from old-style layout
   audit               Run security audit

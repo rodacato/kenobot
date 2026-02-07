@@ -21,6 +21,7 @@ kenobot backup         # Backup config/ and data/
 kenobot purge          # Reset runtime data (sessions, logs, scheduler)
 kenobot purge --memory # Also clear memory files
 kenobot purge --all    # Clear everything except config
+kenobot doctor         # Diagnose common problems
 kenobot update         # Update to latest release tag
 kenobot version        # Show version
 
