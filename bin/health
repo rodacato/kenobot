@@ -1,0 +1,12 @@
+#!/usr/bin/env node
+
+import { checkPid } from '../src/health.js'
+
+try {
+  const pid = await checkPid()
+  console.log(`✓ KenoBot is running (PID ${pid})`)
+  process.exit(0)
+} catch {
+  console.log('✗ KenoBot is not running')
+  process.exit(1)
+}
