@@ -80,7 +80,15 @@ export default class MemoryManager {
    */
   async getLongTermMemory() {
     try {
-      return await readFile(join(this.memoryDir, 'MEMORY.md'), 'utf8')
+      const content = await readFile(join(this.memoryDir, 'MEMORY.md'), 'utf8')
+      if (content.length > 10240) {
+        logger.warn('memory', 'memory_file_large', {
+          file: 'MEMORY.md',
+          sizeBytes: content.length,
+          hint: 'Consider curating MEMORY.md to keep it under 10KB for optimal context usage'
+        })
+      }
+      return content
     } catch {
       return ''
     }

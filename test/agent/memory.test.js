@@ -16,6 +16,7 @@ vi.mock('node:fs/promises', () => ({
 }))
 
 import { readFile, appendFile, readdir, mkdir } from 'node:fs/promises'
+import logger from '../../src/logger.js'
 import MemoryManager from '../../src/agent/memory.js'
 
 describe('MemoryManager', () => {
@@ -167,6 +168,28 @@ describe('MemoryManager', () => {
       const result = await manager.getLongTermMemory()
 
       expect(result).toBe('')
+    })
+
+    it('should log warning when MEMORY.md exceeds 10KB', async () => {
+      const largeContent = 'x'.repeat(11000)
+      readFile.mockResolvedValue(largeContent)
+
+      const result = await manager.getLongTermMemory()
+
+      expect(result).toBe(largeContent)
+      expect(logger.warn).toHaveBeenCalledWith('memory', 'memory_file_large', expect.objectContaining({
+        file: 'MEMORY.md',
+        sizeBytes: 11000
+      }))
+    })
+
+    it('should not log warning when MEMORY.md is under 10KB', async () => {
+      const smallContent = 'x'.repeat(5000)
+      readFile.mockResolvedValue(smallContent)
+
+      await manager.getLongTermMemory()
+
+      expect(logger.warn).not.toHaveBeenCalled()
     })
   })
 })

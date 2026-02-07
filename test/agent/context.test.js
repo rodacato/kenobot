@@ -102,10 +102,21 @@ describe('ContextBuilder', () => {
       expect(result.messages[0]).not.toHaveProperty('timestamp')
     })
 
-    it('should load session with correct sessionId', async () => {
+    it('should load session with correct sessionId and default limit', async () => {
       await context.build('telegram-456', { text: 'test' })
 
-      expect(mockStorage.loadSession).toHaveBeenCalledWith('telegram-456')
+      expect(mockStorage.loadSession).toHaveBeenCalledWith('telegram-456', 20)
+    })
+
+    it('should pass configured sessionHistoryLimit to loadSession', async () => {
+      const ctx = new ContextBuilder(
+        { identityFile: 'identities/kenobot.md', sessionHistoryLimit: 50 },
+        mockStorage
+      )
+
+      await ctx.build('telegram-123', { text: 'test' })
+
+      expect(mockStorage.loadSession).toHaveBeenCalledWith('telegram-123', 50)
     })
 
     it('should auto-load identity on first build if not loaded', async () => {

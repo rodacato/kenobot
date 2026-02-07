@@ -47,8 +47,9 @@ export default class ContextBuilder {
     // Build system prompt: identity + tools + skills + memory
     const { system, activeSkill } = await this._buildSystemPrompt(message.text)
 
-    // Load session history (last 20 messages)
-    const history = await this.storage.loadSession(sessionId)
+    // Load session history
+    const historyLimit = this.config.sessionHistoryLimit ?? 20
+    const history = await this.storage.loadSession(sessionId, historyLimit)
 
     // Map history to provider format (strip timestamps)
     const messages = history.map(({ role, content }) => ({ role, content }))

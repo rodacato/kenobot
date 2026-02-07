@@ -124,7 +124,7 @@ export default class AgentLoop {
       if (toolDefs.length > 0) chatOptions.tools = toolDefs
 
       // Call provider
-      let response = await this.provider.chat(context.messages, chatOptions)
+      let response = await this.provider.chatWithRetry(context.messages, chatOptions)
 
       // Tool execution loop (max iterations as safety valve)
       let iterations = 0
@@ -160,7 +160,7 @@ export default class AgentLoop {
           }))
         })
 
-        response = await this.provider.chat(context.messages, chatOptions)
+        response = await this.provider.chatWithRetry(context.messages, chatOptions)
       }
 
       // Safety valve: if still requesting tools after max iterations

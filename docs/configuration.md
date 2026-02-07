@@ -31,6 +31,12 @@ Get your chat ID from [@userinfobot](https://t.me/userinfobot). For group chats,
 |----------|------|---------|----------|-------------|
 | `ANTHROPIC_API_KEY` | string | — | When `PROVIDER=claude-api` | Anthropic API key from [console.anthropic.com](https://console.anthropic.com/settings/keys) |
 
+## Session
+
+| Variable | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `SESSION_HISTORY_LIMIT` | integer | `20` | No | Number of recent messages to load from session history per request. Lower values reduce context size and cost; higher values give more conversational continuity. |
+
 ## Memory
 
 | Variable | Type | Default | Required | Description |
@@ -84,6 +90,7 @@ ANTHROPIC_API_KEY=sk-ant-api03-...
 # Optional
 IDENTITY_FILE=identities/kenobot.md
 DATA_DIR=./data
+SESSION_HISTORY_LIMIT=20
 MEMORY_DAYS=3
 SKILLS_DIR=./skills
 MAX_TOOL_ITERATIONS=20

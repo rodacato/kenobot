@@ -45,6 +45,9 @@ export default {
   // Skills
   skillsDir: process.env.SKILLS_DIR || './skills',
 
+  // Session
+  sessionHistoryLimit: parseInt(process.env.SESSION_HISTORY_LIMIT || '20', 10),
+
   // Tools
   maxToolIterations: parseInt(process.env.MAX_TOOL_ITERATIONS || '20', 10),
 

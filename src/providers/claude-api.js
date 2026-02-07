@@ -80,8 +80,10 @@ export default class ClaudeAPIProvider extends BaseProvider {
         }
       }
     } catch (error) {
-      logger.error('claude-api', 'request_failed', { error: error.message })
-      throw new Error(`Claude API error: ${error.message}`)
+      logger.error('claude-api', 'request_failed', { error: error.message, status: error.status })
+      const wrapped = new Error(`Claude API error: ${error.message}`)
+      if (error.status) wrapped.status = error.status
+      throw wrapped
     }
   }
 

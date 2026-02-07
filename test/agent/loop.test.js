@@ -27,7 +27,8 @@ describe('AgentLoop', () => {
 
     provider = {
       name: 'mock',
-      chat: vi.fn().mockResolvedValue({ content: 'bot response' })
+      chat: vi.fn().mockResolvedValue({ content: 'bot response' }),
+      chatWithRetry: vi.fn().mockResolvedValue({ content: 'bot response' })
     }
 
     contextBuilder = {
@@ -98,7 +99,7 @@ describe('AgentLoop', () => {
       await agent._handleMessage(message)
 
       expect(contextBuilder.build).toHaveBeenCalledOnce()
-      expect(provider.chat).toHaveBeenCalledWith(
+      expect(provider.chatWithRetry).toHaveBeenCalledWith(
         [{ role: 'user', content: 'hello' }],
         { system: '# Identity' }
       )
@@ -145,7 +146,7 @@ describe('AgentLoop', () => {
     })
 
     it('should emit error message on provider failure', async () => {
-      provider.chat.mockRejectedValue(new Error('API timeout'))
+      provider.chatWithRetry.mockRejectedValue(new Error('API timeout'))
 
       await agent._handleMessage(message)
 
@@ -157,7 +158,7 @@ describe('AgentLoop', () => {
     })
 
     it('should not save session on provider failure', async () => {
-      provider.chat.mockRejectedValue(new Error('API timeout'))
+      provider.chatWithRetry.mockRejectedValue(new Error('API timeout'))
 
       await agent._handleMessage(message)
 
@@ -197,7 +198,7 @@ describe('AgentLoop', () => {
     })
 
     it('should extract memory tags and save to daily log', async () => {
-      provider.chat.mockResolvedValue({
+      provider.chatWithRetry.mockResolvedValue({
         content: 'Got it!\n<memory>User prefers Spanish</memory>'
       })
 
@@ -207,7 +208,7 @@ describe('AgentLoop', () => {
     })
 
     it('should send clean text without memory tags to user', async () => {
-      provider.chat.mockResolvedValue({
+      provider.chatWithRetry.mockResolvedValue({
         content: 'Got it!\n<memory>User prefers Spanish</memory>'
       })
 
@@ -221,7 +222,7 @@ describe('AgentLoop', () => {
     })
 
     it('should save clean text to session history', async () => {
-      provider.chat.mockResolvedValue({
+      provider.chatWithRetry.mockResolvedValue({
         content: 'Sure!\n<memory>some fact</memory>'
       })
 
@@ -233,7 +234,7 @@ describe('AgentLoop', () => {
     })
 
     it('should handle multiple memory tags', async () => {
-      provider.chat.mockResolvedValue({
+      provider.chatWithRetry.mockResolvedValue({
         content: 'OK!\n<memory>fact one</memory>\n<memory>fact two</memory>'
       })
 
@@ -245,7 +246,7 @@ describe('AgentLoop', () => {
     })
 
     it('should not call memoryManager when no tags present', async () => {
-      provider.chat.mockResolvedValue({ content: 'plain response' })
+      provider.chatWithRetry.mockResolvedValue({ content: 'plain response' })
 
       await agent._handleMessage(message)
 
@@ -254,7 +255,7 @@ describe('AgentLoop', () => {
 
     it('should work without memoryManager (backward compatible)', async () => {
       const agentNoMemory = new AgentLoop(bus, provider, contextBuilder, storage)
-      provider.chat.mockResolvedValue({
+      provider.chatWithRetry.mockResolvedValue({
         content: 'response\n<memory>orphan tag</memory>'
       })
 
@@ -294,11 +295,11 @@ describe('AgentLoop', () => {
     })
 
     it('should pass tool definitions to provider', async () => {
-      provider.chat.mockResolvedValue({ content: 'text response', toolCalls: null })
+      provider.chatWithRetry.mockResolvedValue({ content: 'text response', toolCalls: null })
 
       await agent._handleMessage(message)
 
-      expect(provider.chat).toHaveBeenCalledWith(
+      expect(provider.chatWithRetry).toHaveBeenCalledWith(
         expect.any(Array),
         expect.objectContaining({
           tools: [{ name: 'web_fetch', description: 'Fetch URL', input_schema: {} }]
@@ -307,7 +308,7 @@ describe('AgentLoop', () => {
     })
 
     it('should execute tool when provider returns tool_use', async () => {
-      provider.chat
+      provider.chatWithRetry
         .mockResolvedValueOnce({
           content: "I'll fetch that.",
           toolCalls: [{ id: 'toolu_1', name: 'web_fetch', input: { url: 'https://example.com' } }],
@@ -337,7 +338,7 @@ describe('AgentLoop', () => {
     })
 
     it('should send tool results back to provider', async () => {
-      provider.chat
+      provider.chatWithRetry
         .mockResolvedValueOnce({
           content: 'Fetching...',
           toolCalls: [{ id: 'toolu_1', name: 'web_fetch', input: { url: 'https://example.com' } }],
@@ -356,7 +357,7 @@ describe('AgentLoop', () => {
       await agent._handleMessage(message)
 
       // Second call should include tool result messages
-      const secondCallMessages = provider.chat.mock.calls[1][0]
+      const secondCallMessages = provider.chatWithRetry.mock.calls[1][0]
       const lastMessage = secondCallMessages[secondCallMessages.length - 1]
       expect(lastMessage.role).toBe('user')
       expect(lastMessage.content).toEqual([
@@ -372,7 +373,7 @@ describe('AgentLoop', () => {
     it('should handle tool execution errors gracefully', async () => {
       toolRegistry.execute.mockRejectedValue(new Error('Network timeout'))
 
-      provider.chat
+      provider.chatWithRetry
         .mockResolvedValueOnce({
           content: 'Fetching...',
           toolCalls: [{ id: 'toolu_1', name: 'web_fetch', input: { url: 'https://bad.com' } }],
@@ -388,7 +389,7 @@ describe('AgentLoop', () => {
       await agent._handleMessage(message)
 
       // Error should be passed as tool_result with is_error: true
-      const secondCallMessages = provider.chat.mock.calls[1][0]
+      const secondCallMessages = provider.chatWithRetry.mock.calls[1][0]
       const lastMessage = secondCallMessages[secondCallMessages.length - 1]
       expect(lastMessage.content[0]).toEqual(expect.objectContaining({
         type: 'tool_result',
@@ -401,7 +402,7 @@ describe('AgentLoop', () => {
       agent.maxToolIterations = 2
 
       // Always return tool_use to force hitting the limit
-      provider.chat.mockResolvedValue({
+      provider.chatWithRetry.mockResolvedValue({
         content: 'Trying again...',
         toolCalls: [{ id: 'toolu_1', name: 'web_fetch', input: { url: 'https://loop.com' } }],
         stopReason: 'tool_use',
@@ -411,14 +412,14 @@ describe('AgentLoop', () => {
       await agent._handleMessage(message)
 
       // Should have called chat 3 times: initial + 2 iterations
-      expect(provider.chat).toHaveBeenCalledTimes(3)
+      expect(provider.chatWithRetry).toHaveBeenCalledTimes(3)
       expect(bus.emit).toHaveBeenCalledWith('message:out', expect.objectContaining({
         text: "I'm having trouble completing this task. Let me try a different approach."
       }))
     })
 
     it('should handle multi-tool calls in parallel', async () => {
-      provider.chat
+      provider.chatWithRetry
         .mockResolvedValueOnce({
           content: "I'll fetch both.",
           toolCalls: [
@@ -443,14 +444,14 @@ describe('AgentLoop', () => {
       // Both tools should be executed
       expect(toolRegistry.execute).toHaveBeenCalledTimes(2)
       // Second call should have both tool results
-      const secondCallMessages = provider.chat.mock.calls[1][0]
+      const secondCallMessages = provider.chatWithRetry.mock.calls[1][0]
       const lastMessage = secondCallMessages[secondCallMessages.length - 1]
       expect(lastMessage.content).toHaveLength(2)
     })
 
     it('should skip tool loop when no toolRegistry', async () => {
       const agentNoTools = new AgentLoop(bus, provider, contextBuilder, storage)
-      provider.chat.mockResolvedValue({
+      provider.chatWithRetry.mockResolvedValue({
         content: 'response',
         toolCalls: [{ id: 'toolu_1', name: 'web_fetch', input: {} }],
         stopReason: 'tool_use'
@@ -468,11 +469,11 @@ describe('AgentLoop', () => {
       toolRegistry.getDefinitions.mockReturnValue([])
       toolRegistry.size = 0
 
-      provider.chat.mockResolvedValue({ content: 'ok', toolCalls: null })
+      provider.chatWithRetry.mockResolvedValue({ content: 'ok', toolCalls: null })
 
       await agent._handleMessage(message)
 
-      expect(provider.chat).toHaveBeenCalledWith(
+      expect(provider.chatWithRetry).toHaveBeenCalledWith(
         expect.any(Array),
         { system: '# Identity' }
       )
@@ -509,7 +510,7 @@ describe('AgentLoop', () => {
         tool: fakeTool,
         input: { url: 'https://example.com' }
       })
-      provider.chat.mockResolvedValue({ content: 'Summary of the page' })
+      provider.chatWithRetry.mockResolvedValue({ content: 'Summary of the page' })
 
       await agent._handleMessage(message)
 
@@ -518,7 +519,7 @@ describe('AgentLoop', () => {
         { chatId: '123', userId: '456', channel: 'telegram' }
       )
       // The last message sent to provider should contain the tool result
-      const sentMessages = provider.chat.mock.calls[0][0]
+      const sentMessages = provider.chatWithRetry.mock.calls[0][0]
       const lastMsg = sentMessages[sentMessages.length - 1]
       expect(lastMsg.content).toContain('[web_fetch result]')
       expect(lastMsg.content).toContain('Fetched page content')
@@ -530,11 +531,11 @@ describe('AgentLoop', () => {
         tool: fakeTool,
         input: { url: 'https://bad.com' }
       })
-      provider.chat.mockResolvedValue({ content: 'Could not fetch that.' })
+      provider.chatWithRetry.mockResolvedValue({ content: 'Could not fetch that.' })
 
       await agent._handleMessage(message)
 
-      const sentMessages = provider.chat.mock.calls[0][0]
+      const sentMessages = provider.chatWithRetry.mock.calls[0][0]
       const lastMsg = sentMessages[sentMessages.length - 1]
       expect(lastMsg.content).toContain('[web_fetch error]')
       expect(lastMsg.content).toContain('DNS resolution failed')
@@ -542,11 +543,11 @@ describe('AgentLoop', () => {
 
     it('should not modify message when no trigger matches', async () => {
       const normalMessage = { text: 'hello', chatId: '123', userId: '456', channel: 'telegram' }
-      provider.chat.mockResolvedValue({ content: 'hi' })
+      provider.chatWithRetry.mockResolvedValue({ content: 'hi' })
 
       await agent._handleMessage(normalMessage)
 
-      const sentMessages = provider.chat.mock.calls[0][0]
+      const sentMessages = provider.chatWithRetry.mock.calls[0][0]
       const lastMsg = sentMessages[sentMessages.length - 1]
       expect(lastMsg.content).toBe('hello')
     })
