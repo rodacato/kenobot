@@ -1,4 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { join } from 'node:path'
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { EventEmitter } from 'node:events'
 
 // Suppress logger console output during tests
 vi.mock('../../src/logger.js', () => ({
@@ -10,6 +14,10 @@ vi.mock('../../src/logger.js', () => ({
 }))
 
 import AgentLoop from '../../src/agent/loop.js'
+import ContextBuilder from '../../src/agent/context.js'
+import FilesystemStorage from '../../src/storage/filesystem.js'
+import ToolRegistry from '../../src/tools/registry.js'
+import BaseTool from '../../src/tools/base.js'
 
 describe('AgentLoop', () => {
   let agent
@@ -564,6 +572,157 @@ describe('AgentLoop', () => {
       const sentMessages = provider.chatWithRetry.mock.calls[0][0]
       const lastMsg = sentMessages[sentMessages.length - 1]
       expect(lastMsg.content).toBe('hello')
+    })
+  })
+
+  describe('integration', () => {
+    let realBus, realStorage, realToolRegistry, realContextBuilder, intAgent
+    let tmpDir, provider
+
+    class EchoTool extends BaseTool {
+      get definition() {
+        return { name: 'echo', description: 'Echo input', input_schema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] } }
+      }
+      get trigger() { return /^\/echo\s+(.+)/i }
+      parseTrigger(match) { return { text: match[1] } }
+      async execute({ text }) { return `Echo: ${text}` }
+    }
+
+    const message = {
+      text: 'hello bot',
+      chatId: '123',
+      userId: '456',
+      channel: 'telegram'
+    }
+
+    beforeEach(async () => {
+      tmpDir = await mkdtemp(join(tmpdir(), 'kenobot-loop-int-'))
+
+      // Create identity file
+      await mkdir(join(tmpDir, 'identities'), { recursive: true })
+      await writeFile(join(tmpDir, 'identities', 'kenobot.md'), '# TestBot\nI am a test bot.')
+
+      realBus = new EventEmitter()
+      realStorage = new FilesystemStorage({ dataDir: tmpDir })
+      realToolRegistry = new ToolRegistry()
+      realToolRegistry.register(new EchoTool())
+
+      realContextBuilder = new ContextBuilder(
+        { identityFile: join(tmpDir, 'identities', 'kenobot.md') },
+        realStorage,
+        null,
+        realToolRegistry
+      )
+
+      provider = {
+        name: 'mock',
+        chat: vi.fn().mockResolvedValue({ content: 'bot reply' }),
+        chatWithRetry: vi.fn().mockResolvedValue({ content: 'bot reply' }),
+        buildToolResultMessages(rawContent, results) {
+          return [
+            { role: 'assistant', content: rawContent },
+            {
+              role: 'user',
+              content: results.map(r => ({
+                type: 'tool_result',
+                tool_use_id: r.id,
+                content: r.result,
+                is_error: r.isError
+              }))
+            }
+          ]
+        }
+      }
+
+      intAgent = new AgentLoop(realBus, provider, realContextBuilder, realStorage, null, realToolRegistry)
+    })
+
+    afterEach(async () => {
+      await rm(tmpDir, { recursive: true, force: true })
+    })
+
+    it('should build context from real storage and call provider', async () => {
+      await intAgent._handleMessage(message)
+
+      expect(provider.chatWithRetry).toHaveBeenCalledOnce()
+      const [messages, opts] = provider.chatWithRetry.mock.calls[0]
+      expect(opts.system).toContain('# TestBot')
+      expect(messages[messages.length - 1].content).toBe('hello bot')
+    })
+
+    it('should persist session to real JSONL file', async () => {
+      await intAgent._handleMessage(message)
+
+      const session = await realStorage.loadSession('telegram-123')
+      expect(session.length).toBeGreaterThanOrEqual(2)
+      expect(session.find(m => m.content === 'hello bot')).toBeDefined()
+      expect(session.find(m => m.content === 'bot reply')).toBeDefined()
+    })
+
+    it('should emit message:out on real bus', async () => {
+      const emitted = []
+      realBus.on('message:out', (msg) => emitted.push(msg))
+
+      await intAgent._handleMessage(message)
+
+      expect(emitted).toHaveLength(1)
+      expect(emitted[0]).toEqual({
+        chatId: '123',
+        text: 'bot reply',
+        channel: 'telegram'
+      })
+    })
+
+    it('should enrich message via trigger with real tool execution', async () => {
+      const triggerMessage = { text: '/echo hello world', chatId: '123', userId: '456', channel: 'telegram' }
+      provider.chatWithRetry.mockResolvedValue({ content: 'Got it' })
+
+      await intAgent._handleMessage(triggerMessage)
+
+      const [messages] = provider.chatWithRetry.mock.calls[0]
+      const lastMsg = messages[messages.length - 1]
+      expect(lastMsg.content).toContain('[echo result]')
+      expect(lastMsg.content).toContain('Echo: hello world')
+    })
+
+    it('should include tool definitions from real registry', async () => {
+      provider.chatWithRetry.mockResolvedValue({ content: 'ok', toolCalls: null })
+
+      await intAgent._handleMessage(message)
+
+      const [, opts] = provider.chatWithRetry.mock.calls[0]
+      expect(opts.tools).toEqual([
+        expect.objectContaining({ name: 'echo', description: 'Echo input' })
+      ])
+    })
+
+    it('should execute tool in tool-use loop with real registry', async () => {
+      provider.chatWithRetry
+        .mockResolvedValueOnce({
+          content: 'Echoing...',
+          toolCalls: [{ id: 'toolu_1', name: 'echo', input: { text: 'test' } }],
+          stopReason: 'tool_use',
+          rawContent: [
+            { type: 'text', text: 'Echoing...' },
+            { type: 'tool_use', id: 'toolu_1', name: 'echo', input: { text: 'test' } }
+          ]
+        })
+        .mockResolvedValueOnce({
+          content: 'The echo returned: Echo: test',
+          toolCalls: null,
+          stopReason: 'end_turn'
+        })
+
+      await intAgent._handleMessage(message)
+
+      // Second call should include the real tool result
+      const secondCallMessages = provider.chatWithRetry.mock.calls[1][0]
+      const lastMessage = secondCallMessages[secondCallMessages.length - 1]
+      expect(lastMessage.content[0]).toEqual(expect.objectContaining({
+        type: 'tool_result',
+        content: 'Echo: test',
+        is_error: false
+      }))
     })
   })
 })

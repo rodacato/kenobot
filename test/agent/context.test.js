@@ -1,4 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { join } from 'node:path'
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 
 // Suppress logger console output during tests
 vi.mock('../../src/logger.js', () => ({
@@ -10,6 +13,12 @@ vi.mock('../../src/logger.js', () => ({
 }))
 
 import ContextBuilder from '../../src/agent/context.js'
+import FilesystemStorage from '../../src/storage/filesystem.js'
+import MemoryManager from '../../src/agent/memory.js'
+import IdentityLoader from '../../src/agent/identity.js'
+import ToolRegistry from '../../src/tools/registry.js'
+import BaseTool from '../../src/tools/base.js'
+import SkillLoader from '../../src/skills/loader.js'
 
 describe('ContextBuilder', () => {
   let context
@@ -491,6 +500,150 @@ describe('ContextBuilder', () => {
       const toolsIdx = result.system.indexOf('## Available tools')
       expect(userIdx).toBeGreaterThan(-1)
       expect(toolsIdx).toBeGreaterThan(userIdx)
+    })
+  })
+
+  describe('integration', () => {
+    let tmpDir, storage, memory, toolRegistry, skillLoader, identityLoader, ctx
+
+    beforeEach(async () => {
+      tmpDir = await mkdtemp(join(tmpdir(), 'kenobot-ctx-int-'))
+
+      // Create identity directory with SOUL.md and IDENTITY.md
+      const identityDir = join(tmpDir, 'identities', 'kenobot')
+      await mkdir(identityDir, { recursive: true })
+      await writeFile(join(identityDir, 'SOUL.md'), '# Soul\nI am friendly and helpful.')
+      await writeFile(join(identityDir, 'IDENTITY.md'), '# Identity\nExpert in Node.js.')
+      await writeFile(join(identityDir, 'USER.md'), '- Name: Carlos\n- Language: Spanish')
+
+      // Create skills
+      const skillsDir = join(tmpDir, 'skills')
+      const weatherDir = join(skillsDir, 'weather')
+      await mkdir(weatherDir, { recursive: true })
+      await writeFile(join(weatherDir, 'manifest.json'), JSON.stringify({
+        name: 'weather',
+        description: 'Get weather forecasts',
+        triggers: ['weather', 'forecast']
+      }))
+      await writeFile(join(weatherDir, 'SKILL.md'), '## Weather\nFetch from wttr.in')
+
+      // Create memory
+      const memDir = join(tmpDir, 'memory')
+      await mkdir(memDir, { recursive: true })
+      await writeFile(join(memDir, 'MEMORY.md'), '# Facts\n- User likes Star Wars')
+      await writeFile(join(memDir, '2026-02-07.md'), '## 10:30 — User prefers dark mode\n')
+
+      // Create session history
+      const sessionsDir = join(tmpDir, 'sessions')
+      await mkdir(sessionsDir, { recursive: true })
+      await writeFile(join(sessionsDir, 'telegram-123.jsonl'), [
+        '{"role":"user","content":"previous question","timestamp":1000}',
+        '{"role":"assistant","content":"previous answer","timestamp":1001}'
+      ].join('\n'))
+
+      // Wire real components
+      storage = new FilesystemStorage({ dataDir: tmpDir })
+      memory = new MemoryManager(tmpDir)
+      identityLoader = new IdentityLoader(join(tmpDir, 'identities', 'kenobot'))
+      await identityLoader.load()
+
+      toolRegistry = new ToolRegistry()
+      class FakeTool extends BaseTool {
+        get definition() {
+          return { name: 'test_tool', description: 'A test tool', input_schema: { type: 'object', properties: {} } }
+        }
+        async execute() { return 'ok' }
+      }
+      toolRegistry.register(new FakeTool())
+
+      skillLoader = new SkillLoader(skillsDir)
+      await skillLoader.loadAll()
+
+      ctx = new ContextBuilder(
+        { identityFile: join(tmpDir, 'identities', 'kenobot'), memoryDays: 3 },
+        storage,
+        memory,
+        toolRegistry,
+        skillLoader,
+        identityLoader
+      )
+    })
+
+    afterEach(async () => {
+      await rm(tmpDir, { recursive: true, force: true })
+    })
+
+    it('should assemble system prompt with all real components', async () => {
+      const result = await ctx.build('telegram-123', { text: 'hello' })
+
+      // Identity sections
+      expect(result.system).toContain('I am friendly and helpful.')
+      expect(result.system).toContain('Expert in Node.js.')
+
+      // User profile
+      expect(result.system).toContain('## User Profile')
+      expect(result.system).toContain('Name: Carlos')
+
+      // Tools
+      expect(result.system).toContain('## Available tools')
+      expect(result.system).toContain('test_tool')
+
+      // Skills
+      expect(result.system).toContain('## Available skills')
+      expect(result.system).toContain('weather')
+
+      // Memory
+      expect(result.system).toContain('User likes Star Wars')
+      expect(result.system).toContain('User prefers dark mode')
+    })
+
+    it('should load session history from real JSONL files', async () => {
+      const result = await ctx.build('telegram-123', { text: 'follow-up' })
+
+      expect(result.messages).toHaveLength(3)
+      expect(result.messages[0]).toEqual({ role: 'user', content: 'previous question' })
+      expect(result.messages[1]).toEqual({ role: 'assistant', content: 'previous answer' })
+      expect(result.messages[2]).toEqual({ role: 'user', content: 'follow-up' })
+    })
+
+    it('should inject active skill when trigger matches', async () => {
+      const result = await ctx.build('telegram-123', { text: 'what is the weather?' })
+
+      expect(result.system).toContain('## Active skill: weather')
+      expect(result.system).toContain('Fetch from wttr.in')
+      expect(result.activeSkill).toBe('weather')
+    })
+
+    it('should not inject skill when no trigger matches', async () => {
+      const result = await ctx.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).not.toContain('## Active skill')
+      expect(result.activeSkill).toBeNull()
+    })
+
+    it('should work with new session (no JSONL file)', async () => {
+      const result = await ctx.build('telegram-new', { text: 'first message' })
+
+      expect(result.messages).toHaveLength(1)
+      expect(result.messages[0]).toEqual({ role: 'user', content: 'first message' })
+    })
+
+    it('should maintain correct section ordering', async () => {
+      const result = await ctx.build('telegram-123', { text: 'hello' })
+      const sys = result.system
+
+      const soulIdx = sys.indexOf('# Soul')
+      const identityIdx = sys.indexOf('# Identity')
+      const userIdx = sys.indexOf('## User Profile')
+      const toolsIdx = sys.indexOf('## Available tools')
+      const skillsIdx = sys.indexOf('## Available skills')
+      const memoryIdx = sys.indexOf('## Memory')
+
+      expect(soulIdx).toBeLessThan(identityIdx)
+      expect(identityIdx).toBeLessThan(userIdx)
+      expect(userIdx).toBeLessThan(toolsIdx)
+      expect(toolsIdx).toBeLessThan(skillsIdx)
+      expect(skillsIdx).toBeLessThan(memoryIdx)
     })
   })
 })

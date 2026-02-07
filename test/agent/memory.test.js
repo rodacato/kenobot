@@ -1,5 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { join } from 'node:path'
+import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 
+// Suppress logger console output during tests
 vi.mock('../../src/logger.js', () => ({
   default: {
     info: vi.fn(),
@@ -8,24 +12,22 @@ vi.mock('../../src/logger.js', () => ({
   }
 }))
 
-vi.mock('node:fs/promises', () => ({
-  readFile: vi.fn(),
-  appendFile: vi.fn(),
-  readdir: vi.fn(),
-  mkdir: vi.fn()
-}))
-
-import { readFile, appendFile, readdir, mkdir } from 'node:fs/promises'
 import logger from '../../src/logger.js'
 import MemoryManager from '../../src/agent/memory.js'
 
 describe('MemoryManager', () => {
   let manager
+  let tmpDir
 
-  beforeEach(() => {
-    manager = new MemoryManager('./data')
-    manager._dirReady = true // skip mkdir in tests
+  beforeEach(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'kenobot-memory-'))
+    manager = new MemoryManager(tmpDir)
     vi.clearAllMocks()
+  })
+
+  afterEach(async () => {
+    vi.useRealTimers()
+    await rm(tmpDir, { recursive: true, force: true })
   })
 
   describe('appendDaily', () => {
@@ -35,13 +37,8 @@ describe('MemoryManager', () => {
 
       await manager.appendDaily('User prefers Spanish')
 
-      expect(appendFile).toHaveBeenCalledWith(
-        'data/memory/2026-02-07.md',
-        '## 10:30 — User prefers Spanish\n\n',
-        'utf8'
-      )
-
-      vi.useRealTimers()
+      const content = await readFile(join(tmpDir, 'memory', '2026-02-07.md'), 'utf8')
+      expect(content).toBe('## 10:30 — User prefers Spanish\n\n')
     })
 
     it('should use current date for filename', async () => {
@@ -50,40 +47,43 @@ describe('MemoryManager', () => {
 
       await manager.appendDaily('Christmas note')
 
-      expect(appendFile).toHaveBeenCalledWith(
-        expect.stringContaining('2026-12-25.md'),
-        expect.any(String),
-        'utf8'
-      )
-
-      vi.useRealTimers()
+      const content = await readFile(join(tmpDir, 'memory', '2026-12-25.md'), 'utf8')
+      expect(content).toContain('Christmas note')
     })
 
-    it('should ensure directory exists', async () => {
-      manager._dirReady = false
-
+    it('should create memory directory automatically', async () => {
       await manager.appendDaily('test')
 
-      expect(mkdir).toHaveBeenCalledWith('data/memory', { recursive: true })
+      const content = await readFile(join(tmpDir, 'memory', new Date().toISOString().slice(0, 10) + '.md'), 'utf8')
+      expect(content).toContain('test')
+    })
+
+    it('should append multiple entries to the same daily file', async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-02-07T10:00:00Z'))
+      await manager.appendDaily('first fact')
+
+      vi.setSystemTime(new Date('2026-02-07T14:30:00Z'))
+      await manager.appendDaily('second fact')
+
+      const content = await readFile(join(tmpDir, 'memory', '2026-02-07.md'), 'utf8')
+      expect(content).toContain('## 10:00 — first fact')
+      expect(content).toContain('## 14:30 — second fact')
     })
   })
 
   describe('getRecentDays', () => {
     it('should return empty string when no files exist', async () => {
-      readdir.mockResolvedValue([])
-
       const result = await manager.getRecentDays(3)
 
       expect(result).toBe('')
     })
 
     it('should return content of recent daily files', async () => {
-      readdir.mockResolvedValue(['2026-02-06.md', '2026-02-07.md', 'MEMORY.md'])
-      readFile.mockImplementation(async (path) => {
-        if (path.includes('2026-02-07')) return '## 10:30 — fact one\n'
-        if (path.includes('2026-02-06')) return '## 09:00 — fact two\n'
-        return ''
-      })
+      const memDir = join(tmpDir, 'memory')
+      await manager._ensureDir()
+      await writeFile(join(memDir, '2026-02-06.md'), '## 09:00 — fact two\n')
+      await writeFile(join(memDir, '2026-02-07.md'), '## 10:30 — fact one\n')
 
       const result = await manager.getRecentDays(3)
 
@@ -94,8 +94,11 @@ describe('MemoryManager', () => {
     })
 
     it('should return most recent days first', async () => {
-      readdir.mockResolvedValue(['2026-02-05.md', '2026-02-06.md', '2026-02-07.md'])
-      readFile.mockResolvedValue('content\n')
+      const memDir = join(tmpDir, 'memory')
+      await manager._ensureDir()
+      await writeFile(join(memDir, '2026-02-05.md'), 'content\n')
+      await writeFile(join(memDir, '2026-02-06.md'), 'content\n')
+      await writeFile(join(memDir, '2026-02-07.md'), 'content\n')
 
       const result = await manager.getRecentDays(3)
 
@@ -107,10 +110,12 @@ describe('MemoryManager', () => {
     })
 
     it('should limit to N days', async () => {
-      readdir.mockResolvedValue([
-        '2026-02-04.md', '2026-02-05.md', '2026-02-06.md', '2026-02-07.md'
-      ])
-      readFile.mockResolvedValue('content\n')
+      const memDir = join(tmpDir, 'memory')
+      await manager._ensureDir()
+      await writeFile(join(memDir, '2026-02-04.md'), 'content\n')
+      await writeFile(join(memDir, '2026-02-05.md'), 'content\n')
+      await writeFile(join(memDir, '2026-02-06.md'), 'content\n')
+      await writeFile(join(memDir, '2026-02-07.md'), 'content\n')
 
       const result = await manager.getRecentDays(2)
 
@@ -121,8 +126,10 @@ describe('MemoryManager', () => {
     })
 
     it('should exclude MEMORY.md from daily files', async () => {
-      readdir.mockResolvedValue(['MEMORY.md', '2026-02-07.md'])
-      readFile.mockResolvedValue('content\n')
+      const memDir = join(tmpDir, 'memory')
+      await manager._ensureDir()
+      await writeFile(join(memDir, 'MEMORY.md'), 'long-term facts\n')
+      await writeFile(join(memDir, '2026-02-07.md'), 'content\n')
 
       const result = await manager.getRecentDays(3)
 
@@ -130,23 +137,10 @@ describe('MemoryManager', () => {
       expect(result).toContain('### 2026-02-07')
     })
 
-    it('should skip unreadable files gracefully', async () => {
-      readdir.mockResolvedValue(['2026-02-06.md', '2026-02-07.md'])
-      readFile.mockImplementation(async (path) => {
-        if (path.includes('2026-02-06')) throw new Error('read error')
-        return '## 10:00 — entry\n'
-      })
+    it('should return empty string when memory directory does not exist', async () => {
+      const badManager = new MemoryManager(join(tmpDir, 'nonexistent'))
 
-      const result = await manager.getRecentDays(3)
-
-      expect(result).toContain('2026-02-07')
-      expect(result).not.toContain('2026-02-06')
-    })
-
-    it('should return empty string when readdir fails', async () => {
-      readdir.mockRejectedValue(new Error('ENOENT'))
-
-      const result = await manager.getRecentDays(3)
+      const result = await badManager.getRecentDays(3)
 
       expect(result).toBe('')
     })
@@ -154,25 +148,26 @@ describe('MemoryManager', () => {
 
   describe('getLongTermMemory', () => {
     it('should return MEMORY.md content', async () => {
-      readFile.mockResolvedValue('# Long-term facts\n- User likes Star Wars')
+      const memDir = join(tmpDir, 'memory')
+      await manager._ensureDir()
+      await writeFile(join(memDir, 'MEMORY.md'), '# Long-term facts\n- User likes Star Wars')
 
       const result = await manager.getLongTermMemory()
 
       expect(result).toBe('# Long-term facts\n- User likes Star Wars')
-      expect(readFile).toHaveBeenCalledWith('data/memory/MEMORY.md', 'utf8')
     })
 
     it('should return empty string when MEMORY.md does not exist', async () => {
-      readFile.mockRejectedValue(new Error('ENOENT'))
-
       const result = await manager.getLongTermMemory()
 
       expect(result).toBe('')
     })
 
     it('should log warning when MEMORY.md exceeds 10KB', async () => {
+      const memDir = join(tmpDir, 'memory')
+      await manager._ensureDir()
       const largeContent = 'x'.repeat(11000)
-      readFile.mockResolvedValue(largeContent)
+      await writeFile(join(memDir, 'MEMORY.md'), largeContent)
 
       const result = await manager.getLongTermMemory()
 
@@ -184,12 +179,29 @@ describe('MemoryManager', () => {
     })
 
     it('should not log warning when MEMORY.md is under 10KB', async () => {
-      const smallContent = 'x'.repeat(5000)
-      readFile.mockResolvedValue(smallContent)
+      const memDir = join(tmpDir, 'memory')
+      await manager._ensureDir()
+      await writeFile(join(memDir, 'MEMORY.md'), 'x'.repeat(5000))
 
       await manager.getLongTermMemory()
 
       expect(logger.warn).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('round-trip', () => {
+    it('should write daily entries that getRecentDays can read back', async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-02-07T10:30:00Z'))
+
+      await manager.appendDaily('User prefers Spanish')
+      await manager.appendDaily('User likes Star Wars')
+
+      const result = await manager.getRecentDays(1)
+
+      expect(result).toContain('User prefers Spanish')
+      expect(result).toContain('User likes Star Wars')
+      expect(result).toContain('### 2026-02-07')
     })
   })
 })

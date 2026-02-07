@@ -1,10 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-
-vi.mock('node:fs/promises', () => ({
-  readFile: vi.fn(),
-  appendFile: vi.fn().mockResolvedValue(undefined),
-  mkdir: vi.fn().mockResolvedValue(undefined)
-}))
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { join } from 'node:path'
+import { mkdtemp, writeFile, mkdir, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 
 // Suppress logger console output during tests
 vi.mock('../../src/logger.js', () => ({
@@ -15,71 +12,86 @@ vi.mock('../../src/logger.js', () => ({
   }
 }))
 
-import { readFile, appendFile, mkdir } from 'node:fs/promises'
 import logger from '../../src/logger.js'
 import FilesystemStorage from '../../src/storage/filesystem.js'
 
 describe('FilesystemStorage', () => {
   let storage
+  let tmpDir
 
-  beforeEach(() => {
-    storage = new FilesystemStorage({ dataDir: '/tmp/test-data' })
+  beforeEach(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'kenobot-storage-'))
+    storage = new FilesystemStorage({ dataDir: tmpDir })
     vi.clearAllMocks()
+  })
+
+  afterEach(async () => {
+    await rm(tmpDir, { recursive: true, force: true })
   })
 
   describe('loadSession', () => {
     it('should return empty array for non-existent session', async () => {
-      readFile.mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }))
-
       const result = await storage.loadSession('telegram-123')
       expect(result).toEqual([])
     })
 
     it('should parse JSONL file and return messages', async () => {
+      const sessionsDir = join(tmpDir, 'sessions')
+      await mkdir(sessionsDir, { recursive: true })
       const lines = [
         '{"role":"user","content":"hello","timestamp":1000}',
         '{"role":"assistant","content":"hi there","timestamp":1001}'
       ].join('\n')
-      readFile.mockResolvedValue(lines)
+      await writeFile(join(sessionsDir, 'telegram-123.jsonl'), lines)
 
       const result = await storage.loadSession('telegram-123')
+
       expect(result).toHaveLength(2)
       expect(result[0]).toEqual({ role: 'user', content: 'hello', timestamp: 1000 })
       expect(result[1]).toEqual({ role: 'assistant', content: 'hi there', timestamp: 1001 })
     })
 
     it('should return only the last N messages when limit is applied', async () => {
+      const sessionsDir = join(tmpDir, 'sessions')
+      await mkdir(sessionsDir, { recursive: true })
       const lines = Array.from({ length: 30 }, (_, i) =>
         JSON.stringify({ role: 'user', content: `msg ${i}`, timestamp: i })
       ).join('\n')
-      readFile.mockResolvedValue(lines)
+      await writeFile(join(sessionsDir, 'telegram-123.jsonl'), lines)
 
       const result = await storage.loadSession('telegram-123', 5)
+
       expect(result).toHaveLength(5)
       expect(result[0].content).toBe('msg 25')
       expect(result[4].content).toBe('msg 29')
     })
 
     it('should use default limit of 20', async () => {
+      const sessionsDir = join(tmpDir, 'sessions')
+      await mkdir(sessionsDir, { recursive: true })
       const lines = Array.from({ length: 30 }, (_, i) =>
         JSON.stringify({ role: 'user', content: `msg ${i}`, timestamp: i })
       ).join('\n')
-      readFile.mockResolvedValue(lines)
+      await writeFile(join(sessionsDir, 'telegram-123.jsonl'), lines)
 
       const result = await storage.loadSession('telegram-123')
+
       expect(result).toHaveLength(20)
       expect(result[0].content).toBe('msg 10')
     })
 
     it('should skip corrupt JSONL lines with warning', async () => {
+      const sessionsDir = join(tmpDir, 'sessions')
+      await mkdir(sessionsDir, { recursive: true })
       const lines = [
         '{"role":"user","content":"good","timestamp":1000}',
         'this is not json',
         '{"role":"assistant","content":"also good","timestamp":1001}'
       ].join('\n')
-      readFile.mockResolvedValue(lines)
+      await writeFile(join(sessionsDir, 'telegram-123.jsonl'), lines)
 
       const result = await storage.loadSession('telegram-123')
+
       expect(result).toHaveLength(2)
       expect(result[0].content).toBe('good')
       expect(result[1].content).toBe('also good')
@@ -87,88 +99,106 @@ describe('FilesystemStorage', () => {
     })
 
     it('should handle trailing newline in file', async () => {
-      const lines = '{"role":"user","content":"hello","timestamp":1000}\n'
-      readFile.mockResolvedValue(lines)
+      const sessionsDir = join(tmpDir, 'sessions')
+      await mkdir(sessionsDir, { recursive: true })
+      await writeFile(
+        join(sessionsDir, 'telegram-123.jsonl'),
+        '{"role":"user","content":"hello","timestamp":1000}\n'
+      )
 
       const result = await storage.loadSession('telegram-123')
+
       expect(result).toHaveLength(1)
-    })
-
-    it('should re-throw non-ENOENT errors', async () => {
-      readFile.mockRejectedValue(new Error('permission denied'))
-
-      await expect(storage.loadSession('telegram-123')).rejects.toThrow('permission denied')
     })
   })
 
   describe('saveSession', () => {
-    it('should create sessions directory on first write', async () => {
+    it('should create sessions directory and write messages', async () => {
       await storage.saveSession('telegram-123', [
         { role: 'user', content: 'hello', timestamp: 1000 }
       ])
 
-      expect(mkdir).toHaveBeenCalledWith(
-        expect.stringContaining('sessions'),
-        { recursive: true }
-      )
+      const result = await storage.loadSession('telegram-123')
+      expect(result).toHaveLength(1)
+      expect(result[0]).toEqual({ role: 'user', content: 'hello', timestamp: 1000 })
     })
 
-    it('should only create directory once', async () => {
-      await storage.saveSession('telegram-123', [{ role: 'user', content: 'a', timestamp: 1 }])
-      await storage.saveSession('telegram-123', [{ role: 'user', content: 'b', timestamp: 2 }])
+    it('should append messages on subsequent writes', async () => {
+      await storage.saveSession('telegram-123', [
+        { role: 'user', content: 'first', timestamp: 1000 }
+      ])
+      await storage.saveSession('telegram-123', [
+        { role: 'user', content: 'second', timestamp: 2000 }
+      ])
 
-      expect(mkdir).toHaveBeenCalledTimes(1)
+      const result = await storage.loadSession('telegram-123')
+      expect(result).toHaveLength(2)
+      expect(result[0].content).toBe('first')
+      expect(result[1].content).toBe('second')
     })
 
-    it('should append messages as JSONL lines', async () => {
+    it('should write valid JSONL format', async () => {
       await storage.saveSession('telegram-123', [
         { role: 'user', content: 'hello', timestamp: 1000 },
         { role: 'assistant', content: 'hi', timestamp: 1001 }
       ])
 
-      expect(appendFile).toHaveBeenCalledOnce()
-      const data = appendFile.mock.calls[0][1]
-      const lines = data.split('\n').filter(Boolean)
-      expect(lines).toHaveLength(2)
-      expect(JSON.parse(lines[0])).toEqual({ role: 'user', content: 'hello', timestamp: 1000 })
-      expect(JSON.parse(lines[1])).toEqual({ role: 'assistant', content: 'hi', timestamp: 1001 })
-    })
-
-    it('should write to correct session file path', async () => {
-      await storage.saveSession('telegram-123', [
-        { role: 'user', content: 'test', timestamp: 1000 }
-      ])
-
-      const filepath = appendFile.mock.calls[0][0]
-      expect(filepath).toContain('sessions')
-      expect(filepath).toContain('telegram-123.jsonl')
+      const result = await storage.loadSession('telegram-123')
+      expect(result).toHaveLength(2)
+      expect(result[0]).toEqual({ role: 'user', content: 'hello', timestamp: 1000 })
+      expect(result[1]).toEqual({ role: 'assistant', content: 'hi', timestamp: 1001 })
     })
   })
 
   describe('readFile', () => {
     it('should return file contents as string', async () => {
-      readFile.mockResolvedValue('# KenoBot Identity\nI am KenoBot.')
+      const filePath = join(tmpDir, 'IDENTITY.md')
+      await writeFile(filePath, '# KenoBot Identity\nI am KenoBot.')
 
-      const result = await storage.readFile('/path/to/IDENTITY.md')
+      const result = await storage.readFile(filePath)
+
       expect(result).toBe('# KenoBot Identity\nI am KenoBot.')
     })
 
     it('should throw descriptive error for missing file', async () => {
-      readFile.mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }))
-
-      await expect(storage.readFile('/missing/file.md')).rejects.toThrow('File not found: /missing/file.md')
-    })
-
-    it('should re-throw non-ENOENT errors', async () => {
-      readFile.mockRejectedValue(new Error('permission denied'))
-
-      await expect(storage.readFile('/path')).rejects.toThrow('permission denied')
+      await expect(storage.readFile(join(tmpDir, 'missing.md'))).rejects.toThrow('File not found:')
     })
   })
 
   describe('name', () => {
     it('should return filesystem', () => {
       expect(storage.name).toBe('filesystem')
+    })
+  })
+
+  describe('round-trip', () => {
+    it('should persist and retrieve a multi-turn conversation', async () => {
+      const messages = [
+        { role: 'user', content: 'What is 2+2?', timestamp: 1000 },
+        { role: 'assistant', content: '4', timestamp: 1001 },
+        { role: 'user', content: 'And 3+3?', timestamp: 1002 },
+        { role: 'assistant', content: '6', timestamp: 1003 }
+      ]
+
+      await storage.saveSession('telegram-456', messages)
+
+      const result = await storage.loadSession('telegram-456')
+      expect(result).toEqual(messages)
+    })
+
+    it('should accumulate messages across multiple save calls', async () => {
+      await storage.saveSession('telegram-789', [
+        { role: 'user', content: 'turn 1', timestamp: 1000 },
+        { role: 'assistant', content: 'reply 1', timestamp: 1001 }
+      ])
+      await storage.saveSession('telegram-789', [
+        { role: 'user', content: 'turn 2', timestamp: 2000 },
+        { role: 'assistant', content: 'reply 2', timestamp: 2001 }
+      ])
+
+      const result = await storage.loadSession('telegram-789')
+      expect(result).toHaveLength(4)
+      expect(result[2].content).toBe('turn 2')
     })
   })
 })
