@@ -33,7 +33,7 @@ export default class ContextBuilder {
       logger.info('context', 'identity_loaded', { loader: true })
     } else {
       // Legacy path: no IdentityLoader, read single file via storage
-      const identityFile = this.config.identityFile || 'identities/kenobot.md'
+      const identityFile = this.config.identityFile || 'identities/kenobot'
       this._identity = await this.storage.readFile(identityFile)
       logger.info('context', 'identity_loaded', { file: identityFile, length: this._identity.length })
     }
@@ -106,6 +106,14 @@ export default class ContextBuilder {
       }
     } else {
       parts.push(this._identity)
+    }
+
+    // Inject bootstrap prompt for first-conversation onboarding
+    if (this.identityLoader) {
+      const bootstrap = await this.identityLoader.getBootstrap()
+      if (bootstrap) {
+        parts.push('\n---\n\n## First Conversation — Bootstrap\n' + bootstrap)
+      }
     }
 
     // Inject available tool names so the agent knows what it can do

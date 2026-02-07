@@ -1,12 +1,14 @@
 # User Profile
 
+> This file will be populated during our first conversation.
+> See BOOTSTRAP.md for the onboarding flow.
+
 ## About You
-- Name: (your name)
-- Timezone: (your timezone)
-- Preferred language: (e.g., English, Spanish, auto-detect)
+- **Name**: (pending)
+- **Timezone**: (pending)
+- **Preferred language**: (pending)
 
 ## Communication Preferences
-- Report format: (e.g., concise bullet points, detailed paragraphs)
-- Notification style: (e.g., proactive, only when asked)
+(to be discovered)
 
 ## Learned Preferences

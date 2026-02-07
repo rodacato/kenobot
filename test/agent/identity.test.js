@@ -227,6 +227,84 @@ describe('IdentityLoader', () => {
     })
   })
 
+  describe('getBootstrap', () => {
+    let identityDir
+
+    beforeEach(async () => {
+      identityDir = join(tempDir, 'kenobot')
+      await mkdir(identityDir, { recursive: true })
+      await writeFile(join(identityDir, 'SOUL.md'), '# Soul')
+    })
+
+    it('should return BOOTSTRAP.md content when file exists', async () => {
+      await writeFile(join(identityDir, 'BOOTSTRAP.md'), '# Hey, I just came online.')
+
+      const loader = new IdentityLoader(identityDir)
+      await loader.load()
+
+      expect(await loader.getBootstrap()).toBe('# Hey, I just came online.')
+    })
+
+    it('should return null when BOOTSTRAP.md does not exist', async () => {
+      const loader = new IdentityLoader(identityDir)
+      await loader.load()
+
+      expect(await loader.getBootstrap()).toBeNull()
+    })
+
+    it('should return null in file mode', async () => {
+      const filePath = join(tempDir, 'single.md')
+      await writeFile(filePath, '# KenoBot')
+
+      const loader = new IdentityLoader(filePath)
+      await loader.load()
+
+      expect(await loader.getBootstrap()).toBeNull()
+    })
+  })
+
+  describe('deleteBootstrap', () => {
+    let identityDir
+
+    beforeEach(async () => {
+      identityDir = join(tempDir, 'kenobot')
+      await mkdir(identityDir, { recursive: true })
+      await writeFile(join(identityDir, 'SOUL.md'), '# Soul')
+    })
+
+    it('should delete BOOTSTRAP.md file', async () => {
+      await writeFile(join(identityDir, 'BOOTSTRAP.md'), '# Bootstrap content')
+
+      const loader = new IdentityLoader(identityDir)
+      await loader.load()
+
+      // Verify it exists first
+      expect(await loader.getBootstrap()).toBe('# Bootstrap content')
+
+      await loader.deleteBootstrap()
+
+      // Verify it's gone
+      expect(await loader.getBootstrap()).toBeNull()
+    })
+
+    it('should not throw if BOOTSTRAP.md already missing', async () => {
+      const loader = new IdentityLoader(identityDir)
+      await loader.load()
+
+      await expect(loader.deleteBootstrap()).resolves.not.toThrow()
+    })
+
+    it('should be no-op in file mode', async () => {
+      const filePath = join(tempDir, 'single.md')
+      await writeFile(filePath, '# KenoBot')
+
+      const loader = new IdentityLoader(filePath)
+      await loader.load()
+
+      await expect(loader.deleteBootstrap()).resolves.not.toThrow()
+    })
+  })
+
   describe('fallback detection', () => {
     it('should fall back to .md file when directory path does not exist', async () => {
       // Create kenobot.md but not kenobot/ directory

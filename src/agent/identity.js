@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, stat } from 'node:fs/promises'
+import { readFile, writeFile, mkdir, stat, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import logger from '../logger.js'
 
@@ -115,6 +115,31 @@ export default class IdentityLoader {
 
     await writeFile(userPath, content, 'utf8')
     logger.info('identity', 'user_updated', { entries: entries.length })
+  }
+
+  /**
+   * Read BOOTSTRAP.md if it exists (directory mode only).
+   * Returns null when no bootstrap is pending.
+   * @returns {Promise<string|null>}
+   */
+  async getBootstrap() {
+    if (!this._isDirectory) return null
+    const content = await this._readSafe(join(this.identityPath, 'BOOTSTRAP.md'))
+    return content || null
+  }
+
+  /**
+   * Delete BOOTSTRAP.md after bootstrap conversation is complete.
+   * No-op in file mode or if file is already gone.
+   */
+  async deleteBootstrap() {
+    if (!this._isDirectory) return
+    try {
+      await unlink(join(this.identityPath, 'BOOTSTRAP.md'))
+      logger.info('identity', 'bootstrap_deleted', { path: this.identityPath })
+    } catch (err) {
+      if (err.code !== 'ENOENT') throw err
+    }
   }
 
   /**

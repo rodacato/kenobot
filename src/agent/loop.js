@@ -1,6 +1,7 @@
 import logger from '../logger.js'
 import { extractMemories } from './memory-extractor.js'
 import { extractUserUpdates } from './user-extractor.js'
+import { extractBootstrapComplete } from './bootstrap-extractor.js'
 
 /**
  * AgentLoop - Core message handler with session persistence
@@ -171,7 +172,10 @@ export default class AgentLoop {
       const { cleanText: afterMemory, memories } = extractMemories(response.content)
 
       // Extract user preference tags
-      const { cleanText, updates: userUpdates } = extractUserUpdates(afterMemory)
+      const { cleanText: afterUser, updates: userUpdates } = extractUserUpdates(afterMemory)
+
+      // Detect bootstrap completion
+      const { cleanText, isComplete: bootstrapComplete } = extractBootstrapComplete(afterUser)
 
       logger.info('agent', 'response_generated', {
         sessionId,
@@ -180,7 +184,8 @@ export default class AgentLoop {
         memoriesExtracted: memories.length,
         userUpdates: userUpdates.length,
         toolIterations: iterations,
-        activeSkill: activeSkill || null
+        activeSkill: activeSkill || null,
+        bootstrapComplete: bootstrapComplete || undefined
       })
 
       // Save memories to daily log
@@ -195,6 +200,12 @@ export default class AgentLoop {
       if (userUpdates.length > 0 && this.contextBuilder.identityLoader) {
         await this.contextBuilder.identityLoader.appendUser(userUpdates)
         this.bus.emit('config:changed', { reason: 'user preferences update' })
+      }
+
+      // Delete BOOTSTRAP.md when bootstrap conversation is complete
+      if (bootstrapComplete && this.contextBuilder.identityLoader) {
+        await this.contextBuilder.identityLoader.deleteBootstrap()
+        this.bus.emit('config:changed', { reason: 'bootstrap complete' })
       }
 
       // Save both messages to session history (clean text without tags)

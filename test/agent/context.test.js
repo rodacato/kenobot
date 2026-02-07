@@ -58,7 +58,7 @@ describe('ContextBuilder', () => {
       const ctx = new ContextBuilder({}, mockStorage)
       await ctx.loadIdentity()
 
-      expect(mockStorage.readFile).toHaveBeenCalledWith('identities/kenobot.md')
+      expect(mockStorage.readFile).toHaveBeenCalledWith('identities/kenobot')
     })
 
     it('should throw if identity file is missing', async () => {
@@ -418,6 +418,7 @@ describe('ContextBuilder', () => {
         getSoul: vi.fn().mockReturnValue('# Soul\nI am friendly.'),
         getIdentity: vi.fn().mockReturnValue('# Identity\nExpert in Node.js.'),
         getUser: vi.fn().mockResolvedValue(''),
+        getBootstrap: vi.fn().mockResolvedValue(null),
         appendUser: vi.fn(),
         reload: vi.fn()
       }
@@ -474,6 +475,52 @@ describe('ContextBuilder', () => {
 
       expect(context._identity).toBeNull()
       expect(result.system).toContain('# Soul')
+    })
+
+    it('should inject bootstrap section when BOOTSTRAP.md exists', async () => {
+      mockIdentityLoader.getBootstrap = vi.fn().mockResolvedValue('# Hey, I just came online.')
+
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).toContain('## First Conversation — Bootstrap')
+      expect(result.system).toContain('Hey, I just came online.')
+    })
+
+    it('should not inject bootstrap section when no BOOTSTRAP.md', async () => {
+      mockIdentityLoader.getBootstrap = vi.fn().mockResolvedValue(null)
+
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).not.toContain('## First Conversation — Bootstrap')
+    })
+
+    it('should place bootstrap section after user profile and before tools', async () => {
+      const mockToolRegistry = {
+        size: 1,
+        getDefinitions: vi.fn().mockReturnValue([
+          { name: 'web_fetch', description: 'Fetch a URL' }
+        ])
+      }
+      mockIdentityLoader.getUser.mockResolvedValue('# User\n- Name: Carlos')
+      mockIdentityLoader.getBootstrap = vi.fn().mockResolvedValue('# Bootstrap content')
+
+      const ctx = new ContextBuilder(
+        { identityFile: 'identities/kenobot' },
+        mockStorage,
+        null,
+        mockToolRegistry,
+        null,
+        mockIdentityLoader
+      )
+
+      const result = await ctx.build('telegram-123', { text: 'hello' })
+
+      const userIdx = result.system.indexOf('## User Profile')
+      const bootstrapIdx = result.system.indexOf('## First Conversation — Bootstrap')
+      const toolsIdx = result.system.indexOf('## Available tools')
+      expect(userIdx).toBeGreaterThan(-1)
+      expect(bootstrapIdx).toBeGreaterThan(userIdx)
+      expect(toolsIdx).toBeGreaterThan(bootstrapIdx)
     })
 
     it('should place user profile before tools and skills', async () => {
@@ -626,6 +673,34 @@ describe('ContextBuilder', () => {
 
       expect(result.messages).toHaveLength(1)
       expect(result.messages[0]).toEqual({ role: 'user', content: 'first message' })
+    })
+
+    it('should inject bootstrap when BOOTSTRAP.md exists', async () => {
+      // Add BOOTSTRAP.md to identity dir
+      const identityDir = join(tmpDir, 'identities', 'kenobot')
+      await writeFile(join(identityDir, 'BOOTSTRAP.md'), '# Hey, I just came online.\nLet me learn about you.')
+
+      // Reload identity to pick up new file
+      await identityLoader.reload()
+
+      const result = await ctx.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).toContain('## First Conversation — Bootstrap')
+      expect(result.system).toContain('Hey, I just came online.')
+    })
+
+    it('should not inject bootstrap after BOOTSTRAP.md is deleted', async () => {
+      // Add then delete BOOTSTRAP.md
+      const identityDir = join(tmpDir, 'identities', 'kenobot')
+      await writeFile(join(identityDir, 'BOOTSTRAP.md'), '# Bootstrap content')
+
+      const result1 = await ctx.build('telegram-123', { text: 'hello' })
+      expect(result1.system).toContain('## First Conversation — Bootstrap')
+
+      await identityLoader.deleteBootstrap()
+
+      const result2 = await ctx.build('telegram-123', { text: 'hello again' })
+      expect(result2.system).not.toContain('## First Conversation — Bootstrap')
     })
 
     it('should maintain correct section ordering', async () => {

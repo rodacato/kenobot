@@ -53,7 +53,8 @@ describe('kenobot init', () => {
 
     // Template files copied
     expect(await exists(paths.envFile)).toBe(true)
-    expect(await exists(join(paths.identities, 'kenobot.md'))).toBe(true)
+    expect(await exists(join(paths.identities, 'kenobot', 'SOUL.md'))).toBe(true)
+    expect(await exists(join(paths.identities, 'kenobot', 'BOOTSTRAP.md'))).toBe(true)
     expect(await exists(join(paths.skills, 'weather', 'manifest.json'))).toBe(true)
     expect(await exists(join(paths.skills, 'daily-summary', 'manifest.json'))).toBe(true)
     expect(await exists(join(paths.data, 'memory', 'MEMORY.md'))).toBe(true)

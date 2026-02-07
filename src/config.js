@@ -53,7 +53,7 @@ export default {
   // Provider config
   provider: process.env.PROVIDER || 'claude-cli',
   model: process.env.MODEL || 'sonnet',
-  identityFile: process.env.IDENTITY_FILE || 'identities/kenobot.md',
+  identityFile: process.env.IDENTITY_FILE || 'identities/kenobot',
 
   // Telegram config
   telegram: {
