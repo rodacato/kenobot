@@ -5,7 +5,7 @@ import logger from './logger.js'
 // Parse command line arguments
 const { values } = parseArgs({
   options: {
-    config: { type: 'string', default: '.env' }
+    config: { type: 'string', default: process.env.KENOBOT_CONFIG || '.env' }
   },
   strict: false
 })
