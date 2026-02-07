@@ -224,4 +224,55 @@ describe('ContextBuilder', () => {
       expect(result.system.startsWith('# KenoBot Identity')).toBe(true)
     })
   })
+
+  describe('build with tools', () => {
+    let mockToolRegistry
+
+    beforeEach(() => {
+      mockToolRegistry = {
+        size: 2,
+        getDefinitions: vi.fn().mockReturnValue([
+          { name: 'web_fetch', description: 'Fetch a URL' },
+          { name: 'n8n_trigger', description: 'Trigger workflow' }
+        ])
+      }
+
+      context = new ContextBuilder(
+        { identityFile: 'identities/kenobot.md' },
+        mockStorage,
+        null,
+        mockToolRegistry
+      )
+
+      vi.clearAllMocks()
+    })
+
+    it('should include tool list in system prompt', async () => {
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).toContain('## Available tools')
+      expect(result.system).toContain('- web_fetch: Fetch a URL')
+      expect(result.system).toContain('- n8n_trigger: Trigger workflow')
+    })
+
+    it('should not include tool section when registry is empty', async () => {
+      mockToolRegistry.size = 0
+      mockToolRegistry.getDefinitions.mockReturnValue([])
+
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).not.toContain('## Available tools')
+    })
+
+    it('should not include tool section when no registry', async () => {
+      const ctx = new ContextBuilder(
+        { identityFile: 'identities/kenobot.md' },
+        mockStorage
+      )
+
+      const result = await ctx.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).not.toContain('## Available tools')
+    })
+  })
 })

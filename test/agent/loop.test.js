@@ -268,4 +268,209 @@ describe('AgentLoop', () => {
       })
     })
   })
+
+  describe('tool execution loop', () => {
+    let toolRegistry
+
+    const message = {
+      text: 'fetch https://example.com',
+      chatId: '123',
+      userId: '456',
+      channel: 'telegram'
+    }
+
+    beforeEach(() => {
+      toolRegistry = {
+        getDefinitions: vi.fn().mockReturnValue([
+          { name: 'web_fetch', description: 'Fetch URL', input_schema: {} }
+        ]),
+        execute: vi.fn().mockResolvedValue('Page content here'),
+        size: 1
+      }
+
+      agent = new AgentLoop(bus, provider, contextBuilder, storage, null, toolRegistry)
+      vi.clearAllMocks()
+    })
+
+    it('should pass tool definitions to provider', async () => {
+      provider.chat.mockResolvedValue({ content: 'text response', toolCalls: null })
+
+      await agent._handleMessage(message)
+
+      expect(provider.chat).toHaveBeenCalledWith(
+        expect.any(Array),
+        expect.objectContaining({
+          tools: [{ name: 'web_fetch', description: 'Fetch URL', input_schema: {} }]
+        })
+      )
+    })
+
+    it('should execute tool when provider returns tool_use', async () => {
+      provider.chat
+        .mockResolvedValueOnce({
+          content: "I'll fetch that.",
+          toolCalls: [{ id: 'toolu_1', name: 'web_fetch', input: { url: 'https://example.com' } }],
+          stopReason: 'tool_use',
+          rawContent: [
+            { type: 'text', text: "I'll fetch that." },
+            { type: 'tool_use', id: 'toolu_1', name: 'web_fetch', input: { url: 'https://example.com' } }
+          ]
+        })
+        .mockResolvedValueOnce({
+          content: 'The page says: Page content here',
+          toolCalls: null,
+          stopReason: 'end_turn',
+          rawContent: null
+        })
+
+      await agent._handleMessage(message)
+
+      expect(toolRegistry.execute).toHaveBeenCalledWith('web_fetch', { url: 'https://example.com' })
+      expect(bus.emit).toHaveBeenCalledWith('message:out', expect.objectContaining({
+        text: 'The page says: Page content here'
+      }))
+    })
+
+    it('should send tool results back to provider', async () => {
+      provider.chat
+        .mockResolvedValueOnce({
+          content: 'Fetching...',
+          toolCalls: [{ id: 'toolu_1', name: 'web_fetch', input: { url: 'https://example.com' } }],
+          stopReason: 'tool_use',
+          rawContent: [
+            { type: 'text', text: 'Fetching...' },
+            { type: 'tool_use', id: 'toolu_1', name: 'web_fetch', input: { url: 'https://example.com' } }
+          ]
+        })
+        .mockResolvedValueOnce({
+          content: 'Done.',
+          toolCalls: null,
+          stopReason: 'end_turn'
+        })
+
+      await agent._handleMessage(message)
+
+      // Second call should include tool result messages
+      const secondCallMessages = provider.chat.mock.calls[1][0]
+      const lastMessage = secondCallMessages[secondCallMessages.length - 1]
+      expect(lastMessage.role).toBe('user')
+      expect(lastMessage.content).toEqual([
+        expect.objectContaining({
+          type: 'tool_result',
+          tool_use_id: 'toolu_1',
+          content: 'Page content here',
+          is_error: false
+        })
+      ])
+    })
+
+    it('should handle tool execution errors gracefully', async () => {
+      toolRegistry.execute.mockRejectedValue(new Error('Network timeout'))
+
+      provider.chat
+        .mockResolvedValueOnce({
+          content: 'Fetching...',
+          toolCalls: [{ id: 'toolu_1', name: 'web_fetch', input: { url: 'https://bad.com' } }],
+          stopReason: 'tool_use',
+          rawContent: [{ type: 'tool_use', id: 'toolu_1', name: 'web_fetch', input: { url: 'https://bad.com' } }]
+        })
+        .mockResolvedValueOnce({
+          content: 'I could not fetch that URL.',
+          toolCalls: null,
+          stopReason: 'end_turn'
+        })
+
+      await agent._handleMessage(message)
+
+      // Error should be passed as tool_result with is_error: true
+      const secondCallMessages = provider.chat.mock.calls[1][0]
+      const lastMessage = secondCallMessages[secondCallMessages.length - 1]
+      expect(lastMessage.content[0]).toEqual(expect.objectContaining({
+        type: 'tool_result',
+        content: 'Error: Network timeout',
+        is_error: true
+      }))
+    })
+
+    it('should respect max iterations safety valve', async () => {
+      agent.maxToolIterations = 2
+
+      // Always return tool_use to force hitting the limit
+      provider.chat.mockResolvedValue({
+        content: 'Trying again...',
+        toolCalls: [{ id: 'toolu_1', name: 'web_fetch', input: { url: 'https://loop.com' } }],
+        stopReason: 'tool_use',
+        rawContent: [{ type: 'tool_use', id: 'toolu_1', name: 'web_fetch', input: { url: 'https://loop.com' } }]
+      })
+
+      await agent._handleMessage(message)
+
+      // Should have called chat 3 times: initial + 2 iterations
+      expect(provider.chat).toHaveBeenCalledTimes(3)
+      expect(bus.emit).toHaveBeenCalledWith('message:out', expect.objectContaining({
+        text: "I'm having trouble completing this task. Let me try a different approach."
+      }))
+    })
+
+    it('should handle multi-tool calls in parallel', async () => {
+      provider.chat
+        .mockResolvedValueOnce({
+          content: "I'll fetch both.",
+          toolCalls: [
+            { id: 'toolu_1', name: 'web_fetch', input: { url: 'https://a.com' } },
+            { id: 'toolu_2', name: 'web_fetch', input: { url: 'https://b.com' } }
+          ],
+          stopReason: 'tool_use',
+          rawContent: [
+            { type: 'text', text: "I'll fetch both." },
+            { type: 'tool_use', id: 'toolu_1', name: 'web_fetch', input: { url: 'https://a.com' } },
+            { type: 'tool_use', id: 'toolu_2', name: 'web_fetch', input: { url: 'https://b.com' } }
+          ]
+        })
+        .mockResolvedValueOnce({
+          content: 'Both pages fetched.',
+          toolCalls: null,
+          stopReason: 'end_turn'
+        })
+
+      await agent._handleMessage(message)
+
+      // Both tools should be executed
+      expect(toolRegistry.execute).toHaveBeenCalledTimes(2)
+      // Second call should have both tool results
+      const secondCallMessages = provider.chat.mock.calls[1][0]
+      const lastMessage = secondCallMessages[secondCallMessages.length - 1]
+      expect(lastMessage.content).toHaveLength(2)
+    })
+
+    it('should skip tool loop when no toolRegistry', async () => {
+      const agentNoTools = new AgentLoop(bus, provider, contextBuilder, storage)
+      provider.chat.mockResolvedValue({
+        content: 'response',
+        toolCalls: [{ id: 'toolu_1', name: 'web_fetch', input: {} }],
+        stopReason: 'tool_use'
+      })
+
+      await agentNoTools._handleMessage(message)
+
+      // Should emit the fallback message since toolCalls is truthy but no registry
+      expect(bus.emit).toHaveBeenCalledWith('message:out', expect.objectContaining({
+        text: "I'm having trouble completing this task. Let me try a different approach."
+      }))
+    })
+
+    it('should not pass tools option when registry is empty', async () => {
+      toolRegistry.getDefinitions.mockReturnValue([])
+      toolRegistry.size = 0
+
+      provider.chat.mockResolvedValue({ content: 'ok', toolCalls: null })
+
+      await agent._handleMessage(message)
+
+      expect(provider.chat).toHaveBeenCalledWith(
+        expect.any(Array),
+        { system: '# Identity' }
+      )
+    })
+  })
 })

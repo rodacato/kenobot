@@ -7,15 +7,17 @@ import { extractMemories } from './memory-extractor.js'
  * Replaces the inline handler in index.js with proper context building,
  * session routing, and history persistence.
  *
- * Flow: message:in → build context → provider.chat → extract memories → save session → message:out
+ * Flow: message:in → build context → provider.chat → [tool loop] → extract memories → save session → message:out
  */
 export default class AgentLoop {
-  constructor(bus, provider, contextBuilder, storage, memoryManager) {
+  constructor(bus, provider, contextBuilder, storage, memoryManager, toolRegistry) {
     this.bus = bus
     this.provider = provider
     this.contextBuilder = contextBuilder
     this.storage = storage
     this.memory = memoryManager || null
+    this.toolRegistry = toolRegistry || null
+    this.maxToolIterations = 20
     this._handler = null
   }
 
@@ -66,8 +68,55 @@ export default class AgentLoop {
       // Build context with identity + history
       const context = await this.contextBuilder.build(sessionId, message)
 
+      // Build chat options with tool definitions
+      const chatOptions = { system: context.system }
+      const toolDefs = this.toolRegistry?.getDefinitions() || []
+      if (toolDefs.length > 0) chatOptions.tools = toolDefs
+
       // Call provider
-      const response = await this.provider.chat(context.messages, { system: context.system })
+      let response = await this.provider.chat(context.messages, chatOptions)
+
+      // Tool execution loop (max iterations as safety valve)
+      let iterations = 0
+      while (response.toolCalls && this.toolRegistry && iterations < this.maxToolIterations) {
+        iterations++
+        logger.info('agent', 'tool_calls', {
+          sessionId,
+          iteration: iterations,
+          tools: response.toolCalls.map(tc => tc.name)
+        })
+
+        // Execute all tool calls in parallel
+        const results = await Promise.all(
+          response.toolCalls.map(async (tc) => {
+            try {
+              const result = await this.toolRegistry.execute(tc.name, tc.input)
+              return { id: tc.id, result: String(result), isError: false }
+            } catch (error) {
+              return { id: tc.id, result: `Error: ${error.message}`, isError: true }
+            }
+          })
+        )
+
+        // Build tool result messages for next provider call
+        context.messages.push({ role: 'assistant', content: response.rawContent })
+        context.messages.push({
+          role: 'user',
+          content: results.map(r => ({
+            type: 'tool_result',
+            tool_use_id: r.id,
+            content: r.result,
+            is_error: r.isError
+          }))
+        })
+
+        response = await this.provider.chat(context.messages, chatOptions)
+      }
+
+      // Safety valve: if still requesting tools after max iterations
+      if (response.toolCalls) {
+        response.content = "I'm having trouble completing this task. Let me try a different approach."
+      }
 
       clearInterval(typingInterval)
 
@@ -80,7 +129,8 @@ export default class AgentLoop {
         sessionId,
         durationMs,
         contentLength: cleanText.length,
-        memoriesExtracted: memories.length
+        memoriesExtracted: memories.length,
+        toolIterations: iterations
       })
 
       // Save memories to daily log

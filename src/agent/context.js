@@ -10,13 +10,14 @@ import logger from '../logger.js'
  *   - mock: ignores system, pattern-matches last message
  *
  * System prompt structure:
- *   [IDENTITY.md] + [Memory instructions + MEMORY.md + recent daily logs]
+ *   [IDENTITY.md] + [Available tools] + [Memory instructions + MEMORY.md + recent daily logs]
  */
 export default class ContextBuilder {
-  constructor(config, storage, memoryManager) {
+  constructor(config, storage, memoryManager, toolRegistry) {
     this.config = config
     this.storage = storage
     this.memory = memoryManager || null
+    this.toolRegistry = toolRegistry || null
     this._identity = null
   }
 
@@ -63,6 +64,14 @@ export default class ContextBuilder {
    */
   async _buildSystemPrompt() {
     const parts = [this._identity]
+
+    // Inject available tool names so the agent knows what it can do
+    if (this.toolRegistry?.size > 0) {
+      const toolList = this.toolRegistry.getDefinitions()
+        .map(t => `- ${t.name}: ${t.description}`)
+        .join('\n')
+      parts.push(`\n---\n\n## Available tools\n${toolList}\n`)
+    }
 
     if (this.memory) {
       const memoryDays = this.config.memoryDays ?? 3
