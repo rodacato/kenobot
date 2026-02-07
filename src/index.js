@@ -16,6 +16,8 @@ import ToolRegistry from './tools/registry.js'
 import WebFetchTool from './tools/web-fetch.js'
 import N8nTriggerTool from './tools/n8n.js'
 import SkillLoader from './skills/loader.js'
+import Scheduler from './scheduler/scheduler.js'
+import ScheduleTool from './tools/schedule.js'
 
 // Configure logger with data directory for JSONL file output
 logger.configure({ dataDir: config.dataDir })
@@ -44,9 +46,13 @@ switch (config.provider) {
     process.exit(1)
 }
 
+// Initialize scheduler (loadTasks is async, called in start())
+const scheduler = new Scheduler(bus, config.dataDir)
+
 // Initialize tool registry
 const toolRegistry = new ToolRegistry()
 toolRegistry.register(new WebFetchTool())
+toolRegistry.register(new ScheduleTool(scheduler))
 if (config.n8n.webhookBase) {
   toolRegistry.register(new N8nTriggerTool(config.n8n))
 }
@@ -98,6 +104,7 @@ bus.on('error', ({ source, error, context }) => {
 // Graceful shutdown
 async function shutdown(signal) {
   logger.info('system', 'shutdown', { signal })
+  scheduler.stop()
   agent.stop()
   await Promise.all(channels.map(ch => ch.stop()))
   process.exit(0)
@@ -110,6 +117,9 @@ process.on('SIGINT', () => shutdown('SIGINT'))
 async function start() {
   await skillLoader.loadAll()
   logger.info('system', 'skills_loaded', { count: skillLoader.size })
+
+  await scheduler.loadTasks()
+  logger.info('system', 'scheduler_loaded', { tasks: scheduler.size })
 
   await agent.start()
   await Promise.all(channels.map(ch => ch.start()))
