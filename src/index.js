@@ -18,9 +18,18 @@ import N8nTriggerTool from './tools/n8n.js'
 import SkillLoader from './skills/loader.js'
 import Scheduler from './scheduler/scheduler.js'
 import ScheduleTool from './tools/schedule.js'
+import { writePid, removePid } from './health.js'
 
 // Configure logger with data directory for JSONL file output
 logger.configure({ dataDir: config.dataDir })
+
+// Error boundaries — log but don't crash on transient errors
+process.on('uncaughtException', (error) => {
+  logger.error('system', 'uncaught_exception', { error: error.message, stack: error.stack })
+})
+process.on('unhandledRejection', (reason) => {
+  logger.error('system', 'unhandled_rejection', { error: String(reason) })
+})
 
 logger.info('system', 'startup', {
   provider: config.provider,
@@ -104,6 +113,7 @@ bus.on('error', ({ source, error, context }) => {
 // Graceful shutdown
 async function shutdown(signal) {
   logger.info('system', 'shutdown', { signal })
+  await removePid()
   scheduler.stop()
   agent.stop()
   await Promise.all(channels.map(ch => ch.stop()))
@@ -115,6 +125,8 @@ process.on('SIGINT', () => shutdown('SIGINT'))
 
 // Start the agent and all channels
 async function start() {
+  await writePid()
+
   await skillLoader.loadAll()
   logger.info('system', 'skills_loaded', { count: skillLoader.size })
 
