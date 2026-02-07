@@ -285,6 +285,7 @@ describe('AgentLoop', () => {
           { name: 'web_fetch', description: 'Fetch URL', input_schema: {} }
         ]),
         execute: vi.fn().mockResolvedValue('Page content here'),
+        matchTrigger: vi.fn().mockReturnValue(null),
         size: 1
       }
 
@@ -471,6 +472,76 @@ describe('AgentLoop', () => {
         expect.any(Array),
         { system: '# Identity' }
       )
+    })
+  })
+
+  describe('trigger pre-processing', () => {
+    let toolRegistry
+    const fakeTool = {
+      definition: { name: 'web_fetch' },
+      execute: vi.fn().mockResolvedValue('Fetched page content')
+    }
+
+    const message = {
+      text: '/fetch https://example.com',
+      chatId: '123',
+      userId: '456',
+      channel: 'telegram'
+    }
+
+    beforeEach(() => {
+      toolRegistry = {
+        getDefinitions: vi.fn().mockReturnValue([]),
+        matchTrigger: vi.fn().mockReturnValue(null),
+        size: 0
+      }
+
+      agent = new AgentLoop(bus, provider, contextBuilder, storage, null, toolRegistry)
+      vi.clearAllMocks()
+    })
+
+    it('should execute tool and enrich message when trigger matches', async () => {
+      toolRegistry.matchTrigger.mockReturnValue({
+        tool: fakeTool,
+        input: { url: 'https://example.com' }
+      })
+      provider.chat.mockResolvedValue({ content: 'Summary of the page' })
+
+      await agent._handleMessage(message)
+
+      expect(fakeTool.execute).toHaveBeenCalledWith({ url: 'https://example.com' })
+      // The last message sent to provider should contain the tool result
+      const sentMessages = provider.chat.mock.calls[0][0]
+      const lastMsg = sentMessages[sentMessages.length - 1]
+      expect(lastMsg.content).toContain('[web_fetch result]')
+      expect(lastMsg.content).toContain('Fetched page content')
+    })
+
+    it('should include error in enriched message when trigger execution fails', async () => {
+      fakeTool.execute.mockRejectedValue(new Error('DNS resolution failed'))
+      toolRegistry.matchTrigger.mockReturnValue({
+        tool: fakeTool,
+        input: { url: 'https://bad.com' }
+      })
+      provider.chat.mockResolvedValue({ content: 'Could not fetch that.' })
+
+      await agent._handleMessage(message)
+
+      const sentMessages = provider.chat.mock.calls[0][0]
+      const lastMsg = sentMessages[sentMessages.length - 1]
+      expect(lastMsg.content).toContain('[web_fetch error]')
+      expect(lastMsg.content).toContain('DNS resolution failed')
+    })
+
+    it('should not modify message when no trigger matches', async () => {
+      const normalMessage = { text: 'hello', chatId: '123', userId: '456', channel: 'telegram' }
+      provider.chat.mockResolvedValue({ content: 'hi' })
+
+      await agent._handleMessage(normalMessage)
+
+      const sentMessages = provider.chat.mock.calls[0][0]
+      const lastMsg = sentMessages[sentMessages.length - 1]
+      expect(lastMsg.content).toBe('hello')
     })
   })
 })

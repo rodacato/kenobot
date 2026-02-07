@@ -3,10 +3,11 @@ import ToolRegistry from '../../src/tools/registry.js'
 import BaseTool from '../../src/tools/base.js'
 
 class FakeTool extends BaseTool {
-  constructor(name, result) {
+  constructor(name, result, triggerPattern) {
     super()
     this._name = name
     this._result = result
+    this._trigger = triggerPattern || null
   }
 
   get definition() {
@@ -15,6 +16,14 @@ class FakeTool extends BaseTool {
       description: `Fake ${this._name} tool`,
       input_schema: { type: 'object', properties: {} }
     }
+  }
+
+  get trigger() {
+    return this._trigger
+  }
+
+  parseTrigger(match) {
+    return { arg: match[1] }
   }
 
   async execute(input) {
@@ -93,6 +102,37 @@ describe('ToolRegistry', () => {
   describe('size', () => {
     it('should return 0 for empty registry', () => {
       expect(registry.size).toBe(0)
+    })
+  })
+
+  describe('matchTrigger', () => {
+    it('should match tool trigger and return parsed input', () => {
+      registry.register(new FakeTool('fetch', 'content', /^\/fetch\s+(\S+)/i))
+
+      const result = registry.matchTrigger('/fetch https://example.com')
+      expect(result).not.toBeNull()
+      expect(result.tool.definition.name).toBe('fetch')
+      expect(result.input).toEqual({ arg: 'https://example.com' })
+    })
+
+    it('should return null when no trigger matches', () => {
+      registry.register(new FakeTool('fetch', 'content', /^\/fetch\s+(\S+)/i))
+
+      expect(registry.matchTrigger('hello world')).toBeNull()
+    })
+
+    it('should return null for tools without triggers', () => {
+      registry.register(new FakeTool('greet', 'hello'))
+
+      expect(registry.matchTrigger('/greet')).toBeNull()
+    })
+
+    it('should match first matching tool', () => {
+      registry.register(new FakeTool('fetch', 'r1', /^\/fetch\s+(\S+)/i))
+      registry.register(new FakeTool('get', 'r2', /^\/get\s+(\S+)/i))
+
+      const result = registry.matchTrigger('/get something')
+      expect(result.tool.definition.name).toBe('get')
     })
   })
 })

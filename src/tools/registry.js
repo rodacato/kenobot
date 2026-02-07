@@ -26,6 +26,22 @@ export default class ToolRegistry {
     return await tool.execute(input)
   }
 
+  /**
+   * Match user text against tool triggers (slash commands).
+   * @param {string} text - User message text
+   * @returns {{ tool: import('./base.js').default, input: object }|null}
+   */
+  matchTrigger(text) {
+    for (const tool of this.tools.values()) {
+      if (!tool.trigger) continue
+      const match = text.match(tool.trigger)
+      if (match) {
+        return { tool, input: tool.parseTrigger(match) }
+      }
+    }
+    return null
+  }
+
   has(name) {
     return this.tools.has(name)
   }

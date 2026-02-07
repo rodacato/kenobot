@@ -49,6 +49,11 @@ toolRegistry.register(new WebFetchTool())
 if (config.n8n.webhookBase) {
   toolRegistry.register(new N8nTriggerTool(config.n8n))
 }
+for (const def of toolRegistry.getDefinitions()) {
+  const tool = toolRegistry.tools.get(def.name)
+  const trigger = tool.trigger ? String(tool.trigger) : 'none'
+  logger.info('system', 'tool_loaded', { name: def.name, trigger })
+}
 logger.info('system', 'tools_registered', { count: toolRegistry.size })
 
 // Initialize storage, memory, and agent

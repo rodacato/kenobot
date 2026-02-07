@@ -7,6 +7,15 @@ import BaseTool from './base.js'
  * 10KB limit prevents context overflow from large pages.
  */
 export default class WebFetchTool extends BaseTool {
+  /** @returns {RegExp} Matches "/fetch <url>" */
+  get trigger() {
+    return /^\/fetch\s+(https?:\/\/\S+)/i
+  }
+
+  parseTrigger(match) {
+    return { url: match[1] }
+  }
+
   get definition() {
     return {
       name: 'web_fetch',

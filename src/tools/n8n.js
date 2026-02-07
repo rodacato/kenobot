@@ -11,6 +11,19 @@ export default class N8nTriggerTool extends BaseTool {
     this.webhookBase = config.webhookBase
   }
 
+  /** @returns {RegExp} Matches "/n8n <workflow> [json data]" */
+  get trigger() {
+    return /^\/n8n\s+(\S+)(?:\s+(.+))?/i
+  }
+
+  parseTrigger(match) {
+    const input = { workflow: match[1] }
+    if (match[2]) {
+      try { input.data = JSON.parse(match[2]) } catch { /* ignore bad JSON */ }
+    }
+    return input
+  }
+
   get definition() {
     return {
       name: 'n8n_trigger',

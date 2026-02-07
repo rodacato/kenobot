@@ -45,6 +45,39 @@ export default class AgentLoop {
   }
 
   /**
+   * Check if message matches a tool trigger and execute it.
+   * @private
+   * @returns {{ toolName: string, result: string, enrichedPrompt: string }|null}
+   */
+  async _executeTrigger(sessionId, text) {
+    if (!this.toolRegistry) return null
+
+    const match = this.toolRegistry.matchTrigger(text)
+    if (!match) return null
+
+    const { tool, input } = match
+    const toolName = tool.definition.name
+
+    logger.info('agent', 'trigger_matched', { sessionId, tool: toolName, input })
+
+    try {
+      const result = await tool.execute(input)
+      return {
+        toolName,
+        result,
+        enrichedPrompt: `${text}\n\n[${toolName} result]\n${result}`
+      }
+    } catch (error) {
+      logger.error('agent', 'trigger_failed', { sessionId, tool: toolName, error: error.message })
+      return {
+        toolName,
+        result: error.message,
+        enrichedPrompt: `${text}\n\n[${toolName} error]\n${error.message}`
+      }
+    }
+  }
+
+  /**
    * Handle an incoming message.
    * @private
    */
@@ -65,8 +98,17 @@ export default class AgentLoop {
     try {
       const start = Date.now()
 
+      // Check for slash command triggers (e.g. /fetch, /n8n)
+      const triggerResult = await this._executeTrigger(sessionId, message.text)
+
       // Build context with identity + history
       const context = await this.contextBuilder.build(sessionId, message)
+
+      // If trigger matched, enrich the last user message with tool result
+      if (triggerResult) {
+        const lastMsg = context.messages[context.messages.length - 1]
+        lastMsg.content = triggerResult.enrichedPrompt
+      }
 
       // Build chat options with tool definitions
       const chatOptions = { system: context.system }

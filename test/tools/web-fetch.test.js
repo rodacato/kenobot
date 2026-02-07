@@ -22,6 +22,28 @@ describe('WebFetchTool', () => {
     })
   })
 
+  describe('trigger', () => {
+    it('should match /fetch <url>', () => {
+      const match = '/fetch https://example.com'.match(tool.trigger)
+      expect(match).not.toBeNull()
+      expect(tool.parseTrigger(match)).toEqual({ url: 'https://example.com' })
+    })
+
+    it('should match /fetch with http URL', () => {
+      const match = '/fetch http://test.com/page'.match(tool.trigger)
+      expect(match).not.toBeNull()
+      expect(tool.parseTrigger(match)).toEqual({ url: 'http://test.com/page' })
+    })
+
+    it('should not match without URL', () => {
+      expect('/fetch'.match(tool.trigger)).toBeNull()
+    })
+
+    it('should not match random text', () => {
+      expect('fetch something'.match(tool.trigger)).toBeNull()
+    })
+  })
+
   describe('execute', () => {
     it('should return text content from HTML page', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({

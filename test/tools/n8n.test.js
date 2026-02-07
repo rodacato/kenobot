@@ -22,6 +22,33 @@ describe('N8nTriggerTool', () => {
     })
   })
 
+  describe('trigger', () => {
+    it('should match /n8n <workflow>', () => {
+      const match = '/n8n daily-summary'.match(tool.trigger)
+      expect(match).not.toBeNull()
+      expect(tool.parseTrigger(match)).toEqual({ workflow: 'daily-summary' })
+    })
+
+    it('should match /n8n <workflow> <json data>', () => {
+      const match = '/n8n send-email {"to":"test@example.com"}'.match(tool.trigger)
+      expect(match).not.toBeNull()
+      const input = tool.parseTrigger(match)
+      expect(input.workflow).toBe('send-email')
+      expect(input.data).toEqual({ to: 'test@example.com' })
+    })
+
+    it('should ignore bad JSON in data', () => {
+      const match = '/n8n workflow not-json'.match(tool.trigger)
+      const input = tool.parseTrigger(match)
+      expect(input.workflow).toBe('workflow')
+      expect(input.data).toBeUndefined()
+    })
+
+    it('should not match without workflow name', () => {
+      expect('/n8n'.match(tool.trigger)).toBeNull()
+    })
+  })
+
   describe('execute', () => {
     it('should POST to webhook URL with workflow path', async () => {
       const mockFetch = vi.fn().mockResolvedValue({
