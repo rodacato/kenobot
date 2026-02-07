@@ -131,6 +131,33 @@ describe('ClaudeCLIProvider', () => {
         provider.chat([{ role: 'user', content: 'test' }])
       ).rejects.toThrow('Claude CLI failed')
     })
+
+    it('should default cwd to $HOME', async () => {
+      const spawnSpy = vi.spyOn(provider, '_spawn').mockResolvedValue({
+        stdout: 'response',
+        stderr: ''
+      })
+
+      await provider.chat([{ role: 'user', content: 'test' }])
+
+      const spawnOptions = spawnSpy.mock.calls[0][2]
+      expect(spawnOptions.cwd).toBe(process.env.HOME)
+    })
+
+    it('should pass explicit cwd from options', async () => {
+      const spawnSpy = vi.spyOn(provider, '_spawn').mockResolvedValue({
+        stdout: 'response',
+        stderr: ''
+      })
+
+      await provider.chat(
+        [{ role: 'user', content: 'test' }],
+        { cwd: '/tmp/my-project' }
+      )
+
+      const spawnOptions = spawnSpy.mock.calls[0][2]
+      expect(spawnOptions.cwd).toBe('/tmp/my-project')
+    })
   })
 
   describe('_spawn()', () => {
@@ -140,6 +167,11 @@ describe('ClaudeCLIProvider', () => {
 
       expect(result.stdout.trim()).toBe('hello world')
       expect(result.stderr).toBe('')
+    })
+
+    it('should use cwd when provided', async () => {
+      const result = await provider._spawn('pwd', [], { cwd: '/tmp' })
+      expect(result.stdout.trim()).toBe('/tmp')
     })
 
     it('should reject on non-zero exit code', async () => {

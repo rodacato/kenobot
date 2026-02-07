@@ -92,6 +92,9 @@ export default {
 
   // Workspace & GitHub
   workspaceDir: process.env.WORKSPACE_DIR || '',
+
+  // Dev mode: parent directory containing project folders (/dev tool)
+  projectsDir: process.env.PROJECTS_DIR || '',
   sshKeyPath: process.env.KENOBOT_SSH_KEY || join(homedir(), '.ssh', 'kenobot_ed25519'),
   github: {
     token: process.env.GITHUB_TOKEN || '',

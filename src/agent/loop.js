@@ -114,14 +114,34 @@ export default class AgentLoop {
         logger.info('agent', 'skill_activated', { sessionId, skill: activeSkill })
       }
 
-      // If trigger matched, enrich the last user message with tool result
+      // Dev mode: detect devMode signal from /dev tool
+      let devMode = null
       if (triggerResult) {
+        try {
+          const parsed = JSON.parse(triggerResult.result)
+          if (parsed.devMode) {
+            devMode = parsed
+            logger.info('agent', 'dev_mode', { sessionId, project: parsed.project, cwd: parsed.cwd })
+          }
+        } catch { /* not JSON — normal tool result */ }
+      }
+
+      // If trigger matched, enrich the last user message with tool result
+      // (skip enrichment for devMode — we replace the message with just the task)
+      if (triggerResult && !devMode) {
         const lastMsg = context.messages[context.messages.length - 1]
         lastMsg.content = triggerResult.enrichedPrompt
       }
 
       // Build chat options with tool definitions
       const chatOptions = { system: context.system }
+
+      // Dev mode: set CWD for provider and replace message with task
+      if (devMode) {
+        chatOptions.cwd = devMode.cwd
+        const lastMsg = context.messages[context.messages.length - 1]
+        lastMsg.content = devMode.task
+      }
       const toolDefs = this.toolRegistry?.getDefinitions() || []
       if (toolDefs.length > 0) chatOptions.tools = toolDefs
 

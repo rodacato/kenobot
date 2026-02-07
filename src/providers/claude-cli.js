@@ -36,8 +36,11 @@ export default class ClaudeCLIProvider extends BaseProvider {
       '-p', prompt
     ]
 
+    // CWD: dev mode passes explicit cwd, assistant mode defaults to $HOME
+    const cwd = options.cwd || process.env.HOME
+
     try {
-      const { stdout, stderr } = await this._spawn('claude', args)
+      const { stdout, stderr } = await this._spawn('claude', args, { cwd })
 
       if (stderr) {
         logger.warn('claude-cli', 'stderr_output', { stderr: stderr.slice(0, 200) })
@@ -57,12 +60,16 @@ export default class ClaudeCLIProvider extends BaseProvider {
 
   /**
    * Spawn claude CLI with stdin closed to prevent hanging.
+   * @param {string} command
+   * @param {string[]} args
+   * @param {{ cwd?: string }} options
    * @private
    */
-  _spawn(command, args) {
+  _spawn(command, args, options = {}) {
     return new Promise((resolve, reject) => {
       const child = spawn(command, args, {
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: ['ignore', 'pipe', 'pipe'],
+        cwd: options.cwd || undefined
       })
 
       let stdout = ''
