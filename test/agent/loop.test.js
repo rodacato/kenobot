@@ -326,7 +326,11 @@ describe('AgentLoop', () => {
 
       await agent._handleMessage(message)
 
-      expect(toolRegistry.execute).toHaveBeenCalledWith('web_fetch', { url: 'https://example.com' })
+      expect(toolRegistry.execute).toHaveBeenCalledWith(
+        'web_fetch',
+        { url: 'https://example.com' },
+        { chatId: '123', userId: '456', channel: 'telegram' }
+      )
       expect(bus.emit).toHaveBeenCalledWith('message:out', expect.objectContaining({
         text: 'The page says: Page content here'
       }))
@@ -509,7 +513,10 @@ describe('AgentLoop', () => {
 
       await agent._handleMessage(message)
 
-      expect(fakeTool.execute).toHaveBeenCalledWith({ url: 'https://example.com' })
+      expect(fakeTool.execute).toHaveBeenCalledWith(
+        { url: 'https://example.com' },
+        { chatId: '123', userId: '456', channel: 'telegram' }
+      )
       // The last message sent to provider should contain the tool result
       const sentMessages = provider.chat.mock.calls[0][0]
       const lastMsg = sentMessages[sentMessages.length - 1]

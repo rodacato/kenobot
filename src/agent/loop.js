@@ -49,7 +49,7 @@ export default class AgentLoop {
    * @private
    * @returns {{ toolName: string, result: string, enrichedPrompt: string }|null}
    */
-  async _executeTrigger(sessionId, text) {
+  async _executeTrigger(sessionId, text, messageContext) {
     if (!this.toolRegistry) return null
 
     const match = this.toolRegistry.matchTrigger(text)
@@ -61,7 +61,7 @@ export default class AgentLoop {
     logger.info('agent', 'trigger_matched', { sessionId, tool: toolName, input })
 
     try {
-      const result = await tool.execute(input)
+      const result = await tool.execute(input, messageContext)
       return {
         toolName,
         result,
@@ -98,8 +98,11 @@ export default class AgentLoop {
     try {
       const start = Date.now()
 
-      // Check for slash command triggers (e.g. /fetch, /n8n)
-      const triggerResult = await this._executeTrigger(sessionId, message.text)
+      // Message context for tools that need chatId/userId (e.g. schedule)
+      const messageContext = { chatId: message.chatId, userId: message.userId, channel: message.channel }
+
+      // Check for slash command triggers (e.g. /fetch, /n8n, /schedule)
+      const triggerResult = await this._executeTrigger(sessionId, message.text, messageContext)
 
       // Build context with identity + history
       const context = await this.contextBuilder.build(sessionId, message)
@@ -137,7 +140,7 @@ export default class AgentLoop {
         const results = await Promise.all(
           response.toolCalls.map(async (tc) => {
             try {
-              const result = await this.toolRegistry.execute(tc.name, tc.input)
+              const result = await this.toolRegistry.execute(tc.name, tc.input, messageContext)
               return { id: tc.id, result: String(result), isError: false }
             } catch (error) {
               return { id: tc.id, result: `Error: ${error.message}`, isError: true }

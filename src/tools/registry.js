@@ -20,10 +20,10 @@ export default class ToolRegistry {
     return Array.from(this.tools.values()).map(t => t.definition)
   }
 
-  async execute(name, input) {
+  async execute(name, input, context = {}) {
     const tool = this.tools.get(name)
     if (!tool) throw new Error(`Unknown tool: ${name}`)
-    return await tool.execute(input)
+    return await tool.execute(input, context)
   }
 
   /**
