@@ -103,6 +103,11 @@ export default class AgentLoop {
 
       // Build context with identity + history
       const context = await this.contextBuilder.build(sessionId, message)
+      const { activeSkill } = context
+
+      if (activeSkill) {
+        logger.info('agent', 'skill_activated', { sessionId, skill: activeSkill })
+      }
 
       // If trigger matched, enrich the last user message with tool result
       if (triggerResult) {
@@ -172,7 +177,8 @@ export default class AgentLoop {
         durationMs,
         contentLength: cleanText.length,
         memoriesExtracted: memories.length,
-        toolIterations: iterations
+        toolIterations: iterations,
+        activeSkill: activeSkill || null
       })
 
       // Save memories to daily log

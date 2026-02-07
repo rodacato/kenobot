@@ -45,7 +45,7 @@ export default class ContextBuilder {
     }
 
     // Build system prompt: identity + tools + skills + memory
-    const system = await this._buildSystemPrompt(message.text)
+    const { system, activeSkill } = await this._buildSystemPrompt(message.text)
 
     // Load session history (last 20 messages)
     const history = await this.storage.loadSession(sessionId)
@@ -56,7 +56,7 @@ export default class ContextBuilder {
     // Append current user message
     messages.push({ role: 'user', content: message.text })
 
-    return { system, messages }
+    return { system, messages, activeSkill }
   }
 
   /**
@@ -65,6 +65,7 @@ export default class ContextBuilder {
    */
   async _buildSystemPrompt(messageText = '') {
     const parts = [this._identity]
+    let activeSkill = null
 
     // Inject available tool names so the agent knows what it can do
     if (this.toolRegistry?.size > 0) {
@@ -80,11 +81,12 @@ export default class ContextBuilder {
       const skillList = skills.map(s => `- ${s.name}: ${s.description}`).join('\n')
       parts.push(`\n---\n\n## Available skills\n${skillList}\n`)
 
-      const activeSkill = this.skillLoader.match(messageText)
-      if (activeSkill) {
-        const prompt = await this.skillLoader.getPrompt(activeSkill.name)
+      const matched = this.skillLoader.match(messageText)
+      if (matched) {
+        const prompt = await this.skillLoader.getPrompt(matched.name)
         if (prompt) {
-          parts.push(`\n---\n\n## Active skill: ${activeSkill.name}\n${prompt}\n`)
+          activeSkill = matched.name
+          parts.push(`\n---\n\n## Active skill: ${matched.name}\n${prompt}\n`)
         }
       }
     }
@@ -123,6 +125,6 @@ export default class ContextBuilder {
       parts.push(memorySection.join('\n'))
     }
 
-    return parts.join('\n')
+    return { system: parts.join('\n'), activeSkill }
   }
 }

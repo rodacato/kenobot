@@ -60,12 +60,14 @@ describe('ContextBuilder', () => {
   })
 
   describe('build', () => {
-    it('should return system and messages', async () => {
+    it('should return system, messages, and activeSkill', async () => {
       const result = await context.build('telegram-123', { text: 'hello' })
 
       expect(result).toHaveProperty('system')
       expect(result).toHaveProperty('messages')
+      expect(result).toHaveProperty('activeSkill')
       expect(result.system).toBe('# KenoBot Identity\nI am KenoBot.')
+      expect(result.activeSkill).toBeNull()
     })
 
     it('should include current message as last user message', async () => {
@@ -337,6 +339,7 @@ describe('ContextBuilder', () => {
 
       expect(result.system).toContain('## Active skill: weather')
       expect(result.system).toContain('Fetch from wttr.in')
+      expect(result.activeSkill).toBe('weather')
       expect(mockSkillLoader.match).toHaveBeenCalledWith('what is the weather?')
       expect(mockSkillLoader.getPrompt).toHaveBeenCalledWith('weather')
     })
@@ -347,6 +350,7 @@ describe('ContextBuilder', () => {
       const result = await context.build('telegram-123', { text: 'hello' })
 
       expect(result.system).not.toContain('## Active skill')
+      expect(result.activeSkill).toBeNull()
       expect(mockSkillLoader.getPrompt).not.toHaveBeenCalled()
     })
 
@@ -357,6 +361,7 @@ describe('ContextBuilder', () => {
       const result = await context.build('telegram-123', { text: 'weather?' })
 
       expect(result.system).not.toContain('## Active skill')
+      expect(result.activeSkill).toBeNull()
     })
 
     it('should place skills section after tools section', async () => {
