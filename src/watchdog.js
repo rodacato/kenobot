@@ -56,20 +56,25 @@ export default class Watchdog {
 
   async _runChecks() {
     const results = new Map()
+    const entries = [...this.checks.entries()]
 
-    for (const [name, check] of this.checks) {
-      try {
-        const result = await check.fn()
-        check.status = result.status || 'ok'
-        check.detail = result.detail || ''
-        check.lastCheck = Date.now()
-        results.set(name, { status: check.status, detail: check.detail, critical: check.critical })
-      } catch (error) {
-        check.status = 'fail'
-        check.detail = error.message
-        check.lastCheck = Date.now()
-        results.set(name, { status: 'fail', detail: error.message, critical: check.critical })
-      }
+    // Run all checks in parallel for faster completion
+    const checkResults = await Promise.all(
+      entries.map(async ([name, check]) => {
+        try {
+          const result = await check.fn()
+          return { name, check, status: result.status || 'ok', detail: result.detail || '' }
+        } catch (error) {
+          return { name, check, status: 'fail', detail: error.message }
+        }
+      })
+    )
+
+    for (const { name, check, status, detail } of checkResults) {
+      check.status = status
+      check.detail = detail
+      check.lastCheck = Date.now()
+      results.set(name, { status, detail, critical: check.critical })
     }
 
     const newState = this._evaluateState(results)
