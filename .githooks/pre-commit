@@ -51,6 +51,7 @@ secret_patterns=(
   "AKIA[0-9A-Z]{16}"
   "-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----"
   "-----BEGIN CERTIFICATE-----"
+  "[0-9]{8,10}:[A-Za-z0-9_-]{35}"
 )
 
 for file in $staged_files; do
@@ -59,8 +60,8 @@ for file in $staged_files; do
     continue
   fi
 
-  # Skip git hooks (they contain detection patterns)
-  if echo "$file" | grep -q "^\.githooks/"; then
+  # Skip files that contain detection patterns
+  if echo "$file" | grep -qE "^\.githooks/|^bin/audit$"; then
     continue
   fi
 

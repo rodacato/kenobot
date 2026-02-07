@@ -1,107 +1,107 @@
 # Getting Started with KenoBot
 
-Esta guía te llevará paso a paso desde cero hasta tener KenoBot funcionando.
+A step-by-step guide from zero to a running KenoBot instance.
 
-## 📋 Prerequisitos
+## Prerequisites
 
-- ✅ Node.js 22+ (ya instalado en devcontainer)
-- ✅ Cuenta de Telegram
-- ⏳ 10 minutos de tu tiempo
+- Node.js 22+ (pre-installed in devcontainer)
+- A Telegram account
+- ~10 minutes
 
-## 🚀 Pasos
+## Steps
 
-### Paso 1: Crear tu bot de Telegram (obtener TOKEN)
+### Step 1: Create your Telegram bot (get TOKEN)
 
-> 🎯 **Objetivo**: Obtener el **TOKEN** del bot (credencial de autenticación)
+> **Goal**: Get the bot **TOKEN** (authentication credential)
 
-1. **Abre Telegram** en tu teléfono o desktop
+1. **Open Telegram** on your phone or desktop
 
-2. **Busca @BotFather** (es el bot oficial de Telegram para crear bots)
+2. **Search for @BotFather** (Telegram's official bot for creating bots)
 
-3. **Envía el comando**:
+3. **Send the command**:
    ```
    /newbot
    ```
 
-4. **Sigue las instrucciones**:
-   - **Bot name**: Elige un nombre (ej: "Mi KenoBot")
-   - **Username**: Debe terminar en "bot" (ej: "mi_kenobot_bot")
+4. **Follow the instructions**:
+   - **Bot name**: Choose a name (e.g., "My KenoBot")
+   - **Username**: Must end in "bot" (e.g., "my_kenobot_bot")
 
-5. **Copia el TOKEN** que te da BotFather. Se ve así:
+5. **Copy the TOKEN** that BotFather gives you. It looks like:
    ```
    7891234567:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw
    ```
 
-   ⚠️ **Esto es el TOKEN del bot** (la "contraseña" del bot).
-   📝 Guárdalo en un lugar seguro, lo necesitarás en el paso 3.
+   **This is the bot TOKEN** (the bot's "password").
+   Save it somewhere safe, you'll need it in step 3.
 
-### Paso 2: Obtener TU Chat ID (tu identificación personal)
+### Step 2: Get YOUR Chat ID (your personal identifier)
 
-> 🎯 **Objetivo**: Obtener **TU CHAT ID** (tu identificación como usuario de Telegram)
+> **Goal**: Get **YOUR CHAT ID** (your Telegram user identifier)
 
-**⚠️ IMPORTANTE**: Este es un paso **diferente** al anterior. Ahora necesitas **TU** ID, no el del bot.
+**IMPORTANT**: This is a **different** step from the previous one. Now you need **YOUR** ID, not the bot's.
 
-1. **Busca @userinfobot** en Telegram (bot diferente a BotFather)
+1. **Search for @userinfobot** in Telegram (different bot from BotFather)
 
-2. **Envía el comando**:
+2. **Send the command**:
    ```
    /start
    ```
 
-3. **Copia el número del "Id:"**. Te responderá algo como:
+3. **Copy the "Id:" number**. It will reply with something like:
    ```
-   @rodacato
-   Id: 63059997          ← COPIA ESTE NÚMERO
-   First: Adrian
-   Last: Castillo
+   @your_username
+   Id: 123456789          <- COPY THIS NUMBER
+   First: Your
+   Last: Name
    Lang: en
    ```
 
-   ⚠️ **Esto es TU CHAT ID** (tu identificación personal).
-   📝 Guárdalo, lo necesitarás en el paso 3.
+   **This is YOUR CHAT ID** (your personal identifier).
+   Save it, you'll need it in step 3.
 
-**💡 ¿Por qué necesito esto?**
-Para que el bot solo te responda **a ti** y no a cualquier persona que le escriba.
+**Why do I need this?**
+So the bot only responds to **you** and not to anyone who messages it.
 
-### Paso 3: Configurar KenoBot
+### Step 3: Configure KenoBot
 
-Desde la terminal en `/workspaces/kenobot`, ejecuta:
+From the terminal in `/workspaces/kenobot`, run:
 
 ```bash
-# Copiar el template de configuración
+# Copy the config template
 cp .env.example .env
 ```
 
-Ahora **edita el archivo `.env`** con tus valores:
+Now **edit the `.env` file** with your values:
 
 ```bash
-# Opción 1: Usar nano
+# Option 1: Use nano
 nano .env
 
-# Opción 2: Usar vim
+# Option 2: Use vim
 vim .env
 
-# Opción 3: Usar el editor de VSCode
+# Option 3: Use the VSCode editor
 code .env
 ```
 
-**Modifica estas líneas**:
+**Modify these lines**:
 
 ```bash
-# Pega el token que te dio BotFather
-TELEGRAM_BOT_TOKEN=PEGA_AQUI_TU_TOKEN
+# Paste the token BotFather gave you
+TELEGRAM_BOT_TOKEN=PASTE_YOUR_TOKEN_HERE
 
-# Pega tu chat ID (el número que te dio userinfobot)
-TELEGRAM_ALLOWED_CHAT_IDS=PEGA_AQUI_TU_CHAT_ID
+# Paste your chat ID (the number from userinfobot)
+TELEGRAM_ALLOWED_CHAT_IDS=PASTE_YOUR_CHAT_ID_HERE
 
-# Para testing, usa el mock provider
+# For testing, use the mock provider
 PROVIDER=mock
 
-# Modelo (no importa para mock, pero dejalo)
+# Model (doesn't matter for mock, but leave it)
 MODEL=sonnet
 ```
 
-**Ejemplo completo**:
+**Complete example**:
 ```bash
 TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
 TELEGRAM_ALLOWED_CHAT_IDS=123456789
@@ -109,93 +109,87 @@ PROVIDER=mock
 MODEL=sonnet
 ```
 
-Guarda el archivo:
-- En nano: `Ctrl+X`, luego `Y`, luego `Enter`
-- En vim: `:wq`
-- En VSCode: `Ctrl+S`
+Save the file:
+- In nano: `Ctrl+X`, then `Y`, then `Enter`
+- In vim: `:wq`
+- In VSCode: `Ctrl+S`
 
-### Paso 4: Verificar la configuración
+### Step 4: Verify the configuration
 
 ```bash
-# Ver tu .env (sin mostrar tokens sensibles)
+# View your .env (without showing sensitive tokens)
 cat .env | grep -v "TOKEN"
 ```
 
-Deberías ver algo como:
+You should see something like:
 ```
 TELEGRAM_ALLOWED_CHAT_IDS=123456789
 PROVIDER=mock
 MODEL=sonnet
 ```
 
-### Paso 5: Arrancar KenoBot
+### Step 5: Start KenoBot
 
 ```bash
 npm start
 ```
 
-**Deberías ver**:
+**You should see**:
 ```
-🤖 KenoBot starting...
-   Provider: mock
-   Model: sonnet
-   Allowed chat IDs: 123456789
-   ⚠️  Using MOCK provider (for testing only)
-
-[telegram] Starting Telegram bot...
-[telegram] ✓ Bot started successfully
+[info] system: startup { provider: "mock", model: "sonnet", allowedChats: 1 }
+[info] telegram: Bot started successfully
 ```
 
-✅ **Si ves esto, KenoBot está corriendo!**
+If you see this, KenoBot is running!
 
-❌ **Si ves errores**:
+**If you see errors**:
 
 - `Missing required config: TELEGRAM_BOT_TOKEN`
-  → Edita tu `.env`, falta el token
+  -> Edit your `.env`, the token is missing
 
 - `Error: 401 Unauthorized`
-  → Token de Telegram incorrecto, verifica que lo copiaste bien
+  -> Telegram token is incorrect, verify you copied it correctly
 
 - `Cannot find module 'grammy'`
-  → Corre `npm install` primero
+  -> Run `npm install` first
 
-### Paso 6: Probar tu bot
+### Step 6: Test your bot
 
-1. **Abre Telegram**
+1. **Open Telegram**
 
-2. **Busca tu bot** por el username que le diste (ej: `@mi_kenobot_bot`)
+2. **Search for your bot** by the username you gave it (e.g., `@my_kenobot_bot`)
 
-3. **Inicia la conversación**:
+3. **Start the conversation**:
    ```
    /start
    ```
 
-4. **Envía un mensaje**:
+4. **Send a message**:
    ```
    Hello there!
    ```
 
-5. **El bot debería responder**:
+5. **The bot should respond**:
    ```
-   Hello there! General Kenobi! 🤖
+   Hello there! General Kenobi!
 
    I'm KenoBot, running in mock mode for testing. The Force is strong with this one!
    ```
 
-### Paso 7: Verificar los logs
+### Step 7: Check the logs
 
-En la terminal donde corre KenoBot deberías ver:
+In the terminal where KenoBot is running you should see:
 
 ```
-[message:in] 123456789: Hello there!
-[mock] Response: Hello there! General Kenobi! 🤖...
+[info] agent: message_received { sessionId: "telegram-123456789", length: 12 }
+[info] agent: response_generated { sessionId: "telegram-123456789", durationMs: 5 }
 ```
 
-✅ **Si ves esto, el flow completo funciona!**
+If you see this, the full flow is working!
 
-### Paso 8: Probar más funcionalidad
+### Step 8: Test more functionality
 
-**Envía diferentes mensajes**:
+**Send different messages**:
 
 ```
 help
@@ -207,88 +201,78 @@ testing 123
 any message works!
 ```
 
-**Mensaje largo** (copia este lorem ipsum y envíalo):
+**Long message** (copy and send this lorem ipsum):
 ```
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. [... repite esto 20 veces para pasar 4000 chars ...]
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. [... repeat 20 times to exceed 4000 chars ...]
 ```
 
-Debería split en múltiples mensajes (chunking).
+It should split into multiple messages (chunking).
 
-### Paso 9: Detener el bot
+### Step 9: Stop the bot
 
-En la terminal, presiona:
+In the terminal, press:
 ```
 Ctrl+C
 ```
 
-Deberías ver:
+You should see:
 ```
-^C
-[shutdown] SIGINT received, shutting down gracefully...
-[telegram] Stopping bot...
+[info] system: shutdown { signal: "SIGINT" }
 ```
 
-✅ **Shutdown limpio!**
+Clean shutdown!
 
 ---
 
-## 🎯 Validación Completa
+## Validation Checklist
 
-- [ ] Bot arranca sin errores
-- [ ] Puedes enviar mensaje y recibir respuesta
-- [ ] Logs muestran `[message:in]` y `[mock]`
-- [ ] Mensajes largos se separan en chunks
-- [ ] Ctrl+C detiene el bot limpiamente
+- [ ] Bot starts without errors
+- [ ] You can send a message and receive a response
+- [ ] Logs show message_received and response_generated
+- [ ] Long messages are split into chunks
+- [ ] Ctrl+C stops the bot cleanly
 
-**Si todos los checks pasan: ¡Phase 0 funciona! 🎉**
+**If all checks pass: the bot works!**
 
 ---
 
-## ⏭️ Próximos Pasos
+## Next Steps
 
-### Cambiar a Claude real (opcional)
+### Switch to a real Claude provider (optional)
 
-Una vez que el mock funciona, puedes cambiar a Claude real:
+Once mock works, you can switch to a real provider:
 
-**Opción A: Claude CLI** (requiere usuario no-root)
+**Option A: Claude API** (requires Anthropic API key)
+```bash
+# .env
+PROVIDER=claude-api
+MODEL=claude-sonnet-4-5-20250929
+ANTHROPIC_API_KEY=your_api_key_here
+```
+
+**Option B: Claude CLI** (requires non-root user)
 ```bash
 # .env
 PROVIDER=claude-cli
 MODEL=sonnet
 ```
 
-**Opción B: Claude API** (requiere API key de Anthropic)
-```bash
-# .env
-PROVIDER=claude-api
-MODEL=claude-sonnet-4-5-20250929
-ANTHROPIC_API_KEY=tu_api_key_aqui
-```
-
-*Nota: La API provider se implementará después del testing con mock.*
-
-### Continuar a Phase 1
-
-Phase 1 agregará:
-- Agent loop estructurado
-- Context building (identity + memory + history)
-- Session persistence (JSONL files)
-- Multi-context support (sesiones por chat)
+See [providers.md](features/providers.md) for details on each provider.
 
 ---
 
-## 🆘 Troubleshooting
+## Troubleshooting
 
-### El bot no responde
+### Bot not responding
 
-1. **Verifica que está corriendo**:
-   - Debe mostrar `[telegram] ✓ Bot started successfully`
+1. **Verify it's running**:
+   - Should show `Bot started successfully` in logs
 
-2. **Verifica el chat ID**:
-   - En logs, cuando envías mensaje, debe mostrar `[message:in] TU_CHAT_ID: ...`
-   - Si muestra `Rejected message from unauthorized user`, tu chat ID no coincide
+2. **Verify the chat ID**:
+   - In logs, when you send a message, it should show your session ID
+   - If it shows `Rejected message from unauthorized user`, your chat ID doesn't match
 
-3. **Reinicia el bot**:
+3. **Restart the bot**:
    ```bash
    Ctrl+C
    npm start
@@ -296,149 +280,146 @@ Phase 1 agregará:
 
 ### "Error: 401 Unauthorized"
 
-- Token de Telegram incorrecto
-- Verifica en BotFather que el token esté activo
-- Copia-pega de nuevo el token completo
+- Telegram token is incorrect
+- Verify in BotFather that the token is active
+- Copy-paste the full token again
 
 ### "Missing required config"
 
-- Tu `.env` no tiene todos los valores
-- Revisa que tenga:
+- Your `.env` doesn't have all values
+- Check that it has:
   - `TELEGRAM_BOT_TOKEN=...`
   - `TELEGRAM_ALLOWED_CHAT_IDS=...`
 
-### El bot responde a cualquier persona
+### Bot responds to anyone
 
-- Esto es un problema de seguridad
-- Verifica que `TELEGRAM_ALLOWED_CHAT_IDS` tenga TU chat ID
-- Verifica los logs: debe rechazar usuarios no autorizados
+- This is a security issue
+- Verify that `TELEGRAM_ALLOWED_CHAT_IDS` has YOUR chat ID
+- Check logs: unauthorized users should be rejected
 
 ---
 
-## ❓ FAQ (Preguntas Frecuentes)
+## FAQ
 
-### ¿Cuál es la diferencia entre Token y Chat ID?
+### What's the difference between Token and Chat ID?
 
-Son **dos cosas completamente diferentes**:
+They are **two completely different things**:
 
-| Concepto | Qué es | Dónde lo obtienes | Para qué sirve |
-|----------|--------|-------------------|----------------|
-| **Token del Bot** | Credencial de tu bot | @BotFather | Autenticar tu bot con Telegram |
-| **Chat ID** | TU ID de usuario | @userinfobot | Identificarte como usuario autorizado |
+| Concept | What it is | Where to get it | What it's for |
+|---------|------------|-----------------|---------------|
+| **Bot Token** | Bot credential | @BotFather | Authenticate your bot with Telegram |
+| **Chat ID** | YOUR user ID | @userinfobot | Identify you as an authorized user |
 
-**Analogía**:
-- **Token** = Contraseña del bot (como la llave de una casa)
-- **Chat ID** = Tu identificación personal (como tu cédula)
+**Analogy**:
+- **Token** = Bot's password (like a house key)
+- **Chat ID** = Your personal ID (like a passport)
 
-### ¿Por qué necesito MI chat ID y no el del bot?
+### Why do I need MY chat ID and not the bot's?
 
-Porque KenoBot usa tu Chat ID para **seguridad**:
+Because KenoBot uses your Chat ID for **security**:
 
 ```javascript
-// Cuando TÚ le envías un mensaje al bot:
+// When YOU send a message to the bot:
 {
-  userId: 63059997,        // TU Chat ID (el que sacaste de @userinfobot)
+  userId: 123456789,        // YOUR Chat ID (from @userinfobot)
   text: "Hello there!"
 }
 
-// El bot verifica:
+// The bot verifies:
 if (userId === TELEGRAM_ALLOWED_CHAT_IDS) {
-  // ✅ Eres tú, te respondo
+  // Authorized, respond
 } else {
-  // ❌ No eres tú, te ignoro
+  // Unauthorized, ignore
 }
 ```
 
-Esto previene que **otras personas** usen tu bot.
+This prevents **other people** from using your bot.
 
-### ¿Qué hace cada bot?
+### What does each bot do?
 
-| Bot | Función | Comandos |
-|-----|---------|----------|
-| **@BotFather** | Crear y gestionar bots | `/newbot` - Crear bot<br>`/mybots` - Ver tus bots |
-| **@userinfobot** | Ver tu información de usuario | `/start` - Ver tu ID |
-| **@k3noBot** | TU bot (el que creaste) | Lo que tú programes |
+| Bot | Function | Commands |
+|-----|----------|----------|
+| **@BotFather** | Create and manage bots | `/newbot` - Create bot<br>`/mybots` - See your bots |
+| **@userinfobot** | See your user info | `/start` - See your ID |
+| **@your_bot** | YOUR bot (the one you created) | Whatever you program |
 
-### ¿Los números que veo son correctos?
+### Are these number formats correct?
 
-Sí. Ejemplos reales:
+Yes. Examples:
 
 ```bash
-# Token del bot (de @BotFather)
+# Bot token (from @BotFather)
 TELEGRAM_BOT_TOKEN=7891234567:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw
 #                  ^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-#                  Bot ID    Token secreto (no compartir)
+#                  Bot ID    Secret token (don't share)
 
-# Tu Chat ID (de @userinfobot)
-TELEGRAM_ALLOWED_CHAT_IDS=63059997
-#                         ^^^^^^^^
-#                         Tu ID de usuario
+# Your Chat ID (from @userinfobot)
+TELEGRAM_ALLOWED_CHAT_IDS=123456789
+#                         ^^^^^^^^^
+#                         Your user ID
 ```
 
-### ¿Puedo usar el mismo bot en varios dispositivos?
+### Can I use the same bot on multiple devices?
 
-Sí. El **token del bot** es el mismo, pero cada **persona** tiene su propio **Chat ID**.
+Yes. The **bot token** is the same, but each **person** has their own **Chat ID**.
 
-Si quieres que otra persona use el bot:
+If you want another person to use the bot:
 ```bash
-# Múltiples usuarios (separados por coma)
-TELEGRAM_ALLOWED_CHAT_IDS=63059997,87654321,12345678
+# Multiple users (comma-separated)
+TELEGRAM_ALLOWED_CHAT_IDS=123456789,987654321,111222333
 ```
 
-### ¿Qué pasa si alguien más envía un mensaje a mi bot?
+### What happens if someone else messages my bot?
 
-KenoBot lo rechaza automáticamente (deny by default):
+KenoBot automatically rejects them (deny by default):
 
 ```
-[telegram] Rejected message from unauthorized user: 87654321
+[warn] channel: auth_rejected { userId: 987654321 }
 ```
 
-Solo TÚ (con tu Chat ID) recibes respuestas.
+Only YOU (with your Chat ID) receive responses.
 
-### ¿Por qué usar mock provider primero?
+### Why use mock provider first?
 
-Porque estamos en **devcontainer como root**, y Claude CLI no permite `--dangerously-skip-permissions` como root (seguridad).
+Because it lets you verify the **entire flow works** before setting up API keys or CLI authentication.
 
-Opciones:
-1. **Mock** (actual): Testing sin LLM real ✅
-2. **Claude API**: Requiere API key de Anthropic
-3. **Claude CLI**: Requiere usuario no-root
+Options:
+1. **Mock** (current): Testing without a real LLM
+2. **Claude API**: Requires an Anthropic API key
+3. **Claude CLI**: Requires a non-root user
 
-Mock te permite probar que **todo el flow funciona** antes de configurar autenticación.
+### When should I switch to real Claude?
 
-### ¿Cuándo cambio a Claude real?
-
-Después de validar que mock funciona:
+After validating that mock works:
 
 ```bash
-# Opción 1: Claude API (recomendado)
+# Option 1: Claude API (recommended)
 PROVIDER=claude-api
-ANTHROPIC_API_KEY=tu_api_key
+ANTHROPIC_API_KEY=your_api_key
 
-# Opción 2: Claude CLI (requiere setup de usuario no-root)
+# Option 2: Claude CLI (requires non-root user setup)
 PROVIDER=claude-cli
 ```
 
 ---
 
-## 📚 Recursos
+## Resources
 
-- [Telegram BotFather](https://t.me/botfather) - Crear bots
-- [Telegram UserInfo Bot](https://t.me/userinfobot) - Obtener tu Chat ID
-- [Architecture](architecture.md) - Arquitectura del sistema
-- [Configuration](configuration.md) - Referencia de configuración
-
----
-
-## 💡 Tips
-
-- **Guarda tu token en lugar seguro**: Cualquiera con el token puede controlar tu bot
-- **No commitees el `.env`**: Ya está en `.gitignore`, pero verifica
-- **Logs son tus amigos**: Si algo falla, `[error]` te dirá qué pasó
-- **Mock es temporal**: Una vez que funcione, cambia a provider real
+- [Telegram BotFather](https://t.me/botfather) - Create bots
+- [Telegram UserInfo Bot](https://t.me/userinfobot) - Get your Chat ID
+- [Architecture](architecture.md) - System design
+- [Configuration](configuration.md) - All environment variables
+- [Providers](features/providers.md) - Provider comparison
 
 ---
 
-**¿Problemas? Revisa los logs, son tu mejor amigo para debugging.**
+## Tips
 
-May the Force be with you! 🤖✨
+- **Keep your token safe**: Anyone with the token can control your bot
+- **Don't commit `.env`**: It's already in `.gitignore`, but double-check
+- **Logs are your friend**: If something fails, check the logs
+- **Mock is temporary**: Once it works, switch to a real provider
+
+---
+
+**Having issues? Check the logs — they're your best friend for debugging.**

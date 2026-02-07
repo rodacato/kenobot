@@ -5,7 +5,7 @@ import { join } from 'node:path'
  * Structured Logger - JSONL to file + condensed console output
  *
  * Levels: info, warn, error
- * Console: "19:12:30 [info] telegram: message_received userId=63059997"
+ * Console: "19:12:30 [info] telegram: message_received userId=123456789"
  * File: {"ts":"...","level":"info","subsystem":"telegram","event":"message_received","data":{}}
  *
  * Works before configure() is called (console-only, file writes buffered).
