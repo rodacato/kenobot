@@ -459,7 +459,7 @@ All variables are set in `~/.kenobot/config/.env`.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `IDENTITY_FILE` | `identities/kenobot.md` | Bot personality file |
+| `IDENTITY_FILE` | `identities/kenobot` | Bot identity directory |
 | `DATA_DIR` | `./data` | Data directory |
 | `SKILLS_DIR` | `./skills` | Skills directory |
 | `MEMORY_DAYS` | `3` | Days of memory to include |

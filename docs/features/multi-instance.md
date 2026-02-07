@@ -23,7 +23,7 @@ mkdir -p ~/.kenobot/config
 ```bash
 PROVIDER=claude-api
 MODEL=opus
-IDENTITY_FILE=identities/kenobot.md
+IDENTITY_FILE=identities/kenobot
 TELEGRAM_BOT_TOKEN=<main_bot_token>
 TELEGRAM_ALLOWED_CHAT_IDS=123456789
 ANTHROPIC_API_KEY=sk-ant-api03-...
@@ -47,7 +47,7 @@ DATA_DIR=~/.kenobot/data/quick
 mkdir -p ~/.kenobot/config/identities
 ```
 
-Each identity file is a markdown system prompt. See `~/.kenobot/config/identities/kenobot.md` for an example.
+Each identity is a directory with SOUL.md, IDENTITY.md, and USER.md. See `~/.kenobot/config/identities/kenobot/` for an example. You can also use a single `.md` file for simpler setups.
 
 ### 3. Run
 

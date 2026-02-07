@@ -330,7 +330,7 @@ These thresholds will increase as the project matures. Coverage reports are in `
 
 If you're an AI assistant (Claude Code, etc.):
 
-1. Read `CLAUDE.md` first — it will chain you to `AGENTS.md` (project context) and `identities/kenobot.md` (bot personality)
+1. Read `CLAUDE.md` first — it will chain you to `AGENTS.md` (project context) and `identities/kenobot/` (bot identity directory)
 2. Follow the commit conventions above
 3. Never hardcode secrets — always use environment variables
 4. Check `memory/` for context from previous sessions

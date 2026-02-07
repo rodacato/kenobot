@@ -62,7 +62,9 @@ When a user sends a message in Telegram:
 7. **Provider.chat()** sends to LLM and gets response
 8. **Tool loop**: If response contains `toolCalls`, execute them in parallel, feed results back to LLM, repeat (max 20 iterations)
 9. **Memory extraction**: Parse `<memory>` tags from response, append to daily log
-10. **Session save**: Append user message + clean response to `data/sessions/{sessionId}.jsonl`
+10. **User preference extraction**: Parse `<user>` tags, append to USER.md
+11. **Bootstrap detection**: If `<bootstrap-complete/>` found, delete BOOTSTRAP.md
+12. **Session save**: Append user message + clean response to `data/sessions/{sessionId}.jsonl`
 11. **Bus publish**: Agent emits `message:out` with `{text, chatId, channel}`
 12. **TelegramChannel** picks up `message:out`, formats markdown to HTML, sends to user (chunked if > 4000 chars)
 
@@ -98,34 +100,34 @@ Assembles the system prompt and message history for each provider call.
 
 **System prompt structure:**
 ```
-[Identity file (~/.kenobot/config/identities/kenobot.md)]
-
+[SOUL.md — core personality and values]
 ---
-
+[IDENTITY.md — technical expertise and boundaries]
+---
+## User Profile
+[USER.md — user preferences, timezone, language]
+### How to update user preferences
+[<user> tag instructions]
+---
+## First Conversation — Bootstrap     ← only when BOOTSTRAP.md exists
+[BOOTSTRAP.md — onboarding flow]
+---
 ## Available tools
 - web_fetch: Fetch a web page and return its text content
 - schedule: Schedule a recurring or one-time task
 - n8n_trigger: Trigger an n8n workflow via webhook
-
 ---
-
 ## Available skills
 - weather: Get weather forecasts and current conditions
 - daily-summary: Generate a summary of your day
-
 ---
-
 ## Active skill: weather
 [Full SKILL.md content loaded on-demand]
-
 ---
-
 ## Memory
 [Instructions for <memory> tags]
-
 ### Long-term memory
 [MEMORY.md content]
-
 ### Recent notes
 [Last N days of daily logs]
 ```

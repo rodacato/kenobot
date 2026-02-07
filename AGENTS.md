@@ -4,7 +4,7 @@
 > 1. `IDENTITY.md` — your role and working style
 > 2. `HEARTBEAT.md` (if it exists) — current priorities from previous sessions
 >
-> `identities/kenobot.md` is the **bot's** personality. `IDENTITY.md` is **yours**.
+> `identities/kenobot/` is the **bot's** identity (SOUL.md, IDENTITY.md, USER.md). `IDENTITY.md` at the project root is **yours**.
 
 ## Commands
 
@@ -145,6 +145,8 @@ Each test file should have:
 - `claude-cli` provider needs ~20s response time with sonnet model. Use `claude-api` for faster responses.
 - Non-root devcontainer: running as `node` user (uid=1000).
 - Skills use `manifest.json` + `SKILL.md` (not `skill.json` + `prompt.md` as originally planned).
+- Identity uses directory mode by default (`identities/kenobot/` with SOUL.md, IDENTITY.md, USER.md). Legacy single-file mode (`kenobot.md`) still works via auto-detection.
+- `BOOTSTRAP.md` in the identity directory triggers first-conversation onboarding. Deleted automatically when the bot includes `<bootstrap-complete/>` in a response.
 - Tool registry uses auto-discovery with self-registration — each tool exports `register(registry, deps)`.
 
 ## Mandatory: Keep Docs Updated

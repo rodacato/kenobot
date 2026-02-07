@@ -14,7 +14,7 @@ kenobot start --config config/main.env     # Use alternate config file
 |----------|------|---------|----------|-------------|
 | `PROVIDER` | string | `claude-cli` | No | LLM provider: `claude-api`, `claude-cli`, or `mock` |
 | `MODEL` | string | `sonnet` | No | Model name passed to provider: `sonnet`, `opus`, `haiku` |
-| `IDENTITY_FILE` | string | `identities/kenobot.md` | No | Path to bot personality/system prompt file (relative to config dir or absolute) |
+| `IDENTITY_FILE` | string | `identities/kenobot` | No | Path to bot identity directory or file (relative to config dir or absolute). Directory mode loads SOUL.md + IDENTITY.md + USER.md separately. See [Identity](features/identity.md). |
 | `DATA_DIR` | string | `~/.kenobot/data` | No | Base directory for sessions, memory, logs, and scheduler data |
 
 ## Telegram
@@ -116,7 +116,7 @@ MODEL=sonnet
 ANTHROPIC_API_KEY=sk-ant-api03-...
 
 # Optional (defaults shown)
-# IDENTITY_FILE=identities/kenobot.md
+# IDENTITY_FILE=identities/kenobot
 # SESSION_HISTORY_LIMIT=20
 # MEMORY_DAYS=3
 # MAX_TOOL_ITERATIONS=20
@@ -143,7 +143,7 @@ Each instance uses its own `.env` file. Variables are isolated per process:
 # ~/.kenobot/config/main.env
 PROVIDER=claude-api
 MODEL=opus
-IDENTITY_FILE=identities/kenobot.md
+IDENTITY_FILE=identities/kenobot
 TELEGRAM_BOT_TOKEN=<main_bot_token>
 TELEGRAM_ALLOWED_CHAT_IDS=123456789
 DATA_DIR=~/.kenobot/data/main

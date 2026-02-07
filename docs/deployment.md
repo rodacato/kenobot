@@ -206,7 +206,7 @@ Checks for exposed secrets, file permissions, and common security issues.
 ~/.kenobot/                   # KENOBOT_HOME (override with env var)
   config/
     .env                      # Bot configuration
-    identities/kenobot.md     # Bot personality
+    identities/kenobot/       # Bot identity (SOUL.md, IDENTITY.md, USER.md)
     skills/                   # Skill plugins
   data/
     sessions/                 # Per-chat JSONL history

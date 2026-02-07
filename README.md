@@ -92,7 +92,7 @@ Use `kenobot config edit` to open it, or pass `--config path/to/file.env` when r
 | `PROVIDER` | `claude-cli` | `claude-api`, `claude-cli`, or `mock` |
 | `MODEL` | `sonnet` | `sonnet`, `opus`, or `haiku` |
 | `ANTHROPIC_API_KEY` | — | Required for `claude-api` provider |
-| `IDENTITY_FILE` | `identities/kenobot.md` | Path to bot personality file |
+| `IDENTITY_FILE` | `identities/kenobot` | Path to bot identity directory |
 | `DATA_DIR` | `~/.kenobot/data` | Where sessions, memory, and logs are stored |
 | `SKILLS_DIR` | `~/.kenobot/config/skills` | Directory for skill plugins |
 | `MEMORY_DAYS` | `3` | How many days of recent notes to include in context |
@@ -160,6 +160,9 @@ kenobot/                       # Engine (framework code, updatable)
       context.js               # Prompt assembly: identity + tools + skills + memory + history
       memory.js                # Daily logs + MEMORY.md management
       memory-extractor.js      # Extracts <memory> tags from responses
+      user-extractor.js        # Extracts <user> tags for preference learning
+      bootstrap-extractor.js   # Detects <bootstrap-complete/> tag
+      identity.js              # Modular identity loader (SOUL + IDENTITY + USER + BOOTSTRAP)
     channels/
       base.js                  # BaseChannel: template method, deny-by-default auth
       telegram.js              # grammy integration, HTML formatting, chunking
@@ -186,7 +189,7 @@ kenobot/                       # Engine (framework code, updatable)
       telegram.js              # Markdown-to-Telegram HTML converter
   templates/                   # Default files copied by kenobot init
     env.example                # Config template
-    identities/kenobot.md      # Default bot personality
+    identities/kenobot/        # Default bot identity (SOUL.md, IDENTITY.md, USER.md, BOOTSTRAP.md)
     skills/weather/            # Example skill
     skills/daily-summary/      # Example skill
     memory/MEMORY.md           # Starter memory file
@@ -199,7 +202,7 @@ kenobot/                       # Engine (framework code, updatable)
 ~/.kenobot/                    # User home (persistent across updates)
   config/
     .env                       # Bot configuration
-    identities/kenobot.md      # Bot personality (customizable)
+    identities/kenobot/        # Bot identity (SOUL.md, IDENTITY.md, USER.md)
     skills/                    # User skill plugins
   data/
     sessions/                  # Per-chat JSONL history
@@ -219,6 +222,7 @@ kenobot/                       # Engine (framework code, updatable)
 
 ### Feature Guides
 
+- [Identity](docs/features/identity.md) — Modular identity files, bootstrap onboarding, user preference learning
 - [Providers](docs/features/providers.md) — LLM provider configuration and switching
 - [Channels](docs/features/channels.md) — Telegram, HTTP webhooks, adding new channels
 - [Memory](docs/features/memory.md) — Daily logs, MEMORY.md, auto-extraction
