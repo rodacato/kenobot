@@ -271,6 +271,22 @@ Run `kenobot init` to scaffold directories, then `kenobot config edit` to set re
 
 The `claude-cli` provider uses `spawn()` with `stdio: ['ignore', 'pipe', 'pipe']` to prevent stdin hanging. If it still hangs, switch to `claude-api`.
 
+### Resetting state
+
+To start fresh without losing your configuration:
+
+```bash
+kenobot purge                # Clear sessions, logs, scheduler (preserves memory)
+kenobot purge --memory       # Also clear memory files (restores MEMORY.md template)
+kenobot purge --all          # Clear everything except config/.env, identities, skills
+```
+
+Options:
+- `--yes` / `-y` — skip confirmation prompt
+- `--no-backup` — skip auto-backup before purge
+
+The bot must be stopped before purging. A backup is created automatically unless `--no-backup` is passed.
+
 ### High memory usage
 
 Check with: `curl localhost:3000/health | jq .memory`

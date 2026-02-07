@@ -18,6 +18,9 @@ kenobot status         # Health check + uptime
 kenobot logs           # Tail latest log
 kenobot config edit    # Open .env in $EDITOR
 kenobot backup         # Backup config/ and data/
+kenobot purge          # Reset runtime data (sessions, logs, scheduler)
+kenobot purge --memory # Also clear memory files
+kenobot purge --all    # Clear everything except config
 kenobot update         # Update to latest release tag
 kenobot version        # Show version
 

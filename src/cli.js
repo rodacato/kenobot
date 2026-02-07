@@ -31,6 +31,7 @@ const commands = {
   backup:            () => import('./cli/backup.js'),
   config:            () => import('./cli/config-cmd.js'),
   migrate:           () => import('./cli/migrate.js'),
+  purge:             () => import('./cli/purge.js'),
   audit:             () => import('./cli/audit.js'),
   'install-service': () => import('./cli/install-service.js'),
   'setup-tunnel':    () => import('./cli/setup-tunnel.js'),
