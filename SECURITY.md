@@ -77,7 +77,7 @@ Every POST to `/webhook` must include an `X-Webhook-Signature` header with a val
 
 ### File System
 
-- Session data stored under `DATA_DIR` (default: `./data/`)
+- Session data stored under `DATA_DIR` (default: `~/.kenobot/data/`)
 - No user-controlled file paths — session IDs are derived from `{channel}-{chatId}`
 - Memory files are append-only markdown
 - Log files are append-only JSONL with daily rotation
@@ -86,12 +86,14 @@ Every POST to `/webhook` must include an `X-Webhook-Signature` header with a val
 
 ### Run as non-root
 
-Create a dedicated user and restrict file access:
+Create a dedicated user and install under their home:
 
 ```bash
-sudo useradd -r -s /bin/false kenobot
-sudo chown -R kenobot:kenobot /opt/kenobot
-sudo chmod 600 /opt/kenobot/.env
+sudo useradd -r -m -s /bin/bash kenobot
+sudo -u kenobot bash
+npm install -g github:rodacato/kenobot
+kenobot init
+chmod 600 ~/.kenobot/config/.env
 ```
 
 ### Bind HTTP to localhost
@@ -106,15 +108,11 @@ HTTP_PORT=3000
 
 ### PID file management
 
-The bot writes its PID to `/tmp/kenobot.pid` on startup and removes it on graceful shutdown. The `bin/health` script checks this file.
+The bot writes its PID to `~/.kenobot/data/kenobot.pid` on startup and removes it on graceful shutdown. `kenobot status` checks this file.
 
 ### Auto-recovery
 
-The `bin/auto-recover` script is designed to run via cron. It checks health and restarts if needed, with a 180-second throttle to prevent restart loops.
-
-```cron
-* * * * * /opt/kenobot/bin/auto-recover
-```
+Use `kenobot install-service` to set up a systemd user service with automatic restart on failure (`RestartSec=10`).
 
 ## Known Limitations
 
@@ -128,16 +126,16 @@ The `bin/auto-recover` script is designed to run via cron. It checks health and 
 
 Before deploying to production:
 
-- [ ] `.env` file has `chmod 600` permissions
+- [ ] `~/.kenobot/config/.env` has `chmod 600` permissions
 - [ ] `TELEGRAM_ALLOWED_CHAT_IDS` is set to your specific chat ID(s)
 - [ ] `WEBHOOK_SECRET` is set (if using HTTP channel)
 - [ ] Bot process runs as non-root user
 - [ ] HTTP channel bound to `127.0.0.1` (not `0.0.0.0`)
 - [ ] No secrets in git history (`git log --diff-filter=A -- '*.env' '*.key' '*.pem'`)
-- [ ] `npm audit` shows no critical vulnerabilities
+- [ ] `kenobot audit` shows no issues
 - [ ] Firewall blocks direct access to HTTP port from internet
-- [ ] Backup script configured (`bin/backup` via cron)
-- [ ] Auto-recovery configured (`bin/auto-recover` via cron)
+- [ ] Backup configured (`kenobot backup` via cron)
+- [ ] Systemd service enabled (`kenobot install-service`)
 
 ## Dependency Security
 

@@ -16,10 +16,10 @@ KenoBot's config-driven design means you can run multiple independent bot instan
 ### 1. Create Config Files
 
 ```bash
-mkdir -p config
+mkdir -p ~/.kenobot/config
 ```
 
-**config/main.env** — Primary bot:
+**~/.kenobot/config/main.env** — Primary bot:
 ```bash
 PROVIDER=claude-api
 MODEL=opus
@@ -27,10 +27,10 @@ IDENTITY_FILE=identities/kenobot.md
 TELEGRAM_BOT_TOKEN=<main_bot_token>
 TELEGRAM_ALLOWED_CHAT_IDS=123456789
 ANTHROPIC_API_KEY=sk-ant-api03-...
-DATA_DIR=./data/main
+DATA_DIR=~/.kenobot/data/main
 ```
 
-**config/quick.env** — Fast, cheap responses:
+**~/.kenobot/config/quick.env** — Fast, cheap responses:
 ```bash
 PROVIDER=claude-api
 MODEL=haiku
@@ -38,29 +38,22 @@ IDENTITY_FILE=identities/quick.md
 TELEGRAM_BOT_TOKEN=<quick_bot_token>
 TELEGRAM_ALLOWED_CHAT_IDS=123456789
 ANTHROPIC_API_KEY=sk-ant-api03-...
-DATA_DIR=./data/quick
+DATA_DIR=~/.kenobot/data/quick
 ```
 
 ### 2. Create Identity Files
 
 ```bash
-mkdir -p identities
+mkdir -p ~/.kenobot/config/identities
 ```
 
-Each identity file is a markdown system prompt. See `identities/kenobot.md` for an example.
+Each identity file is a markdown system prompt. See `~/.kenobot/config/identities/kenobot.md` for an example.
 
 ### 3. Run
 
 ```bash
-node src/index.js --config config/main.env &
-node src/index.js --config config/quick.env &
-```
-
-Or with the startup script:
-
-```bash
-bin/start --config config/main.env &
-bin/start --config config/quick.env &
+kenobot start --config ~/.kenobot/config/main.env &
+kenobot start --config ~/.kenobot/config/quick.env &
 ```
 
 ## Data Isolation
@@ -68,7 +61,7 @@ bin/start --config config/quick.env &
 Each instance stores data under its own `DATA_DIR`:
 
 ```
-data/
+~/.kenobot/data/
   main/
     sessions/           # Main bot's conversations
     memory/             # Main bot's memory

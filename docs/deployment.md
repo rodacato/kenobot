@@ -1,6 +1,6 @@
 # Deployment
 
-> Running KenoBot on a VPS with auto-recovery and backups. Designed for a $4/month Hetzner server (2vCPU, 4GB RAM, 40GB disk).
+> Running KenoBot on a VPS with systemd and backups. Designed for a $4/month Hetzner server (2vCPU, 4GB RAM, 40GB disk).
 
 ## Requirements
 
@@ -11,82 +11,90 @@
 
 ## Installation
 
+### Quick Install (recommended)
+
 ```bash
-# Clone
-git clone https://github.com/rodacato/kenobot.git /opt/kenobot
-cd /opt/kenobot
+npm install -g github:rodacato/kenobot
+kenobot init
+```
 
-# Install dependencies
-npm install --production
+This installs the `kenobot` CLI globally and scaffolds user directories at `~/.kenobot/`.
 
-# Configure
-cp .env.example .env
-nano .env  # Set TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS, PROVIDER, etc.
+### Pin a Specific Version
+
+```bash
+npm install -g github:rodacato/kenobot#v0.2.0
+```
+
+### Development Install
+
+For development or contributing:
+
+```bash
+git clone https://github.com/rodacato/kenobot.git
+cd kenobot
+npm install
+npm link           # Makes 'kenobot' command available globally
+kenobot init       # Scaffold ~/.kenobot/ directories
+```
+
+## Configuration
+
+After installation, configure your bot:
+
+```bash
+kenobot config edit    # Opens ~/.kenobot/config/.env in $EDITOR
+```
+
+Set at minimum:
+```bash
+TELEGRAM_BOT_TOKEN=your_token_here
+TELEGRAM_ALLOWED_CHAT_IDS=your_chat_id
+PROVIDER=claude-api
+MODEL=sonnet
+ANTHROPIC_API_KEY=sk-ant-api03-...
+```
+
+View current config (secrets redacted):
+```bash
+kenobot config
 ```
 
 ## Running
 
-### Direct
+### Foreground
 
 ```bash
-bin/start
+kenobot start
 ```
 
-The startup script validates Node.js version, installs deps if missing, checks for `.env`, and runs the bot.
-
-### With systemd (recommended)
-
-Create a systemd service for automatic startup and restart:
+### Daemon (background)
 
 ```bash
-sudo nano /etc/systemd/system/kenobot.service
+kenobot start -d       # Start as daemon
+kenobot status         # Check if running + uptime
+kenobot stop           # Stop daemon
+kenobot restart        # Stop + start -d
 ```
 
-```ini
-[Unit]
-Description=KenoBot Personal AI Assistant
-After=network.target
+### With systemd (recommended for VPS)
 
-[Service]
-Type=simple
-User=kenobot
-Group=kenobot
-WorkingDirectory=/opt/kenobot
-ExecStart=/usr/bin/node src/index.js
-Restart=on-failure
-RestartSec=10
-Environment=NODE_ENV=production
-
-[Install]
-WantedBy=multi-user.target
-```
+Generate and enable a systemd user service:
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable kenobot
-sudo systemctl start kenobot
-
-# Check status
-sudo systemctl status kenobot
-
-# View logs
-sudo journalctl -u kenobot -f
+kenobot install-service
 ```
 
-### With the cron-based auto-recovery
-
-If you prefer not to use systemd:
+This creates `~/.config/systemd/user/kenobot.service` and enables it. Then:
 
 ```bash
-# Start the bot
-bin/start &
+systemctl --user start kenobot     # Start
+systemctl --user status kenobot    # Check status
+systemctl --user stop kenobot      # Stop
+journalctl --user -u kenobot -f   # View logs
 
-# Set up auto-recovery (checks every minute, 180s throttle)
-crontab -e
-```
-
-```cron
-* * * * * /opt/kenobot/bin/auto-recover
+# For auto-start on boot:
+loginctl enable-linger $USER
 ```
 
 ## Non-Root Setup
@@ -97,14 +105,15 @@ Create a dedicated user for the bot process:
 # Create user
 sudo useradd -r -m -s /bin/bash kenobot
 
-# Set ownership
-sudo chown -R kenobot:kenobot /opt/kenobot
+# Switch to kenobot user and install
+sudo -u kenobot bash
+npm install -g github:rodacato/kenobot
 
-# Protect secrets
-sudo chmod 600 /opt/kenobot/.env
+# Configure
+kenobot config edit
 
-# Switch to kenobot user to run
-sudo -u kenobot bin/start
+# Install systemd service
+kenobot install-service
 ```
 
 ## Backups
@@ -112,38 +121,48 @@ sudo -u kenobot bin/start
 ### Manual
 
 ```bash
-bin/backup
-# Backup created: ~/.kenobot-backups/kenobot-20260207-143000.tar.gz
+kenobot backup
+# Backup created: ~/.kenobot/backups/kenobot-20260207-143000.tar.gz
 ```
+
+Backs up `~/.kenobot/config/` and `~/.kenobot/data/`. Keeps the last 30 backups.
 
 ### Automated (cron)
 
 ```cron
-# Daily backup at 2 AM, keeps last 30
-0 2 * * * /opt/kenobot/bin/backup
-```
-
-Override backup location:
-
-```bash
-BACKUP_DIR=/mnt/external/backups bin/backup
+# Daily backup at 2 AM
+0 2 * * * kenobot backup
 ```
 
 ### What's Backed Up
 
-The entire `data/` directory:
-- `sessions/` — Conversation history
-- `memory/` — Daily logs + MEMORY.md
-- `logs/` — Structured JSONL logs
-- `scheduler/` — Scheduled task definitions
+```
+~/.kenobot/config/        # .env, identities, skills
+~/.kenobot/data/
+  sessions/               # Conversation history
+  memory/                 # Daily logs + MEMORY.md
+  logs/                   # Structured JSONL logs
+  scheduler/              # Scheduled task definitions
+```
 
 ## Monitoring
 
-### Health check
+### Status check
 
 ```bash
-bin/health
-# ✓ KenoBot is running (PID 12345)
+kenobot status
+# KenoBot is running (PID 12345)
+# Uptime: 2d 5h 30m
+# Config: ~/.kenobot/config/.env
+# Data:   ~/.kenobot/data
+```
+
+### Logs
+
+```bash
+kenobot logs              # Tail latest log
+kenobot logs --today      # Today's full log
+kenobot logs --date 2026-02-06   # Specific date
 ```
 
 ### HTTP health endpoint
@@ -154,30 +173,46 @@ When `HTTP_ENABLED=true`:
 curl http://localhost:3000/health
 ```
 
-### Structured logs
-
-```bash
-# Tail today's logs
-tail -f data/logs/kenobot-$(date +%Y-%m-%d).log | jq .
-
-# Find errors
-grep '"level":"error"' data/logs/kenobot-$(date +%Y-%m-%d).log | jq .
-```
-
 ## Updating
 
+### npm install
+
 ```bash
-cd /opt/kenobot
+npm update -g kenobot
+```
 
-# Pull latest
-git pull --rebase
+### Development install (git)
 
-# Install any new dependencies
-npm install --production
+```bash
+kenobot update --check     # Check for new version without updating
+kenobot update             # Update to latest release tag
+```
 
-# Restart
-sudo systemctl restart kenobot
-# or: kill $(cat /tmp/kenobot.pid) && bin/start &
+The git update command fetches latest tags, checks out the new version, runs `npm install`, and rolls back on failure.
+
+## Security Audit
+
+```bash
+kenobot audit
+```
+
+Checks for exposed secrets, file permissions, and common security issues.
+
+## File Layout
+
+```
+~/.kenobot/                   # KENOBOT_HOME (override with env var)
+  config/
+    .env                      # Bot configuration
+    identities/kenobot.md     # Bot personality
+    skills/                   # Skill plugins
+  data/
+    sessions/                 # Per-chat JSONL history
+    memory/                   # MEMORY.md + daily logs
+    logs/                     # Structured JSONL logs (daily rotation)
+    scheduler/                # Cron task definitions
+    kenobot.pid               # PID file (when running)
+  backups/                    # Backup archives (tar.gz)
 ```
 
 ## Firewall
@@ -203,28 +238,18 @@ kenobot.example.com {
 }
 ```
 
-## Complete Cron Setup
-
-```cron
-# Auto-recovery every minute
-* * * * * /opt/kenobot/bin/auto-recover
-
-# Daily backup at 2 AM
-0 2 * * * /opt/kenobot/bin/backup
-```
-
 ## Troubleshooting
 
 ### Bot not responding
 
-1. Check if it's running: `bin/health`
-2. Check logs: `tail -20 data/logs/kenobot-$(date +%Y-%m-%d).log`
-3. Check `.env` has correct `TELEGRAM_BOT_TOKEN` and `TELEGRAM_ALLOWED_CHAT_IDS`
-4. Try restarting: `kill $(cat /tmp/kenobot.pid) && bin/start`
+1. Check if it's running: `kenobot status`
+2. Check logs: `kenobot logs`
+3. Check config: `kenobot config`
+4. Try restarting: `kenobot restart`
 
 ### "Config missing" error on startup
 
-Required env vars: `TELEGRAM_BOT_TOKEN` and `TELEGRAM_ALLOWED_CHAT_IDS`. Check your `.env` file.
+Run `kenobot init` to scaffold directories, then `kenobot config edit` to set required variables.
 
 ### Claude CLI hanging
 
@@ -235,5 +260,5 @@ The `claude-cli` provider uses `spawn()` with `stdio: ['ignore', 'pipe', 'pipe']
 Check with: `curl localhost:3000/health | jq .memory`
 
 Normal idle: ~50MB RSS. If growing unbounded, check for:
-- Large session files (data/sessions/) — consider archiving old ones
+- Large session files (`~/.kenobot/data/sessions/`) — consider archiving old ones
 - Many scheduled tasks — list and remove unused ones

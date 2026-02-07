@@ -9,14 +9,25 @@
 ## Commands
 
 ```bash
-npm start              # Run the bot (node src/index.js)
+# CLI (after npm install -g or npm link)
+kenobot init           # Scaffold ~/.kenobot/ directories
+kenobot start          # Start bot (foreground)
+kenobot start -d       # Start bot (daemon)
+kenobot stop           # Stop daemon
+kenobot status         # Health check + uptime
+kenobot logs           # Tail latest log
+kenobot config edit    # Open .env in $EDITOR
+kenobot backup         # Backup config/ and data/
+kenobot update         # Update to latest release tag
+kenobot version        # Show version
+
+# Development
+npm start              # Run the bot directly (node src/index.js)
 npm run dev            # Run with --watch for auto-reload
 npm test               # Run all tests (vitest run)
 npm run test:watch     # Watch mode
 npm run test:coverage  # Coverage report (V8)
 npx vitest run test/agent/loop.test.js  # Run a single test file
-bin/health             # Check if bot is running
-bin/backup             # Backup data/ directory
 bin/release 0.2.0      # Generate changelog + git tag
 ```
 

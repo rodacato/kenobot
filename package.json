@@ -7,6 +7,11 @@
   "bin": {
     "kenobot": "src/cli.js"
   },
+  "files": [
+    "src/",
+    "templates/",
+    "bin/"
+  ],
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",

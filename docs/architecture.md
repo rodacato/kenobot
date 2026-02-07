@@ -98,7 +98,7 @@ Assembles the system prompt and message history for each provider call.
 
 **System prompt structure:**
 ```
-[Identity file (identities/kenobot.md)]
+[Identity file (~/.kenobot/config/identities/kenobot.md)]
 
 ---
 
@@ -136,8 +136,8 @@ Assembles the system prompt and message history for each provider call.
 
 Two-tier memory system:
 
-- **MEMORY.md** (`data/memory/MEMORY.md`): Long-term curated facts. Human or agent-editable.
-- **Daily logs** (`data/memory/YYYY-MM-DD.md`): Append-only daily notes. Auto-extracted from `<memory>` tags in responses.
+- **MEMORY.md** (`~/.kenobot/data/memory/MEMORY.md`): Long-term curated facts. Human or agent-editable.
+- **Daily logs** (`~/.kenobot/data/memory/YYYY-MM-DD.md`): Append-only daily notes. Auto-extracted from `<memory>` tags in responses.
 
 The agent is instructed to use `<memory>` tags for facts worth remembering. The memory extractor strips these from the user-facing response and appends them to the daily log.
 
@@ -242,8 +242,10 @@ Tool execution loop has a configurable safety limit (default: 20). If the agent 
 
 ## Data Flow
 
+All runtime data lives in `~/.kenobot/data/` (or `$KENOBOT_HOME/data/`):
+
 ```
-data/
+~/.kenobot/data/
   sessions/
     telegram-123456789.jsonl    # Per-chat append-only history
     http-request-uuid.jsonl     # Transient HTTP sessions
@@ -255,6 +257,7 @@ data/
     kenobot-2026-02-07.log      # Structured JSONL (daily rotation)
   scheduler/
     tasks.json                  # Persistent cron task definitions
+  kenobot.pid                   # PID file (when running as daemon)
 ```
 
 ## Limits & Constraints
@@ -300,7 +303,7 @@ data/
 
 ### Add a new Skill
 
-1. Create `skills/my-skill/manifest.json`:
+1. Create `~/.kenobot/config/skills/my-skill/manifest.json`:
    ```json
    {
      "name": "my-skill",
@@ -308,5 +311,5 @@ data/
      "triggers": ["keyword1", "keyword2"]
    }
    ```
-2. Create `skills/my-skill/SKILL.md` with agent instructions
+2. Create `~/.kenobot/config/skills/my-skill/SKILL.md` with agent instructions
 3. Restart the bot — skill is auto-discovered

@@ -65,14 +65,21 @@ So the bot only responds to **you** and not to anyone who messages it.
 
 ### Step 3: Configure KenoBot
 
-From the terminal in `/workspaces/kenobot`, run:
+#### If installed via npm (recommended):
 
 ```bash
-# Copy the config template
+kenobot config edit
+```
+
+This opens `~/.kenobot/config/.env` in your editor.
+
+#### If running from a git clone (development):
+
+```bash
 cp .env.example .env
 ```
 
-Now **edit the `.env` file** with your values:
+Then edit the `.env` file:
 
 ```bash
 # Option 1: Use nano
@@ -117,12 +124,14 @@ Save the file:
 ### Step 4: Verify the configuration
 
 ```bash
-# View your .env (without showing sensitive tokens)
-cat .env | grep -v "TOKEN"
+kenobot config
 ```
 
-You should see something like:
+You should see something like (secrets are redacted automatically):
 ```
+Config: /home/you/.kenobot/config/.env
+
+TELEGRAM_BOT_TOKEN=********
 TELEGRAM_ALLOWED_CHAT_IDS=123456789
 PROVIDER=mock
 MODEL=sonnet
@@ -131,13 +140,15 @@ MODEL=sonnet
 ### Step 5: Start KenoBot
 
 ```bash
-npm start
+kenobot start       # If installed via npm or npm link
+# or
+npm start           # If running from git clone without npm link
 ```
 
 **You should see**:
 ```
-[info] system: startup { provider: "mock", model: "sonnet", allowedChats: 1 }
-[info] telegram: Bot started successfully
+[info] system: startup provider=mock model=sonnet allowedChats=1
+[info] telegram: starting
 ```
 
 If you see this, KenoBot is running!
@@ -210,9 +221,9 @@ It should split into multiple messages (chunking).
 
 ### Step 9: Stop the bot
 
-In the terminal, press:
-```
-Ctrl+C
+In the terminal, press `Ctrl+C`, or if running as daemon:
+```bash
+kenobot stop
 ```
 
 You should see:
@@ -274,8 +285,8 @@ See [providers.md](features/providers.md) for details on each provider.
 
 3. **Restart the bot**:
    ```bash
-   Ctrl+C
-   npm start
+   kenobot restart     # If running as daemon
+   # or Ctrl+C then kenobot start / npm start
    ```
 
 ### "Error: 401 Unauthorized"

@@ -14,7 +14,16 @@ export default async function configCmd(args, paths) {
     const child = spawn(editor, [paths.envFile], { stdio: 'inherit' })
     await new Promise((resolve, reject) => {
       child.on('close', resolve)
-      child.on('error', reject)
+      child.on('error', (err) => {
+        if (err.code === 'ENOENT') {
+          console.error(`Editor "${editor}" not found. Set $EDITOR or install one:`)
+          console.error(`  export EDITOR=nano`)
+          console.error(`\nOr edit the file directly:`)
+          console.error(`  ${paths.envFile}`)
+          process.exit(1)
+        }
+        reject(err)
+      })
     })
     return
   }

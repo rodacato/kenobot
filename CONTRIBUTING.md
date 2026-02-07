@@ -7,9 +7,39 @@ This is a personal project. These guidelines exist to keep things consistent whe
 ```bash
 git clone git@github.com:rodacato/kenobot.git
 cd kenobot
+npm install
+npm link                                  # Makes 'kenobot' command available globally
 git config core.hooksPath .githooks
 git config pull.rebase true
 ```
+
+### Running the bot (development)
+
+**Option A** — Use the CLI (recommended, mirrors production):
+
+```bash
+kenobot init            # Scaffold ~/.kenobot/ directories
+kenobot config edit     # Set TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS, PROVIDER
+kenobot start           # Start the bot (foreground)
+```
+
+**Option B** — Use npm scripts (reads `.env` from project root):
+
+```bash
+cp .env.example .env    # Edit with your credentials
+npm start               # node src/index.js
+npm run dev             # Start with --watch for auto-reload
+```
+
+**Isolated dev environment** (avoids touching `~/.kenobot/`):
+
+```bash
+KENOBOT_HOME=/tmp/kenobot-dev kenobot init
+KENOBOT_HOME=/tmp/kenobot-dev kenobot config edit
+KENOBOT_HOME=/tmp/kenobot-dev kenobot start
+```
+
+`npm link` creates a symlink — any code changes reflect immediately without reinstalling.
 
 ## Commits
 

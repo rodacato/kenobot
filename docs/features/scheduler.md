@@ -6,7 +6,7 @@
 
 The scheduler lets the bot (or user) create recurring tasks using cron expressions. When a task fires, it emits a `message:in` event on the bus — reusing the entire agent pipeline (context, provider, response, channel).
 
-Tasks are persisted to `data/scheduler/tasks.json` and restored on startup.
+Tasks are persisted to `~/.kenobot/data/scheduler/tasks.json` and restored on startup.
 
 ## Usage
 
@@ -34,7 +34,7 @@ Bot: I've scheduled that for you.
 Tasks are stored in `DATA_DIR/scheduler/tasks.json`. No additional env vars are needed beyond `DATA_DIR`.
 
 ```bash
-DATA_DIR=./data  # tasks.json stored in DATA_DIR/scheduler/
+# tasks.json stored in DATA_DIR/scheduler/ (default: ~/.kenobot/data/scheduler/)
 ```
 
 ## Cron Expressions
@@ -63,7 +63,7 @@ Standard 5-field cron format:
 ## How It Works
 
 1. **Task creation**: User or agent creates a task via the schedule tool
-2. **Persistence**: Task definition is saved to `data/scheduler/tasks.json`
+2. **Persistence**: Task definition is saved to `~/.kenobot/data/scheduler/tasks.json`
 3. **Cron job**: `node-cron` schedules the job in-process
 4. **Task fires**: Emits `message:in` on the bus with the task's message text
 5. **Agent processes**: The message flows through the full pipeline (context, provider, response)
@@ -74,7 +74,7 @@ Tasks include the `chatId`, `userId`, and `channel` from when they were created,
 ## Task Persistence
 
 ```json
-// data/scheduler/tasks.json
+// ~/.kenobot/data/scheduler/tasks.json
 [
   {
     "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",

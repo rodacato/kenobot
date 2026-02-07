@@ -1,21 +1,28 @@
 import { mkdir, cp, access, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
+const GREEN = '\x1b[32m'
+const YELLOW = '\x1b[33m'
+const NC = '\x1b[0m'
+
+const info = (msg) => console.log(`${GREEN}[✓]${NC} ${msg}`)
+const skip = (msg) => console.log(`${YELLOW}[–]${NC} ${msg}`)
+
 async function exists(path) {
   try { await access(path); return true } catch { return false }
 }
 
 async function copyIfMissing(src, dest, label) {
   if (await exists(dest)) {
-    console.log(`  skip ${label} (already exists)`)
+    skip(`${label} (already exists)`)
     return
   }
   await cp(src, dest, { recursive: true })
-  console.log(`  create ${label}`)
+  info(label)
 }
 
 export default async function init(args, paths) {
-  console.log(`Initializing KenoBot in ${paths.home}\n`)
+  console.log(`Setting up KenoBot in ${paths.home}\n`)
 
   // Create directory structure
   const dirs = [
@@ -72,9 +79,7 @@ export default async function init(args, paths) {
     'data/memory/MEMORY.md'
   )
 
-  console.log(`
-Done! Next steps:
-  1. Edit your config:  kenobot config edit
-  2. Set TELEGRAM_BOT_TOKEN and TELEGRAM_ALLOWED_CHAT_IDS
-  3. Start the bot:     kenobot start`)
+  console.log(`\nNext steps:`)
+  console.log(`  kenobot config edit     # Set your tokens and provider`)
+  console.log(`  kenobot start           # Start the bot`)
 }

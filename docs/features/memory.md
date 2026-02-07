@@ -9,7 +9,7 @@ KenoBot has a two-tier memory system:
 - **MEMORY.md**: Long-term curated facts. Human or agent-editable.
 - **Daily logs** (`YYYY-MM-DD.md`): Append-only notes auto-extracted from responses.
 
-Both are plain markdown files stored in `data/memory/`. Git-versionable, human-readable, zero dependencies.
+Both are plain markdown files stored in `~/.kenobot/data/memory/`. Human-readable, zero dependencies.
 
 ## How It Works
 
@@ -25,12 +25,12 @@ Bot: Got it, I'll keep things brief. <memory>User preference: prefers concise re
 The memory extractor:
 1. Parses `<memory>` tags from the LLM response
 2. Strips them from the text sent to the user (they never see the tags)
-3. Appends each memory to today's daily log (`data/memory/YYYY-MM-DD.md`)
+3. Appends each memory to today's daily log (`~/.kenobot/data/memory/YYYY-MM-DD.md`)
 
 ### Context Injection
 
 On every message, the context builder includes:
-1. Long-term memory (`data/memory/MEMORY.md`) — always loaded
+1. Long-term memory (`~/.kenobot/data/memory/MEMORY.md`) — always loaded
 2. Recent daily logs (last N days, configurable) — loaded by recency
 3. Instructions for the `<memory>` tag format
 
@@ -40,13 +40,13 @@ This gives the LLM continuity across conversations without explicit session mana
 
 ```bash
 MEMORY_DAYS=3    # How many days of recent notes to include in context (default: 3)
-DATA_DIR=./data  # Base directory (memory stored in DATA_DIR/memory/)
+# Memory is stored in DATA_DIR/memory/ (default: ~/.kenobot/data/memory/)
 ```
 
 ## File Structure
 
 ```
-data/memory/
+~/.kenobot/data/memory/
   MEMORY.md         # Long-term curated facts
   2026-02-07.md     # Today's auto-extracted notes
   2026-02-06.md     # Yesterday
@@ -106,11 +106,11 @@ Bot: Here's the summary:
 
 ### Manual Memory Editing
 
-Edit `data/memory/MEMORY.md` directly to add or correct facts:
+Edit `~/.kenobot/data/memory/MEMORY.md` directly to add or correct facts:
 
 ```bash
 # Add a fact
-echo "- Prefers dark mode" >> data/memory/MEMORY.md
+echo "- Prefers dark mode" >> ~/.kenobot/data/memory/MEMORY.md
 
 # The bot will use this in its next response
 ```
@@ -142,11 +142,11 @@ Daily logs accumulate one file per day indefinitely. After months of use, consid
 
 ```bash
 # View how many daily logs exist
-ls data/memory/*.md | wc -l
+ls ~/.kenobot/data/memory/*.md | wc -l
 
 # Archive logs older than 30 days
-mkdir -p data/memory/archive
-find data/memory -name "????-??-??.md" -mtime +30 -exec mv {} data/memory/archive/ \;
+mkdir -p ~/.kenobot/data/memory/archive
+find ~/.kenobot/data/memory -name "????-??-??.md" -mtime +30 -exec mv {} ~/.kenobot/data/memory/archive/ \;
 ```
 
 Archived logs are no longer included in context but remain available for reference.

@@ -10,8 +10,10 @@ At startup, only `manifest.json` is read. The full `SKILL.md` is loaded into the
 
 ## Skill Structure
 
+Skills live in `~/.kenobot/config/skills/` (or the `SKILLS_DIR` path):
+
 ```
-skills/
+~/.kenobot/config/skills/
   weather/
     manifest.json    # { name, description, triggers[] }
     SKILL.md         # Agent instructions (loaded on-demand)
@@ -19,6 +21,8 @@ skills/
     manifest.json
     SKILL.md
 ```
+
+Default skills (weather, daily-summary) are copied from the engine's `templates/skills/` directory when you run `kenobot init`.
 
 ### manifest.json
 
@@ -54,7 +58,7 @@ Keep it brief. People just want the basics.
 
 ## How It Works
 
-1. **Startup**: `SkillLoader` scans the `skills/` directory, reads all `manifest.json` files
+1. **Startup**: `SkillLoader` scans the skills directory (`~/.kenobot/config/skills/`), reads all `manifest.json` files
 2. **System prompt**: A compact skill list is injected:
    ```
    ## Available skills
@@ -73,17 +77,17 @@ This keeps context small: 100 skills = ~5KB in system prompt (just names + descr
 ## Configuration
 
 ```bash
-SKILLS_DIR=./skills  # Directory to scan for skill plugins (default: ./skills)
+SKILLS_DIR=~/.kenobot/config/skills  # Directory to scan for skill plugins (default)
 ```
 
 ## Creating a Custom Skill
 
 1. Create the skill directory:
    ```bash
-   mkdir -p skills/blog-writer
+   mkdir -p ~/.kenobot/config/skills/blog-writer
    ```
 
-2. Create `skills/blog-writer/manifest.json`:
+2. Create `~/.kenobot/config/skills/blog-writer/manifest.json`:
    ```json
    {
      "name": "blog-writer",
@@ -92,7 +96,7 @@ SKILLS_DIR=./skills  # Directory to scan for skill plugins (default: ./skills)
    }
    ```
 
-3. Create `skills/blog-writer/SKILL.md`:
+3. Create `~/.kenobot/config/skills/blog-writer/SKILL.md`:
    ```markdown
    ## Blog Writer Skill
 
@@ -129,7 +133,7 @@ Generates a summary of recent activity using memory and conversation context.
 
 ## Source
 
-- [src/skills/loader.js](../src/skills/loader.js) — Discovery and loading
-- [src/agent/context.js](../src/agent/context.js) — System prompt injection
-- [skills/weather/](../skills/weather/) — Example skill
-- [test/skills/](../test/skills/) — Tests
+- [src/skills/loader.js](../../src/skills/loader.js) — Discovery and loading
+- [src/agent/context.js](../../src/agent/context.js) — System prompt injection
+- [templates/skills/weather/](../../templates/skills/weather/) — Default skill template
+- [test/skills/](../../test/skills/) — Tests

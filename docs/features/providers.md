@@ -17,7 +17,7 @@ Providers implement the `BaseProvider` interface: `chat(messages, options)` retu
 ## Configuration
 
 ```bash
-# .env
+# ~/.kenobot/config/.env (or .env in project root for development)
 PROVIDER=claude-api    # or claude-cli, mock
 MODEL=sonnet           # sonnet, opus, haiku
 ANTHROPIC_API_KEY=sk-ant-api03-...  # Required for claude-api
@@ -93,12 +93,11 @@ This applies to `claude-api` errors. The `claude-cli` provider's subprocess erro
 
 ## Switching Providers
 
-Change `PROVIDER` in `.env` and restart:
+Change `PROVIDER` in your config and restart:
 
 ```bash
-# Switch from CLI to API
-PROVIDER=claude-api
-ANTHROPIC_API_KEY=sk-ant-api03-...
+kenobot config edit    # Change PROVIDER and add API key if needed
+kenobot restart        # Restart to apply changes
 ```
 
 The agent loop, context builder, channels, and tools all work identically regardless of provider.
@@ -128,7 +127,7 @@ case 'my-provider':
   break
 ```
 
-3. Set `PROVIDER=my-provider` in `.env`.
+3. Set `PROVIDER=my-provider` in your config (`kenobot config edit`).
 
 ## Source
 

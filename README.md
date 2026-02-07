@@ -19,7 +19,7 @@ Telegram bot with memory, tools, skills, scheduling, and n8n integration — all
 - **Cron scheduler**: persistent tasks that survive restarts
 - **HTTP webhook channel**: HMAC-SHA256 validated endpoint for external integrations
 - **Structured logging**: JSONL logs with daily rotation
-- **Health checks**: PID management, `bin/health` script, auto-recovery with throttling
+- **Health checks**: PID management, `kenobot status`, systemd integration
 - **Multi-instance**: run multiple bots with different configs, providers, and identities
 - **Markdown formatter**: converts responses to Telegram HTML with 4000-char chunking
 
@@ -31,26 +31,39 @@ Telegram bot with memory, tools, skills, scheduling, and n8n integration — all
 - Telegram bot token from [@BotFather](https://t.me/botfather)
 - Your chat ID from [@userinfobot](https://t.me/userinfobot)
 
-### Setup
+### Install & Run
+
+```bash
+npm install -g github:rodacato/kenobot
+kenobot init                 # Scaffold ~/.kenobot/ directories
+kenobot config edit          # Set TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS, PROVIDER
+kenobot start                # Start the bot
+```
+
+### CLI Commands
+
+```bash
+kenobot start [-d]           # Start (foreground, or -d for daemon)
+kenobot stop                 # Stop daemon
+kenobot status               # Check if running
+kenobot logs                 # Tail latest log
+kenobot config [edit]        # Show config or open in $EDITOR
+kenobot backup               # Backup config/ and data/
+kenobot update               # Update to latest release
+```
+
+### Development
 
 ```bash
 git clone https://github.com/rodacato/kenobot.git
 cd kenobot
-npm install
-cp .env.example .env
-# Edit .env with your credentials
+npm install && npm link      # Makes 'kenobot' available globally (symlink)
+kenobot init                 # Scaffold ~/.kenobot/
+kenobot config edit          # Set tokens and provider
+kenobot start                # Run the bot
 ```
 
-### Run
-
-```bash
-bin/start             # Start the bot (validates env, installs deps if needed)
-npm run dev           # Start with --watch for auto-reload
-npm test              # Run tests
-npm run test:coverage # Coverage report
-```
-
-See [Getting Started](docs/getting-started.md) for a detailed step-by-step guide.
+See [Getting Started](docs/getting-started.md) for a detailed walkthrough or [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
 
 ## Architecture
 
@@ -68,7 +81,9 @@ See [Architecture](docs/architecture.md) for a deep dive.
 
 ## Configuration
 
-All configuration via environment variables. Use `.env` or pass `--config path/to/file.env`.
+All configuration via environment variables. The config file lives at `~/.kenobot/config/.env` (or `$KENOBOT_HOME/config/.env`).
+
+Use `kenobot config edit` to open it, or pass `--config path/to/file.env` when running directly.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -78,8 +93,8 @@ All configuration via environment variables. Use `.env` or pass `--config path/t
 | `MODEL` | `sonnet` | `sonnet`, `opus`, or `haiku` |
 | `ANTHROPIC_API_KEY` | — | Required for `claude-api` provider |
 | `IDENTITY_FILE` | `identities/kenobot.md` | Path to bot personality file |
-| `DATA_DIR` | `./data` | Where sessions, memory, and logs are stored |
-| `SKILLS_DIR` | `./skills` | Directory for skill plugins |
+| `DATA_DIR` | `~/.kenobot/data` | Where sessions, memory, and logs are stored |
+| `SKILLS_DIR` | `~/.kenobot/config/skills` | Directory for skill plugins |
 | `MEMORY_DAYS` | `3` | How many days of recent notes to include in context |
 | `MAX_TOOL_ITERATIONS` | `20` | Safety limit for tool execution loops |
 | `N8N_WEBHOOK_BASE` | — | Base URL for n8n webhooks (enables n8n tool) |
@@ -106,9 +121,9 @@ Switch providers by changing `PROVIDER` in `.env`. The agent loop doesn't know o
 Run multiple bot instances with different identities, providers, and data:
 
 ```bash
-node src/index.js --config config/main.env       # @kenobot_main (Claude, Opus)
-node src/index.js --config config/designer.env    # @kenobot_design (Gemini, Flash)
-node src/index.js --config config/quick.env       # @kenobot_quick (Claude, Haiku)
+kenobot start --config config/main.env       # @kenobot_main (Claude, Opus)
+kenobot start --config config/designer.env   # @kenobot_design (Gemini, Flash)
+kenobot start --config config/quick.env      # @kenobot_quick (Claude, Haiku)
 ```
 
 Each instance gets its own Telegram bot, identity file, data directory, and provider. Zero code changes needed.
@@ -116,63 +131,82 @@ Each instance gets its own Telegram bot, identity file, data directory, and prov
 ## Project Structure
 
 ```
-kenobot/
-  bin/
-    start                    # Startup script (validates env, deps)
-    health                   # Health check (PID-based)
-    auto-recover             # Cron-based auto-restart with throttling
-    backup                   # Data backup with rotation (keeps last 30)
-    release                  # Changelog generation + git tag
+kenobot/                       # Engine (framework code, updatable)
   src/
-    index.js                 # Entry point, wires all components
-    bus.js                   # Singleton EventEmitter message bus
-    config.js                # Env-based config with --config flag
-    logger.js                # Structured JSONL logger
-    health.js                # PID management + health status
+    cli.js                     # CLI entry point (kenobot command)
+    paths.js                   # Path resolution (~/.kenobot/ or $KENOBOT_HOME)
+    index.js                   # Bot entry point, wires all components
+    bus.js                     # Singleton EventEmitter message bus
+    config.js                  # Env-based config with --config flag
+    logger.js                  # Structured JSONL logger
+    health.js                  # PID management + health status
+    cli/                       # CLI subcommands
+      init.js                  # Scaffold ~/.kenobot/ directories
+      start.js                 # Start bot (foreground or daemon)
+      stop.js                  # Stop daemon
+      restart.js               # Restart daemon
+      status.js                # Health check + uptime
+      logs.js                  # Tail log files
+      backup.js                # Data backup with rotation
+      config-cmd.js            # Show/edit config
+      update.js                # Update to latest release tag
+      migrate.js               # Migrate from old layout
+      audit.js                 # Security audit wrapper
+      install-service.js       # Generate systemd unit
+      version.js               # Show version
+      help.js                  # Usage help
     agent/
-      loop.js                # Core: message:in → context → provider → tool loop → message:out
-      context.js             # Prompt assembly: identity + tools + skills + memory + history
-      memory.js              # Daily logs + MEMORY.md management
-      memory-extractor.js    # Extracts <memory> tags from responses
+      loop.js                  # Core: message:in → context → provider → tool loop → message:out
+      context.js               # Prompt assembly: identity + tools + skills + memory + history
+      memory.js                # Daily logs + MEMORY.md management
+      memory-extractor.js      # Extracts <memory> tags from responses
     channels/
-      base.js                # BaseChannel: template method, deny-by-default auth
-      telegram.js            # grammy integration, HTML formatting, chunking
-      http.js                # Webhook endpoint with HMAC validation + /health
+      base.js                  # BaseChannel: template method, deny-by-default auth
+      telegram.js              # grammy integration, HTML formatting, chunking
+      http.js                  # Webhook endpoint with HMAC validation + /health
     providers/
-      base.js                # BaseProvider: chat(messages, options) interface
-      claude-api.js          # Anthropic SDK direct
-      claude-cli.js          # Claude CLI subprocess wrapper
-      mock.js                # Deterministic test provider
+      base.js                  # BaseProvider: chat(messages, options) interface
+      claude-api.js            # Anthropic SDK direct
+      claude-cli.js            # Claude CLI subprocess wrapper
+      mock.js                  # Deterministic test provider
     storage/
-      base.js                # BaseStorage interface
-      filesystem.js          # Append-only JSONL sessions + markdown memory
+      base.js                  # BaseStorage interface
+      filesystem.js            # Append-only JSONL sessions + markdown memory
     tools/
-      base.js                # BaseTool: definition + execute + optional trigger
-      registry.js            # Tool registration and trigger matching
-      web-fetch.js           # Fetch URLs, extract text (10KB limit)
-      n8n.js                 # Trigger n8n workflows via webhook
-      schedule.js            # Cron task management (add/list/remove)
+      base.js                  # BaseTool: definition + execute + optional trigger
+      registry.js              # Tool registration and trigger matching
+      web-fetch.js             # Fetch URLs, extract text (10KB limit)
+      n8n.js                   # Trigger n8n workflows via webhook
+      schedule.js              # Cron task management (add/list/remove)
     skills/
-      loader.js              # Discover skills from directory, on-demand prompt loading
+      loader.js                # Discover skills from directory, on-demand prompt loading
     scheduler/
-      scheduler.js           # Cron jobs with persistence (data/scheduler/tasks.json)
+      scheduler.js             # Cron jobs with persistence
     format/
-      telegram.js            # Markdown-to-Telegram HTML converter
-  skills/                    # Skill plugins (each is a directory)
-    weather/                 # Example: weather skill
-      manifest.json          # { name, description, triggers[] }
-      SKILL.md               # Agent instructions (loaded on-demand)
-    daily-summary/           # Example: daily summary skill
-  identities/
-    kenobot.md               # Bot personality (system prompt)
-  data/                      # Runtime data (gitignored)
-    sessions/                # Per-chat JSONL files
-    memory/                  # Daily logs + MEMORY.md
-    logs/                    # Structured JSONL logs
-    scheduler/               # Persistent task definitions
-  config/                    # Alternate .env files for multi-instance
-  docs/                      # Documentation
-  test/                      # Test suite (mirrors src/ structure)
+      telegram.js              # Markdown-to-Telegram HTML converter
+  templates/                   # Default files copied by kenobot init
+    env.example                # Config template
+    identities/kenobot.md      # Default bot personality
+    skills/weather/            # Example skill
+    skills/daily-summary/      # Example skill
+    memory/MEMORY.md           # Starter memory file
+  bin/                         # Dev/ops scripts
+    release                    # Changelog generation + git tag
+    audit                      # Security audit
+  docs/                        # Documentation
+  test/                        # Test suite (mirrors src/ structure)
+
+~/.kenobot/                    # User home (persistent across updates)
+  config/
+    .env                       # Bot configuration
+    identities/kenobot.md      # Bot personality (customizable)
+    skills/                    # User skill plugins
+  data/
+    sessions/                  # Per-chat JSONL history
+    memory/                    # Daily logs + MEMORY.md
+    logs/                      # Structured JSONL logs
+    scheduler/                 # Persistent task definitions
+  backups/                     # Backup archives
 ```
 
 ## Documentation

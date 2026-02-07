@@ -24,7 +24,7 @@ Condensed, human-readable format:
 One JSON object per line, daily rotation:
 
 ```
-data/logs/kenobot-2026-02-07.log
+~/.kenobot/data/logs/kenobot-2026-02-07.log
 ```
 
 ```json
@@ -56,23 +56,25 @@ Logs are tagged with the originating subsystem:
 
 ## Querying Logs
 
-JSONL files can be queried with standard tools:
+Use `kenobot logs` for quick access, or query JSONL files directly:
 
 ```bash
-# All errors today
-grep '"level":"error"' data/logs/kenobot-2026-02-07.log
+# Tail logs via CLI
+kenobot logs              # Tail latest log
+kenobot logs --today      # Today's full log
+kenobot logs --date 2026-02-06   # Specific date
+
+# Query with standard tools
+grep '"level":"error"' ~/.kenobot/data/logs/kenobot-2026-02-07.log
 
 # All agent messages with duration > 5s
-cat data/logs/kenobot-2026-02-07.log | \
+cat ~/.kenobot/data/logs/kenobot-2026-02-07.log | \
   jq -c 'select(.subsystem=="agent" and .durationMs > 5000)'
 
 # Count messages per session
-cat data/logs/kenobot-2026-02-07.log | \
+cat ~/.kenobot/data/logs/kenobot-2026-02-07.log | \
   jq -c 'select(.message=="message_received")' | \
   jq -r '.sessionId' | sort | uniq -c
-
-# Tail live logs
-tail -f data/logs/kenobot-$(date +%Y-%m-%d).log | jq .
 ```
 
 ## Configuration
@@ -80,7 +82,8 @@ tail -f data/logs/kenobot-$(date +%Y-%m-%d).log | jq .
 Logs are written to `DATA_DIR/logs/`. No additional configuration needed.
 
 ```bash
-DATA_DIR=./data  # Logs go to DATA_DIR/logs/
+# Default: ~/.kenobot/data/logs/
+# Override with DATA_DIR environment variable
 ```
 
 ## Source

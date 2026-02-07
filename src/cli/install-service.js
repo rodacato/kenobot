@@ -7,6 +7,14 @@ export default async function installService(args, paths) {
   const unitDir = join(homedir(), '.config', 'systemd', 'user')
   const unitFile = join(unitDir, 'kenobot.service')
 
+  // Resolve kenobot binary dynamically (works with npm install -g and npm link)
+  let kenobotBin
+  try {
+    kenobotBin = execSync('which kenobot', { encoding: 'utf8' }).trim()
+  } catch {
+    kenobotBin = join(paths.engine, 'src', 'cli.js')
+  }
+
   const unit = `[Unit]
 Description=KenoBot Telegram AI Assistant
 After=network-online.target
@@ -14,7 +22,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=%h/.kenobot/bin/kenobot start
+ExecStart=${kenobotBin} start
 Restart=on-failure
 RestartSec=10
 Environment=KENOBOT_HOME=%h/.kenobot

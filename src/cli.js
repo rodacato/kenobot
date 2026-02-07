@@ -1,9 +1,17 @@
 #!/usr/bin/env node
 
+import { existsSync } from 'node:fs'
 import paths from './paths.js'
 
 const args = process.argv.slice(2)
 const subcommand = args[0] || 'help'
+
+// First run: suggest kenobot init when ~/.kenobot/ doesn't exist
+if (!existsSync(paths.home) && subcommand !== 'init' && subcommand !== 'help' && subcommand !== 'version') {
+  console.log('Welcome to KenoBot!\n')
+  console.log('Run \x1b[1mkenobot init\x1b[0m first to set up your directories.\n')
+  process.exit(0)
+}
 
 const commands = {
   init:              () => import('./cli/init.js'),

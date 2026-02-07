@@ -1,10 +1,11 @@
 # Configuration Reference
 
-All configuration is via environment variables. Use `.env` at the project root, or pass an alternate file with `--config`:
+All configuration is via environment variables. The config file lives at `~/.kenobot/config/.env` (when installed) or `.env` at the project root (when running from a git clone).
 
 ```bash
-node src/index.js                          # Uses .env
-node src/index.js --config config/main.env # Uses config/main.env
+kenobot config edit                        # Edit ~/.kenobot/config/.env
+kenobot config                             # Show current config (secrets redacted)
+kenobot start --config config/main.env     # Use alternate config file
 ```
 
 ## Core
@@ -13,8 +14,8 @@ node src/index.js --config config/main.env # Uses config/main.env
 |----------|------|---------|----------|-------------|
 | `PROVIDER` | string | `claude-cli` | No | LLM provider: `claude-api`, `claude-cli`, or `mock` |
 | `MODEL` | string | `sonnet` | No | Model name passed to provider: `sonnet`, `opus`, `haiku` |
-| `IDENTITY_FILE` | string | `identities/kenobot.md` | No | Path to bot personality/system prompt file |
-| `DATA_DIR` | string | `./data` | No | Base directory for sessions, memory, logs, and scheduler data |
+| `IDENTITY_FILE` | string | `identities/kenobot.md` | No | Path to bot personality/system prompt file (relative to config dir or absolute) |
+| `DATA_DIR` | string | `~/.kenobot/data` | No | Base directory for sessions, memory, logs, and scheduler data |
 
 ## Telegram
 
@@ -47,7 +48,7 @@ Get your chat ID from [@userinfobot](https://t.me/userinfobot). For group chats,
 
 | Variable | Type | Default | Required | Description |
 |----------|------|---------|----------|-------------|
-| `SKILLS_DIR` | string | `./skills` | No | Directory to scan for skill plugins |
+| `SKILLS_DIR` | string | `~/.kenobot/config/skills` | No | Directory to scan for skill plugins |
 
 ## Tools
 
@@ -75,6 +76,14 @@ The HTTP channel is opt-in. When enabled, it starts a server with two endpoints:
 | `WEBHOOK_SECRET` | string | — | When `HTTP_ENABLED=true` | HMAC-SHA256 secret for webhook signature validation. Generate with: `openssl rand -hex 32` |
 | `HTTP_TIMEOUT` | integer | `60000` | No | Timeout in milliseconds for webhook responses |
 
+## Environment Variable: KENOBOT_HOME
+
+The `KENOBOT_HOME` environment variable overrides the default user home directory (`~/.kenobot`). Useful for isolated development or testing:
+
+```bash
+KENOBOT_HOME=/tmp/kenobot-test kenobot start
+```
+
 ## Example `.env`
 
 ```bash
@@ -87,13 +96,11 @@ PROVIDER=claude-api
 MODEL=sonnet
 ANTHROPIC_API_KEY=sk-ant-api03-...
 
-# Optional
-IDENTITY_FILE=identities/kenobot.md
-DATA_DIR=./data
-SESSION_HISTORY_LIMIT=20
-MEMORY_DAYS=3
-SKILLS_DIR=./skills
-MAX_TOOL_ITERATIONS=20
+# Optional (defaults shown)
+# IDENTITY_FILE=identities/kenobot.md
+# SESSION_HISTORY_LIMIT=20
+# MEMORY_DAYS=3
+# MAX_TOOL_ITERATIONS=20
 
 # n8n (optional)
 # N8N_WEBHOOK_BASE=https://n8n.example.com/webhook
@@ -111,27 +118,27 @@ MAX_TOOL_ITERATIONS=20
 Each instance uses its own `.env` file. Variables are isolated per process:
 
 ```bash
-# config/main.env
+# ~/.kenobot/config/main.env
 PROVIDER=claude-api
 MODEL=opus
 IDENTITY_FILE=identities/kenobot.md
 TELEGRAM_BOT_TOKEN=<main_bot_token>
 TELEGRAM_ALLOWED_CHAT_IDS=123456789
-DATA_DIR=./data/main
+DATA_DIR=~/.kenobot/data/main
 
-# config/quick.env
+# ~/.kenobot/config/quick.env
 PROVIDER=claude-api
 MODEL=haiku
 IDENTITY_FILE=identities/quick.md
 TELEGRAM_BOT_TOKEN=<quick_bot_token>
 TELEGRAM_ALLOWED_CHAT_IDS=123456789
-DATA_DIR=./data/quick
+DATA_DIR=~/.kenobot/data/quick
 ```
 
 Run both:
 ```bash
-node src/index.js --config config/main.env &
-node src/index.js --config config/quick.env &
+kenobot start --config ~/.kenobot/config/main.env &
+kenobot start --config ~/.kenobot/config/quick.env &
 ```
 
 Each instance maintains separate sessions, memory, logs, and scheduled tasks under its own `DATA_DIR`.
