@@ -18,6 +18,9 @@ import N8nTriggerTool from './tools/n8n.js'
 import SkillLoader from './skills/loader.js'
 import Scheduler from './scheduler/scheduler.js'
 import ScheduleTool from './tools/schedule.js'
+import CircuitBreakerProvider from './providers/circuit-breaker.js'
+import Watchdog from './watchdog.js'
+import DiagnosticsTool from './tools/diagnostics.js'
 import { writePid, removePid } from './health.js'
 
 // Configure logger with data directory for JSONL file output
@@ -55,6 +58,51 @@ switch (config.provider) {
     process.exit(1)
 }
 
+// Wrap provider with circuit breaker
+const circuitBreaker = new CircuitBreakerProvider(provider, config.circuitBreaker)
+provider = circuitBreaker
+
+// Initialize watchdog
+const watchdog = new Watchdog(bus, { interval: config.watchdogInterval })
+
+// Register provider health check
+watchdog.registerCheck('provider', () => {
+  const status = circuitBreaker.getStatus()
+  if (status.state === 'OPEN') return { status: 'fail', detail: `circuit OPEN, ${status.failures} failures` }
+  if (status.state === 'HALF_OPEN') return { status: 'warn', detail: 'circuit recovering' }
+  return { status: 'ok', detail: `${status.failures} recent failures` }
+}, { critical: true })
+
+// Register memory health check
+watchdog.registerCheck('memory', () => {
+  const mb = Math.floor(process.memoryUsage().rss / 1024 / 1024)
+  if (mb > 512) return { status: 'fail', detail: `${mb}MB RSS (>512MB)` }
+  if (mb > 256) return { status: 'warn', detail: `${mb}MB RSS (>256MB)` }
+  return { status: 'ok', detail: `${mb}MB RSS` }
+})
+
+// Health event → alert owner via Telegram
+bus.on('health:degraded', ({ detail }) => {
+  const ownerChat = config.telegram.allowedChatIds[0]
+  if (ownerChat) {
+    bus.emit('message:out', { chatId: ownerChat, text: `Health degraded: ${detail}`, channel: 'telegram' })
+  }
+})
+
+bus.on('health:unhealthy', ({ detail }) => {
+  const ownerChat = config.telegram.allowedChatIds[0]
+  if (ownerChat) {
+    bus.emit('message:out', { chatId: ownerChat, text: `UNHEALTHY: ${detail}`, channel: 'telegram' })
+  }
+})
+
+bus.on('health:recovered', ({ previous }) => {
+  const ownerChat = config.telegram.allowedChatIds[0]
+  if (ownerChat) {
+    bus.emit('message:out', { chatId: ownerChat, text: `Recovered (was ${previous})`, channel: 'telegram' })
+  }
+})
+
 // Initialize scheduler (loadTasks is async, called in start())
 const scheduler = new Scheduler(bus, config.dataDir)
 
@@ -62,6 +110,7 @@ const scheduler = new Scheduler(bus, config.dataDir)
 const toolRegistry = new ToolRegistry()
 toolRegistry.register(new WebFetchTool())
 toolRegistry.register(new ScheduleTool(scheduler))
+toolRegistry.register(new DiagnosticsTool(watchdog, circuitBreaker))
 if (config.n8n.webhookBase) {
   toolRegistry.register(new N8nTriggerTool(config.n8n))
 }
@@ -114,6 +163,7 @@ bus.on('error', ({ source, error, context }) => {
 async function shutdown(signal) {
   logger.info('system', 'shutdown', { signal })
   await removePid()
+  watchdog.stop()
   scheduler.stop()
   agent.stop()
   await Promise.all(channels.map(ch => ch.stop()))
@@ -135,6 +185,7 @@ async function start() {
 
   await agent.start()
   await Promise.all(channels.map(ch => ch.start()))
+  watchdog.start()
 }
 
 start().catch(error => {

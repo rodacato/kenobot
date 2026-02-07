@@ -56,6 +56,16 @@ export default {
     webhookBase: process.env.N8N_WEBHOOK_BASE || ''
   },
 
+  // Watchdog
+  watchdogInterval: parseInt(process.env.WATCHDOG_INTERVAL || '60000', 10),
+  fallbackProvider: process.env.FALLBACK_PROVIDER || '',
+
+  // Circuit breaker
+  circuitBreaker: {
+    threshold: parseInt(process.env.CIRCUIT_BREAKER_THRESHOLD || '5', 10),
+    cooldown: parseInt(process.env.CIRCUIT_BREAKER_COOLDOWN || '60000', 10)
+  },
+
   // HTTP webhook channel (opt-in)
   http: {
     enabled: process.env.HTTP_ENABLED === 'true',
