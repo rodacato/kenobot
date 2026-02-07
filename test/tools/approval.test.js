@@ -13,7 +13,7 @@ vi.mock('../../src/logger.js', () => ({
 }))
 
 describe('ApprovalTool', () => {
-  let tmpDir, tool, bus, skillLoader
+  let tmpDir, tool, onProposed, onApproved, onRejected, activateSkill
 
   beforeEach(async () => {
     tmpDir = await mkdtemp(join(tmpdir(), 'kenobot-approval-'))
@@ -24,9 +24,11 @@ describe('ApprovalTool', () => {
     await mkdir(join(tmpDir, 'workflows'), { recursive: true })
     await mkdir(join(tmpDir, 'identity'), { recursive: true })
 
-    bus = { emit: vi.fn() }
-    skillLoader = { loadOne: vi.fn() }
-    tool = new ApprovalTool(tmpDir, bus, { skillLoader })
+    onProposed = vi.fn()
+    onApproved = vi.fn()
+    onRejected = vi.fn()
+    activateSkill = vi.fn()
+    tool = new ApprovalTool(tmpDir, { onProposed, onApproved, onRejected, activateSkill })
   })
 
   afterEach(async () => {
@@ -77,7 +79,7 @@ describe('ApprovalTool', () => {
 
       expect(result).toContain('Proposed: test-skill')
       expect(result).toContain('skill')
-      expect(bus.emit).toHaveBeenCalledWith('approval:proposed', expect.objectContaining({
+      expect(onProposed).toHaveBeenCalledWith(expect.objectContaining({
         type: 'skill',
         name: 'test-skill'
       }))
@@ -188,11 +190,11 @@ describe('ApprovalTool', () => {
       const manifest = await readFile(join(tmpDir, 'skills', 'my-skill', 'manifest.json'), 'utf8')
       expect(manifest).toContain('my-skill')
 
-      // Check skillLoader.loadOne was called
-      expect(skillLoader.loadOne).toHaveBeenCalledWith('my-skill', join(tmpDir, 'skills'))
+      // Check activateSkill callback was called
+      expect(activateSkill).toHaveBeenCalledWith('my-skill', join(tmpDir, 'skills'))
 
-      // Check bus event
-      expect(bus.emit).toHaveBeenCalledWith('approval:approved', expect.objectContaining({
+      // Check onApproved callback
+      expect(onApproved).toHaveBeenCalledWith(expect.objectContaining({
         id,
         type: 'skill',
         name: 'my-skill'
@@ -248,7 +250,7 @@ describe('ApprovalTool', () => {
       expect(result).toContain('Rejected: bad-skill')
       expect(result).toContain('not needed')
 
-      expect(bus.emit).toHaveBeenCalledWith('approval:rejected', expect.objectContaining({
+      expect(onRejected).toHaveBeenCalledWith(expect.objectContaining({
         id,
         name: 'bad-skill',
         reason: 'not needed'

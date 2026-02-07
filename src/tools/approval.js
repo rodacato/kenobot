@@ -21,11 +21,21 @@ import logger from '../logger.js'
  *   approval { action: "propose", type: "skill", name: "...", ... }
  */
 export default class ApprovalTool extends BaseTool {
-  constructor(workspaceDir, bus, { skillLoader }) {
+  /**
+   * @param {string} workspaceDir - Path to workspace directory
+   * @param {Object} callbacks - Event callbacks (replaces direct bus/skillLoader coupling)
+   * @param {Function} callbacks.onProposed - Called when a proposal is created
+   * @param {Function} callbacks.onApproved - Called when a proposal is approved
+   * @param {Function} callbacks.onRejected - Called when a proposal is rejected
+   * @param {Function} callbacks.activateSkill - Called to hot-reload a skill after approval
+   */
+  constructor(workspaceDir, { onProposed, onApproved, onRejected, activateSkill } = {}) {
     super()
     this.workspaceDir = workspaceDir
-    this.bus = bus
-    this.skillLoader = skillLoader
+    this._onProposed = onProposed || (() => {})
+    this._onApproved = onApproved || (() => {})
+    this._onRejected = onRejected || (() => {})
+    this._onSkillActivated = activateSkill || (() => {})
     this.queueFile = join(workspaceDir, 'staging', 'approvals.json')
   }
 
@@ -111,7 +121,7 @@ export default class ApprovalTool extends BaseTool {
     await this._saveQueue(queue)
 
     logger.info('approval', 'proposed', { id, type, name })
-    this.bus.emit('approval:proposed', { id, type, name, description: item.description })
+    this._onProposed({ id, type, name, description: item.description })
 
     return `Proposed: ${name} (${type}) — ID: ${id}\nAwaiting owner approval via /approve ${id}`
   }
@@ -186,7 +196,7 @@ export default class ApprovalTool extends BaseTool {
     await this._saveQueue(queue)
 
     logger.info('approval', 'approved', { id: item.id, type: item.type, name: item.name })
-    this.bus.emit('approval:approved', { id: item.id, type: item.type, name: item.name })
+    this._onApproved({ id: item.id, type: item.type, name: item.name })
 
     return `Approved: ${item.name} (${item.type})`
   }
@@ -204,7 +214,7 @@ export default class ApprovalTool extends BaseTool {
     await this._saveQueue(queue)
 
     logger.info('approval', 'rejected', { id: item.id, type: item.type, name: item.name, reason })
-    this.bus.emit('approval:rejected', { id: item.id, type: item.type, name: item.name, reason })
+    this._onRejected({ id: item.id, type: item.type, name: item.name, reason })
 
     return `Rejected: ${item.name} (${item.type})${reason ? ` — ${reason}` : ''}`
   }
@@ -215,10 +225,8 @@ export default class ApprovalTool extends BaseTool {
     await mkdir(dirname(dest), { recursive: true })
     await cp(src, dest, { recursive: true })
 
-    // Hot-reload the skill
-    if (this.skillLoader?.loadOne) {
-      await this.skillLoader.loadOne(item.name, join(this.workspaceDir, 'skills'))
-    }
+    // Hot-reload the skill via callback
+    await this._onSkillActivated(item.name, join(this.workspaceDir, 'skills'))
   }
 
   async _activateWorkflow(item) {
