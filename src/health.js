@@ -1,6 +1,9 @@
 import { readFile, writeFile, unlink } from 'node:fs/promises'
+import { join } from 'node:path'
+import { homedir } from 'node:os'
 
-const DEFAULT_PID_FILE = process.env.KENOBOT_PID_FILE || '/tmp/kenobot.pid'
+const DEFAULT_PID_FILE = process.env.KENOBOT_PID_FILE
+  || join(homedir(), '.kenobot', 'data', 'kenobot.pid')
 
 /**
  * Get current process health status.
