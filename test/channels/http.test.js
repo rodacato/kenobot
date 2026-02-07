@@ -83,6 +83,9 @@ describe('HTTPChannel', () => {
       expect(res.body.status).toBe('ok')
       expect(res.body.uptime).toBeTypeOf('number')
       expect(res.body.pid).toBeTypeOf('number')
+      expect(res.body.memory).toHaveProperty('rss')
+      expect(res.body.memory).toHaveProperty('heap')
+      expect(res.body.timestamp).toBeTypeOf('number')
     })
   })
 

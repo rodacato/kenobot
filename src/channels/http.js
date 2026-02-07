@@ -2,6 +2,7 @@ import { createServer } from 'node:http'
 import crypto from 'node:crypto'
 import BaseChannel from './base.js'
 import logger from '../logger.js'
+import { getStatus } from '../health.js'
 
 /**
  * HTTPChannel - Webhook endpoint for external integrations (n8n, curl, etc.)
@@ -195,11 +196,7 @@ export default class HTTPChannel extends BaseChannel {
    */
   _handleHealth(res) {
     res.writeHead(200, { 'Content-Type': 'application/json' })
-    res.end(JSON.stringify({
-      status: 'ok',
-      uptime: Math.floor(process.uptime()),
-      pid: process.pid
-    }))
+    res.end(JSON.stringify(getStatus()))
   }
 
   /**
