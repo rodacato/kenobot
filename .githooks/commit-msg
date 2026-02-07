@@ -12,14 +12,14 @@ if echo "$commit_msg" | grep -qE "^Merge "; then
 fi
 
 # === Check 1: Conventional commit format ===
-pattern="^(feat|fix|docs|style|refactor|test|chore|ci|perf|build)(\(.+\))?: .{1,72}$"
+pattern="^(feat|fix|docs|style|refactor|test|chore|ci|perf|build|release)(\(.+\))?: .{1,72}$"
 
 if ! echo "$commit_msg" | grep -qE "$pattern"; then
   echo ""
   echo "  Invalid commit message format."
   echo ""
   echo "  Expected: type(scope): description"
-  echo "  Types:    feat, fix, docs, style, refactor, test, chore, ci, perf, build"
+  echo "  Types:    feat, fix, docs, style, refactor, test, chore, ci, perf, build, release"
   echo "  Max:      72 characters for the first line"
   echo ""
   echo "  Examples:"
@@ -66,7 +66,7 @@ fi
 
 # === Check 3: Validate [changelog] section if present ===
 if echo "$full_msg" | grep -q "^\[changelog\]"; then
-  valid_categories="added|changed|deprecated|removed|fixed|security"
+  valid_categories="added|changed|deprecated|removed|fixed|security|release"
   in_changelog=false
   found_issues=0
   line_num=0
@@ -105,7 +105,7 @@ if echo "$full_msg" | grep -q "^\[changelog\]"; then
   if [ $found_issues -ne 0 ]; then
     echo ""
     echo "  Expected format: category: description"
-    echo "  Valid categories: added, changed, deprecated, removed, fixed, security"
+    echo "  Valid categories: added, changed, deprecated, removed, fixed, security, release"
     echo ""
     echo "  Example:"
     echo "    [changelog]"

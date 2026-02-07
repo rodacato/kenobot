@@ -33,6 +33,7 @@ type(scope): description
 | `ci` | CI/CD changes |
 | `perf` | Performance improvement |
 | `build` | Build system changes |
+| `release` | Version releases (used by `bin/release`) |
 
 ### Scope
 
@@ -59,7 +60,7 @@ for lightweight persistent memory.
 added: Daily markdown notes in memory/ directory
 ```
 
-Valid categories: `added`, `changed`, `deprecated`, `removed`, `fixed`, `security`
+Valid categories: `added`, `changed`, `deprecated`, `removed`, `fixed`, `security`, `release`
 
 Multiple entries per commit are fine:
 
@@ -95,15 +96,25 @@ We follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The changelo
 To create a release:
 
 ```bash
-bin/release 2026.02.0
+bin/release 0.2.0
 ```
 
 This will:
 
-1. Collect all `[changelog]` entries from commits since the last tag
-2. Group them by category (Added, Changed, Fixed, etc.)
-3. Update `CHANGELOG.md` with a new versioned section
-4. Create a commit and tag `v2026.02.0`
+1. Find the last release commit (by searching for `release:` in `[changelog]`)
+2. Collect all `[changelog]` entries from commits since that release
+3. Group them by category (Added, Changed, Fixed, etc.)
+4. Update `CHANGELOG.md` with a new versioned section
+5. Create a commit (`release: Bump version vX.Y.Z`) and tag `vX.Y.Z`
+
+The release commit marks the boundary for the next release:
+
+```
+release: Bump version v0.2.0
+
+[changelog]
+release: 0.2.0
+```
 
 ## Branching
 

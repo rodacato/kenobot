@@ -57,15 +57,31 @@ if git tag -l "$tag" | grep -q "$tag"; then
   die "Tag $tag already exists."
 fi
 
-# --- Find last tag ---
+# --- Find last release commit ---
 
-last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-if [ -z "$last_tag" ]; then
-  info "No previous tags found. Collecting entries from all commits."
-  commit_range="HEAD"
+last_release=""
+for hash in $(git log --format="%H"); do
+  msg=$(git log --format="%B" -1 "$hash")
+  if echo "$msg" | sed -n '/^\[changelog\]/,/^$/p' | grep -q "^release:"; then
+    last_release="$hash"
+    break
+  fi
+done
+
+if [ -z "$last_release" ]; then
+  # Fallback: try git tags (for releases made before the release: category existed)
+  last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+  if [ -n "$last_tag" ]; then
+    info "Last tag: $last_tag (no release commit found, using tag as fallback)"
+    commit_range="${last_tag}..HEAD"
+  else
+    info "No previous releases found. Collecting entries from all commits."
+    commit_range="HEAD"
+  fi
 else
-  info "Last tag: $last_tag"
-  commit_range="${last_tag}..HEAD"
+  release_ver=$(git log --format="%B" -1 "$last_release" | sed -n '/^\[changelog\]/,/^$/{ s/^release: //p; }')
+  info "Last release: v${release_ver} ($(echo "$last_release" | cut -c1-7))"
+  commit_range="${last_release}..HEAD"
 fi
 
 # --- Parse commits for [changelog] entries ---
@@ -101,6 +117,7 @@ while IFS= read -r commit_hash; do
         removed)    removed+=("$description") ;;
         fixed)      fixed+=("$description") ;;
         security)   security+=("$description") ;;
+        release)    ;; # Boundary marker, not a changelog entry
       esac
     fi
   done <<< "$msg"
@@ -111,7 +128,7 @@ done < <(git log --format="%H" --reverse "$commit_range")
 total=$(( ${#added[@]} + ${#changed[@]} + ${#deprecated[@]} + ${#removed[@]} + ${#fixed[@]} + ${#security[@]} ))
 
 if [ "$total" -eq 0 ]; then
-  warn "No [changelog] entries found in commits since ${last_tag:-initial commit}."
+  warn "No [changelog] entries found in commits since ${release_ver:-${last_tag:-initial commit}}."
   echo ""
   read -rp "Continue with empty release? (y/N) " confirm
   if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
@@ -182,10 +199,10 @@ echo ""
 # --- Commit and tag ---
 
 git add CHANGELOG.md
-git commit -m "chore: release v${version}
+git commit -m "release: Bump version v${version}
 
 [changelog]
-changed: Release v${version}"
+release: ${version}"
 
 git tag -a "$tag" -m "Release $version"
 
