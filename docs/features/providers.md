@@ -63,6 +63,34 @@ Deterministic provider for testing. Returns canned responses based on pattern ma
 
 Use for development and automated tests without burning API credits.
 
+## Cost Estimates
+
+Approximate cost per typical message (500 input tokens, 300 output tokens):
+
+| Model | Input | Output | ~Cost/message | ~Cost/day (50 msgs) |
+|-------|-------|--------|---------------|---------------------|
+| Haiku | $1/MTok | $5/MTok | $0.002 | $0.10 |
+| Sonnet | $3/MTok | $15/MTok | $0.006 | $0.30 |
+| Opus | $15/MTok | $75/MTok | $0.030 | $1.50 |
+
+**Notes:**
+- Actual costs vary with message length and context size (memory, history, skills all add input tokens)
+- Scheduled tasks count as additional LLM calls — a daily cron task adds ~$0.006/day with Sonnet
+- Tool loops multiply costs: each iteration is a separate provider call
+- `claude-cli` uses your CLI subscription (no per-token billing)
+- `mock` is free
+
+## Retry Behavior
+
+All providers automatically retry on transient HTTP errors with exponential backoff:
+
+- **Retryable errors**: 429 (rate limit), 500, 502, 503
+- **Backoff delays**: 1s, 2s, 4s
+- **Max attempts**: 3 (1 initial + 2 retries)
+- **Non-retryable errors** (400, 401, etc.) are thrown immediately
+
+This applies to `claude-api` errors. The `claude-cli` provider's subprocess errors don't carry HTTP status codes and are not retried.
+
 ## Switching Providers
 
 Change `PROVIDER` in `.env` and restart:

@@ -246,7 +246,7 @@ Once mock works, you can switch to a real provider:
 ```bash
 # .env
 PROVIDER=claude-api
-MODEL=claude-sonnet-4-5-20250929
+MODEL=sonnet
 ANTHROPIC_API_KEY=your_api_key_here
 ```
 

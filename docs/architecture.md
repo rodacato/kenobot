@@ -37,14 +37,14 @@ KenoBot follows an **event-driven architecture** where all components communicat
 │ HTTP        │   │ Claude CLI  │   │ (JSONL +   │
 │             │   │ Mock        │   │  markdown) │
 └─────────────┘   └─────────────┘   └────────────┘
-       │
-┌──────┴──────┐   ┌─────────────┐
-│    Tools    │   │   Skills    │
-├─────────────┤   ├─────────────┤
-│ web_fetch   │   │ weather/    │
-│ n8n_trigger │   │ daily-      │
-│ schedule    │   │  summary/   │
-└─────────────┘   └─────────────┘
+       │                                    │
+┌──────┴──────┐   ┌─────────────┐   ┌──────┴─────┐
+│    Tools    │   │   Skills    │   │ Scheduler  │
+├─────────────┤   ├─────────────┤   ├────────────┤
+│ web_fetch   │   │ weather/    │   │ node-cron  │
+│ n8n_trigger │   │ daily-      │   │ tasks.json │
+│ schedule    │   │  summary/   │   │ → bus emit │
+└─────────────┘   └─────────────┘   └────────────┘
 ```
 
 ## Message Flow
@@ -256,6 +256,23 @@ data/
   scheduler/
     tasks.json                  # Persistent cron task definitions
 ```
+
+## Limits & Constraints
+
+| Constraint | Value | Configurable |
+|-----------|-------|-------------|
+| Session history | Last 20 messages per session | Yes (`SESSION_HISTORY_LIMIT`) |
+| Max tool iterations | 20 rounds per message | Yes (`MAX_TOOL_ITERATIONS`) |
+| Telegram message chunk | 4000 characters | No (Telegram API limit) |
+| web_fetch output cap | 10KB | No (hardcoded) |
+| MEMORY.md size | Unlimited | No (grows with usage) |
+| Daily logs | Accumulate indefinitely | No (no auto-pruning) |
+| System prompt budget | No token limit enforced | No |
+| Provider timeout | 120s (CLI), none (API) | No |
+
+**Known scaling risks:**
+- Long conversations with large MEMORY.md and many daily logs can approach the model's context window (~200K tokens for Claude). No automatic truncation is in place — the provider will return an error if the context is exceeded.
+- Daily logs accumulate one file per day indefinitely. After months of use, consider manually archiving old logs (see [Memory](features/memory.md#maintenance)).
 
 ## Extending KenoBot
 

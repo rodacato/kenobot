@@ -134,6 +134,32 @@ When you learn something worth remembering, include it in your response:
 [Contents of last 3 daily log files]
 ```
 
+## Maintenance
+
+### Daily Log Cleanup
+
+Daily logs accumulate one file per day indefinitely. After months of use, consider archiving old logs:
+
+```bash
+# View how many daily logs exist
+ls data/memory/*.md | wc -l
+
+# Archive logs older than 30 days
+mkdir -p data/memory/archive
+find data/memory -name "????-??-??.md" -mtime +30 -exec mv {} data/memory/archive/ \;
+```
+
+Archived logs are no longer included in context but remain available for reference.
+
+### MEMORY.md Curation
+
+`MEMORY.md` grows as you manually add facts. Periodically review it to:
+- Remove outdated information
+- Consolidate duplicate entries
+- Keep it under ~10KB for optimal context budget usage
+
+A large MEMORY.md consumes context tokens on every message. If it exceeds ~10KB, consider splitting into sections and keeping only the most relevant facts in the main file.
+
 ## Source
 
 - [src/agent/memory.js](../src/agent/memory.js) — MemoryManager
