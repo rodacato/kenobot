@@ -27,7 +27,7 @@ You don't over-engineer. You don't add abstractions for hypothetical futures. Yo
 - **Respect constraints**: This runs on a 2vCPU/4GB/40GB Hetzner VPS (~$4/month). Every feature must justify its resource cost.
 - **Follow project conventions**: See sections below for commit format, testing, branching, code style.
 - **Document decisions**: When you make a non-obvious choice, explain why briefly. Future sessions may not have the same context.
-- **Check `docs/PLAN.md`**: The full implementation plan with architectural patterns, phase breakdown, and design decisions lives there. Reference it for roadmap questions.
+- **Check `docs/`**: Architecture, feature guides, and configuration reference live there.
 - **Check `heartbeat.md`**: If it exists, it has current status, active tasks, and priorities from previous sessions.
 
 ## Commands
@@ -39,6 +39,8 @@ npm test               # Run all tests (vitest run)
 npm run test:watch     # Watch mode
 npm run test:coverage  # Coverage report (V8)
 npx vitest run test/agent/loop.test.js  # Run a single test file
+bin/health             # Check if bot is running
+bin/backup             # Backup data/ directory
 ```
 
 ## Architecture
@@ -46,86 +48,115 @@ npx vitest run test/agent/loop.test.js  # Run a single test file
 Event-driven message bus pattern. All components communicate via a singleton `EventEmitter` bus (`src/bus.js`).
 
 ```
-Telegram → TelegramChannel → bus 'message:in' → AgentLoop → ContextBuilder → Provider.chat()
-                                                    ↓
-Telegram ← TelegramChannel ← bus 'message:out' ← AgentLoop (saves session via FilesystemStorage)
+User → Telegram → TelegramChannel → bus 'message:in' → AgentLoop → ContextBuilder → Provider.chat()
+                                                            ↓
+User ← Telegram ← TelegramChannel ← bus 'message:out' ← AgentLoop (tool loop → memory → session)
 ```
 
 **Bus events**: `message:in`, `message:out`, `thinking:start`, `error`
 
 **Key modules**:
-- `src/index.js` — entry point, wires components together
-- `src/agent/loop.js` — AgentLoop: listens for messages, calls provider, emits responses
-- `src/agent/context.js` — ContextBuilder: loads identities/kenobot.md as system prompt + session history (last 20 messages)
-- `src/channels/base.js` — BaseChannel: abstract with deny-by-default auth (`allowFrom` list)
-- `src/channels/telegram.js` — grammy integration, markdown→HTML formatting, message chunking (4000 char limit)
-- `src/providers/{claude-api,claude-cli,mock}.js` — interchangeable providers sharing `chat(messages, options)` interface
-- `src/storage/filesystem.js` — append-only JSONL session files at `data/sessions/{channel}-{chatId}.jsonl`
-- `src/config.js` — env-based config, supports `--config` flag for alternate .env path
-- `src/logger.js` — singleton structured logger (JSONL files + condensed console)
+- `src/index.js` — Entry point, wires all components together
+- `src/bus.js` — Singleton EventEmitter message bus
+- `src/config.js` — Env-based config, supports `--config` flag for alternate .env path
+- `src/logger.js` — Structured JSONL logger with daily rotation
+- `src/health.js` — PID management and health status
+- `src/agent/loop.js` — AgentLoop: message:in → context → provider → tool loop → memory → session → message:out
+- `src/agent/context.js` — ContextBuilder: identity + tools + skills + memory + session history
+- `src/agent/memory.js` — MemoryManager: daily logs + MEMORY.md
+- `src/agent/memory-extractor.js` — Extracts `<memory>` tags from LLM responses
+- `src/channels/base.js` — BaseChannel: template method with deny-by-default auth
+- `src/channels/telegram.js` — grammy integration, HTML formatting, 4000-char chunking
+- `src/channels/http.js` — HTTP webhook endpoint with HMAC-SHA256 validation + /health
+- `src/providers/{claude-api,claude-cli,mock}.js` — Interchangeable providers sharing `chat(messages, options)` interface
+- `src/storage/filesystem.js` — Append-only JSONL session files + markdown memory files
+- `src/tools/base.js` — BaseTool: definition + execute + optional slash command trigger
+- `src/tools/registry.js` — Tool registration, execution, and trigger matching
+- `src/tools/{web-fetch,n8n,schedule}.js` — Built-in tools
+- `src/skills/loader.js` — Skill discovery, manifest loading, on-demand prompt loading
+- `src/scheduler/scheduler.js` — Cron-based task scheduler with JSON persistence
+- `src/format/telegram.js` — Markdown-to-Telegram HTML converter
 
 ## Tech Stack
 
 - **Runtime**: Node.js 22+, pure ESM (`"type": "module"`, `.js` extensions on all imports)
-- **No build step**: source runs directly
-- **No TypeScript, no ESLint/Prettier configs**: uses `.editorconfig` (2-space indent, UTF-8, LF)
-- **Framework**: grammy (Telegram), @anthropic-ai/sdk (Claude API)
+- **No build step**: Source runs directly
+- **No TypeScript, no ESLint/Prettier configs**: Uses `.editorconfig` (2-space indent, UTF-8, LF)
+- **Runtime deps**: grammy (Telegram), @anthropic-ai/sdk (Claude API), dotenv (env), node-cron (scheduling)
 - **Testing**: Vitest 4.x with globals enabled
-- **Dependency budget**: Minimal. Each runtime dep must justify its existence. Currently: grammy, dotenv, @anthropic-ai/sdk
+- **Dependency budget**: Minimal. Each runtime dep must justify its existence.
 
 ## Project Status
 
-### Completed (Phase 0 + Phase 1)
-- Event-driven message bus (`src/bus.js`)
-- Provider interface with 3 implementations: `mock`, `claude-cli`, `claude-api`
-- Channel interface with Telegram adapter (grammy, deny-by-default auth)
-- Agent loop with session routing (`src/agent/loop.js`)
-- Context builder with identities/kenobot.md injection + session history (`src/agent/context.js`)
-- Filesystem storage with append-only JSONL sessions (`data/sessions/`)
-- Markdown-to-HTML formatter for Telegram (4000 char chunking)
-- Structured logger (JSONL files + condensed console)
-- Vitest test suite (54% coverage)
+All 7 implementation phases complete:
 
-### Next Up (Phase 2+)
-See `docs/PLAN.md` for full roadmap: memory system, n8n integration, tools, skills, scheduling, hardening.
+- Phase 0: Core interfaces — bus, providers (mock, claude-cli, claude-api), Telegram channel
+- Phase 1: Agent loop — context builder, session routing, JSONL persistence, identity injection
+- Phase 2: Memory — daily logs, MEMORY.md, `<memory>` tag extraction, context injection
+- Phase 3: n8n integration — HTTP webhook channel with HMAC validation, n8n trigger tool
+- Phase 4: Tools — tool registry, web_fetch, slash command triggers, tool execution loop (max 20 iterations)
+- Phase 5: Skills — skill loader, manifest.json + SKILL.md, on-demand prompt loading, trigger matching
+- Phase 6: Scheduling — cron-based scheduler, persistent tasks, schedule tool (add/list/remove)
+- Phase 7: Hardening — structured logging, health checks, PID management, auto-recovery, backups, error boundaries, graceful shutdown
 
 ## File Structure
 
 ```
 kenobot/
-  identities/kenobot.md            # Bot's personality (system prompt for Telegram conversations)
-  AGENTS.md              # THIS file — instructions for the development LLM
-  CLAUDE.md              # Pointer → "Read AGENTS.md"
-  heartbeat.md           # Current status, active tasks, priorities (mutable)
-  docs/
-    PLAN.md              # Full implementation plan with patterns and phases
-    research/            # Research notes and analysis
+  bin/
+    start                    # Startup script
+    health                   # Health check (PID-based)
+    auto-recover             # Cron-based auto-restart
+    backup                   # Data backup with rotation
+    release                  # Changelog generation + git tag
   src/
-    index.js             # Entry point, wires components together
-    bus.js               # Singleton EventEmitter message bus
-    config.js            # Env-based config, supports --config flag
-    logger.js            # Structured JSONL logger
+    index.js                 # Entry point, wires components
+    bus.js                   # EventEmitter message bus
+    config.js                # Env-based configuration
+    logger.js                # Structured JSONL logger
+    health.js                # PID management + health status
     agent/
-      loop.js            # AgentLoop: message:in → provider → message:out
-      context.js         # ContextBuilder: identity + session history
+      loop.js                # Core reasoning loop with tool execution
+      context.js             # Prompt assembly (identity + tools + skills + memory + history)
+      memory.js              # Memory manager (daily logs + MEMORY.md)
+      memory-extractor.js    # Extract <memory> tags from responses
     channels/
-      base.js            # BaseChannel: abstract, deny-by-default auth
-      telegram.js        # grammy integration, HTML formatting, chunking
+      base.js                # BaseChannel (deny-by-default auth)
+      telegram.js            # Telegram adapter (grammy)
+      http.js                # HTTP webhook channel (HMAC + /health)
     providers/
-      base.js            # BaseProvider: chat(messages, options) interface
-      claude-api.js      # Anthropic SDK direct (@anthropic-ai/sdk)
-      claude-cli.js      # Claude CLI subprocess wrapper
-      mock.js            # Deterministic test provider
+      base.js                # BaseProvider interface
+      claude-api.js          # Anthropic SDK direct
+      claude-cli.js          # Claude CLI subprocess wrapper
+      mock.js                # Deterministic test provider
     storage/
-      base.js            # BaseStorage interface
-      filesystem.js      # Append-only JSONL session files
+      base.js                # BaseStorage interface
+      filesystem.js          # JSONL sessions + markdown memory
+    tools/
+      base.js                # BaseTool interface
+      registry.js            # Tool registration and trigger matching
+      web-fetch.js           # URL fetching (10KB limit)
+      n8n.js                 # n8n workflow trigger
+      schedule.js            # Cron task management
+    skills/
+      loader.js              # Skill discovery and on-demand loading
+    scheduler/
+      scheduler.js           # Cron scheduler with JSON persistence
     format/
-      telegram.js        # Markdown → Telegram HTML converter
-  test/                  # Mirrors src/ structure, *.test.js naming
-  data/                  # Runtime data (gitignored)
-    sessions/            # Per-chat JSONL files ({channel}-{chatId}.jsonl)
-  config/                # Alternate .env files for multi-instance
-  identities/            # Alternate identity files for multi-agent
+      telegram.js            # Markdown-to-Telegram HTML
+  skills/                    # Skill plugins (user-extensible)
+    weather/                 # manifest.json + SKILL.md
+    daily-summary/           # manifest.json + SKILL.md
+  identities/
+    kenobot.md               # Bot personality (system prompt)
+  data/                      # Runtime data (gitignored)
+    sessions/                # Per-chat JSONL files
+    memory/                  # Daily logs + MEMORY.md
+    logs/                    # Structured JSONL logs
+    scheduler/               # Persistent task definitions
+  test/                      # Mirrors src/ structure
+  config/                    # Alternate .env files for multi-instance
+  docs/                      # Architecture, features, deployment guides
 ```
 
 ## Testing
@@ -165,11 +196,9 @@ Linear history (rebase, not merge). Branches: `main` (stable), `feature/*`, `fix
 
 ## Environment Variables
 
-See `.env.example`. Key vars: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_CHAT_IDS`, `PROVIDER` (mock/claude-cli/claude-api), `MODEL` (sonnet/opus/haiku), `ANTHROPIC_API_KEY`, `IDENTITY_FILE`, `DATA_DIR`.
+See `.env.example`. Key vars: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_CHAT_IDS`, `PROVIDER`, `MODEL`, `ANTHROPIC_API_KEY`, `IDENTITY_FILE`, `DATA_DIR`, `SKILLS_DIR`, `MEMORY_DAYS`, `MAX_TOOL_ITERATIONS`, `N8N_WEBHOOK_BASE`, `HTTP_ENABLED`, `HTTP_PORT`, `HTTP_HOST`, `WEBHOOK_SECRET`, `HTTP_TIMEOUT`.
 
 ## Key Technical Decisions
-
-For detailed architectural patterns and rationale, see `docs/PLAN.md`. Summary:
 
 | Pattern | Origin | Why |
 |---------|--------|-----|
@@ -179,9 +208,14 @@ For detailed architectural patterns and rationale, see `docs/PLAN.md`. Summary:
 | JSONL sessions | OpenClaw | Append-safe, git-friendly, streamable |
 | Deny-by-default auth | Inverted from Nanobot | `--dangerously-skip-permissions` demands restricted access |
 | Template Method channels | Nanobot | Permission checking inherited, channels are < 100 LOC |
+| On-demand skill loading | OpenClaw | Compact skill list in system prompt, full prompt only when triggered |
+| Tool trigger regex | Custom | Slash commands work with any provider, even claude-cli |
+| Max iterations safety valve | Nanobot | Prevents infinite tool loops (default: 20) |
 
 ## Known Gotchas
 
 - The `claude` CLI hangs when stdin is a pipe. The `claude-cli` provider uses `spawn()` with `stdio: ['ignore', 'pipe', 'pipe']` to avoid this.
 - `claude-cli` provider needs ~20s response time with sonnet model. Use `claude-api` for faster responses.
 - Non-root devcontainer: running as `node` user (uid=1000).
+- Skills use `manifest.json` + `SKILL.md` (not `skill.json` + `prompt.md` as originally planned).
+- Tool registry uses explicit registration (not auto-discovery) because tools need config injection.

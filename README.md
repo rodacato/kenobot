@@ -1,27 +1,27 @@
 # KenoBot
 
-Personal AI assistant powered by Claude, with a Star Wars personality.
+Personal AI assistant powered by Claude, built for a single user, extensible by design.
 
-## Status
+Telegram bot with memory, tools, skills, scheduling, and n8n integration — all running on a $4/month VPS.
 
-**Phase 2 (Memory System) complete** — Agent loop, context building, session persistence, and memory extraction all working.
+## Features
 
-### What's Working
-
-- Telegram bot with deny-by-default authentication
-- Event-driven message bus (EventEmitter)
-- Agent loop with per-chat session routing
-- Context builder: identity injection + conversation history (last 20 messages)
-- Memory system: daily logs + curated MEMORY.md + auto-extraction from responses
-- 3 interchangeable providers: `mock`, `claude-cli`, `claude-api`
-- Markdown-to-HTML formatter for Telegram (4000 char chunking)
-- Append-only JSONL session persistence (`data/sessions/`)
-- Structured JSONL logging (`data/logs/`)
-- Vitest test suite with 54% coverage
-
-### What's Next
-
-Phase 3+ (see [docs/PLAN.md](docs/PLAN.md)): n8n integration, tools, skills, scheduling, hardening.
+- **Telegram bot** with deny-by-default authentication
+- **3 LLM providers**: Claude API (Anthropic SDK), Claude CLI (subprocess wrapper), Mock (testing)
+- **Memory system**: daily logs + curated MEMORY.md + auto-extraction from `<memory>` tags
+- **Per-chat sessions**: isolated conversation history in append-only JSONL files
+- **Tool system**: registry with slash command triggers + LLM tool_use support
+  - `web_fetch` — fetch and extract text from URLs (`/fetch <url>`)
+  - `n8n_trigger` — trigger n8n workflows via webhook (`/n8n <workflow>`)
+  - `schedule` — cron-based task scheduling (`/schedule add|list|remove`)
+- **Skill plugins**: drop-in directories with `manifest.json` + `SKILL.md`, loaded on-demand
+- **n8n integration**: bidirectional webhooks (bot triggers workflows, workflows call bot)
+- **Cron scheduler**: persistent tasks that survive restarts
+- **HTTP webhook channel**: HMAC-SHA256 validated endpoint for external integrations
+- **Structured logging**: JSONL logs with daily rotation
+- **Health checks**: PID management, `bin/health` script, auto-recovery with throttling
+- **Multi-instance**: run multiple bots with different configs, providers, and identities
+- **Markdown formatter**: converts responses to Telegram HTML with 4000-char chunking
 
 ## Quick Start
 
@@ -30,130 +30,191 @@ Phase 3+ (see [docs/PLAN.md](docs/PLAN.md)): n8n integration, tools, skills, sch
 - Node.js 22+
 - Telegram bot token from [@BotFather](https://t.me/botfather)
 - Your chat ID from [@userinfobot](https://t.me/userinfobot)
-- (Optional) [Anthropic API key](https://console.anthropic.com/settings/keys) for `claude-api` provider
-- (Optional) [Claude Code CLI](https://claude.ai/download) for `claude-cli` provider
 
 ### Setup
 
 ```bash
+git clone https://github.com/rodacato/kenobot.git
+cd kenobot
 npm install
 cp .env.example .env
 # Edit .env with your credentials
 ```
 
-See [GETTING_STARTED.md](GETTING_STARTED.md) for a detailed step-by-step guide.
-
 ### Run
 
 ```bash
-npm start          # Start the bot
-npm run dev        # Start with --watch for auto-reload
-npm test           # Run tests
-npm run test:coverage  # Coverage report
+bin/start             # Start the bot (validates env, installs deps if needed)
+npm run dev           # Start with --watch for auto-reload
+npm test              # Run tests
+npm run test:coverage # Coverage report
 ```
+
+See [Getting Started](docs/getting-started.md) for a detailed step-by-step guide.
 
 ## Architecture
 
 ```
-Telegram → TelegramChannel → bus 'message:in' → AgentLoop → ContextBuilder → Provider.chat()
-                                                    ↓
-Telegram ← TelegramChannel ← bus 'message:out' ← AgentLoop (saves session, extracts memory)
+User → Telegram → TelegramChannel → bus 'message:in' → AgentLoop → ContextBuilder → Provider.chat()
+                                                            ↓
+User ← Telegram ← TelegramChannel ← bus 'message:out' ← AgentLoop (tool loop → memory extraction → session save)
 ```
+
+All components communicate via an EventEmitter message bus. Channels, providers, tools, and skills are pluggable — swap or extend without touching the core.
 
 **Bus events**: `message:in`, `message:out`, `thinking:start`, `error`
 
-**Key modules**:
-
-| Module | Purpose |
-|--------|---------|
-| [src/index.js](src/index.js) | Entry point, wires components |
-| [src/bus.js](src/bus.js) | Singleton EventEmitter message bus |
-| [src/agent/loop.js](src/agent/loop.js) | AgentLoop: message:in → provider → message:out |
-| [src/agent/context.js](src/agent/context.js) | ContextBuilder: identity + memory + session history |
-| [src/agent/memory.js](src/agent/memory.js) | MemoryManager: daily logs + MEMORY.md |
-| [src/agent/memory-extractor.js](src/agent/memory-extractor.js) | Extracts `<memory>` tags from responses |
-| [src/channels/telegram.js](src/channels/telegram.js) | grammy integration, HTML formatting, chunking |
-| [src/providers/claude-api.js](src/providers/claude-api.js) | Anthropic SDK direct |
-| [src/providers/claude-cli.js](src/providers/claude-cli.js) | Claude CLI subprocess wrapper |
-| [src/providers/mock.js](src/providers/mock.js) | Deterministic test provider |
-| [src/storage/filesystem.js](src/storage/filesystem.js) | Append-only JSONL session files |
-| [src/config.js](src/config.js) | Env-based config, supports `--config` flag |
-| [src/logger.js](src/logger.js) | Structured JSONL logger |
+See [Architecture](docs/architecture.md) for a deep dive.
 
 ## Configuration
 
-See [.env.example](.env.example) for all options. Key variables:
+All configuration via environment variables. Use `.env` or pass `--config path/to/file.env`.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `TELEGRAM_BOT_TOKEN` | Yes | Bot token from @BotFather |
-| `TELEGRAM_ALLOWED_CHAT_IDS` | Yes | Comma-separated allowed chat IDs |
-| `PROVIDER` | No | `mock` (default), `claude-cli`, or `claude-api` |
-| `MODEL` | No | `sonnet` (default), `opus`, or `haiku` |
-| `ANTHROPIC_API_KEY` | For claude-api | Anthropic API key |
-| `IDENTITY_FILE` | No | Path to identity file (default: `identities/kenobot.md`) |
-| `DATA_DIR` | No | Data directory (default: `./data`) |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TELEGRAM_BOT_TOKEN` | *required* | Bot token from @BotFather |
+| `TELEGRAM_ALLOWED_CHAT_IDS` | *required* | Comma-separated allowed chat IDs |
+| `PROVIDER` | `claude-cli` | `claude-api`, `claude-cli`, or `mock` |
+| `MODEL` | `sonnet` | `sonnet`, `opus`, or `haiku` |
+| `ANTHROPIC_API_KEY` | — | Required for `claude-api` provider |
+| `IDENTITY_FILE` | `identities/kenobot.md` | Path to bot personality file |
+| `DATA_DIR` | `./data` | Where sessions, memory, and logs are stored |
+| `SKILLS_DIR` | `./skills` | Directory for skill plugins |
+| `MEMORY_DAYS` | `3` | How many days of recent notes to include in context |
+| `MAX_TOOL_ITERATIONS` | `20` | Safety limit for tool execution loops |
+| `N8N_WEBHOOK_BASE` | — | Base URL for n8n webhooks (enables n8n tool) |
+| `HTTP_ENABLED` | `false` | Enable HTTP webhook channel |
+| `HTTP_PORT` | `3000` | HTTP server port |
+| `HTTP_HOST` | `127.0.0.1` | HTTP server bind address |
+| `WEBHOOK_SECRET` | — | HMAC secret for webhook validation |
+| `HTTP_TIMEOUT` | `60000` | Webhook response timeout (ms) |
 
-### Multi-instance
+See [Configuration Reference](docs/configuration.md) for details.
 
-Run multiple bot instances with different configs:
+## Providers
+
+| Provider | When to Use | Speed | Cost |
+|----------|------------|-------|------|
+| `claude-api` | Production, fastest responses | ~3s | Per-token (Anthropic billing) |
+| `claude-cli` | Using existing Claude CLI subscription | ~20s | CLI subscription |
+| `mock` | Testing, development | Instant | Free |
+
+Switch providers by changing `PROVIDER` in `.env`. The agent loop doesn't know or care which provider it's using.
+
+## Multi-Instance
+
+Run multiple bot instances with different identities, providers, and data:
 
 ```bash
-node src/index.js --config config/main.env
-node src/index.js --config config/designer.env
+node src/index.js --config config/main.env       # @kenobot_main (Claude, Opus)
+node src/index.js --config config/designer.env    # @kenobot_design (Gemini, Flash)
+node src/index.js --config config/quick.env       # @kenobot_quick (Claude, Haiku)
 ```
 
-## Tech Stack
-
-- **Runtime**: Node.js 22+, pure ESM, no build step
-- **Dependencies**: grammy, dotenv, @anthropic-ai/sdk
-- **Testing**: Vitest 4.x
-- **Style**: `.editorconfig` (2-space indent, UTF-8, LF), no TypeScript, no ESLint
+Each instance gets its own Telegram bot, identity file, data directory, and provider. Zero code changes needed.
 
 ## Project Structure
 
 ```
 kenobot/
+  bin/
+    start                    # Startup script (validates env, deps)
+    health                   # Health check (PID-based)
+    auto-recover             # Cron-based auto-restart with throttling
+    backup                   # Data backup with rotation (keeps last 30)
+    release                  # Changelog generation + git tag
   src/
-    index.js               # Entry point
-    bus.js                  # EventEmitter message bus
-    config.js               # Env-based configuration
-    logger.js               # Structured JSONL logger
+    index.js                 # Entry point, wires all components
+    bus.js                   # Singleton EventEmitter message bus
+    config.js                # Env-based config with --config flag
+    logger.js                # Structured JSONL logger
+    health.js                # PID management + health status
     agent/
-      loop.js               # Core reasoning loop
-      context.js            # Prompt assembly (identity + memory + history)
-      memory.js             # Memory manager (daily logs + MEMORY.md)
-      memory-extractor.js   # Extract <memory> tags from responses
+      loop.js                # Core: message:in → context → provider → tool loop → message:out
+      context.js             # Prompt assembly: identity + tools + skills + memory + history
+      memory.js              # Daily logs + MEMORY.md management
+      memory-extractor.js    # Extracts <memory> tags from responses
     channels/
-      base.js               # Channel interface (deny-by-default auth)
-      telegram.js           # Telegram adapter (grammy)
+      base.js                # BaseChannel: template method, deny-by-default auth
+      telegram.js            # grammy integration, HTML formatting, chunking
+      http.js                # Webhook endpoint with HMAC validation + /health
     providers/
-      base.js               # Provider interface
-      claude-api.js          # Anthropic SDK
-      claude-cli.js          # Claude CLI wrapper
-      mock.js               # Test provider
+      base.js                # BaseProvider: chat(messages, options) interface
+      claude-api.js          # Anthropic SDK direct
+      claude-cli.js          # Claude CLI subprocess wrapper
+      mock.js                # Deterministic test provider
     storage/
-      base.js               # Storage interface
-      filesystem.js         # JSONL session files
+      base.js                # BaseStorage interface
+      filesystem.js          # Append-only JSONL sessions + markdown memory
+    tools/
+      base.js                # BaseTool: definition + execute + optional trigger
+      registry.js            # Tool registration and trigger matching
+      web-fetch.js           # Fetch URLs, extract text (10KB limit)
+      n8n.js                 # Trigger n8n workflows via webhook
+      schedule.js            # Cron task management (add/list/remove)
+    skills/
+      loader.js              # Discover skills from directory, on-demand prompt loading
+    scheduler/
+      scheduler.js           # Cron jobs with persistence (data/scheduler/tasks.json)
     format/
-      telegram.js           # Markdown → Telegram HTML
-  test/                     # Mirrors src/ structure
+      telegram.js            # Markdown-to-Telegram HTML converter
+  skills/                    # Skill plugins (each is a directory)
+    weather/                 # Example: weather skill
+      manifest.json          # { name, description, triggers[] }
+      SKILL.md               # Agent instructions (loaded on-demand)
+    daily-summary/           # Example: daily summary skill
   identities/
-    kenobot.md              # Bot personality (system prompt)
-  data/                     # Runtime data (gitignored)
-    sessions/               # Per-chat JSONL files
-    memory/                 # Daily logs + MEMORY.md
-    logs/                   # Structured JSONL logs
-  docs/
-    PLAN.md                 # Full roadmap with patterns and phases
-    research/               # Analysis of related projects
-  config/                   # Alternate .env files for multi-instance
+    kenobot.md               # Bot personality (system prompt)
+  data/                      # Runtime data (gitignored)
+    sessions/                # Per-chat JSONL files
+    memory/                  # Daily logs + MEMORY.md
+    logs/                    # Structured JSONL logs
+    scheduler/               # Persistent task definitions
+  config/                    # Alternate .env files for multi-instance
+  docs/                      # Documentation
+  test/                      # Test suite (mirrors src/ structure)
 ```
+
+## Documentation
+
+- [Architecture](docs/architecture.md) — How the system works internally
+- [Configuration](docs/configuration.md) — Complete environment variable reference
+- [Deployment](docs/deployment.md) — VPS setup, systemd, auto-recovery, backups
+- [Getting Started](docs/getting-started.md) — Step-by-step first-time setup
+- [Security](SECURITY.md) — Security model, best practices, deployment checklist
+
+### Feature Guides
+
+- [Providers](docs/features/providers.md) — LLM provider configuration and switching
+- [Channels](docs/features/channels.md) — Telegram, HTTP webhooks, adding new channels
+- [Memory](docs/features/memory.md) — Daily logs, MEMORY.md, auto-extraction
+- [Tools](docs/features/tools.md) — Built-in tools, slash commands, creating custom tools
+- [Skills](docs/features/skills.md) — Plugin system with on-demand prompt loading
+- [Scheduler](docs/features/scheduler.md) — Cron-based task scheduling
+- [n8n Integration](docs/features/n8n.md) — Bidirectional webhook integration
+- [Multi-Instance](docs/features/multi-instance.md) — Running multiple bots
+- [Logging](docs/features/logging.md) — Structured JSONL logging
+- [Health & Recovery](docs/features/health.md) — Health checks, auto-recovery, backups
+
+## Tech Stack
+
+- **Runtime**: Node.js 22+, pure ESM, no build step
+- **Runtime deps**: grammy, dotenv, @anthropic-ai/sdk, node-cron
+- **Testing**: Vitest 4.x
+- **Style**: `.editorconfig` (2-space indent, UTF-8, LF)
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Conventional commits enforced via git hooks. Linear history (rebase, not merge).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for commit conventions, testing guidelines, and branching strategy.
+
+## Acknowledgments
+
+KenoBot's architecture draws inspiration from:
+
+- [Claudio](https://github.com/edgarjs/claudio) — CLI wrapping pattern, context injection via prompt
+- [Nanobot](https://github.com/HKUDS/nanobot) — Message bus architecture, template method channels, markdown memory
+- [OpenClaw](https://github.com/openclaw/openclaw) — JSONL sessions, on-demand skill loading, context management
 
 ## License
 
-MIT
+[MIT](LICENSE)

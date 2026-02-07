@@ -26,7 +26,7 @@ and this project uses [CalVer](https://calver.org/) versioning: `YYYY.MM.patch`.
 - Vitest test suite with 54% coverage (11 test files)
 - Multi-instance support via `--config` flag
 - Research documents analyzing OpenClaw, Claudio, and Nanobot architectures
-- Full implementation plan with 7-phase roadmap (`docs/PLAN.md`)
+- Full implementation plan with 7-phase roadmap
 - Project infrastructure: .editorconfig, git hooks, .env.example
 - Contributing guidelines with conventional commits and CalVer versioning
 - Getting started guide with step-by-step Telegram setup
