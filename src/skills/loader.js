@@ -75,6 +75,35 @@ export default class SkillLoader {
   }
 
   /**
+   * Load a single skill by name from a specific directory.
+   * Used for hot-reloading after approval.
+   * @param {string} name - Skill directory name
+   * @param {string} skillsDir - Directory containing the skill
+   */
+  async loadOne(name, skillsDir) {
+    const metaPath = join(skillsDir, name, 'manifest.json')
+    const raw = await readFile(metaPath, 'utf8')
+    const meta = JSON.parse(raw)
+
+    if (!meta.name || !meta.description || !Array.isArray(meta.triggers)) {
+      throw new Error(`Invalid skill manifest: missing name, description, or triggers`)
+    }
+
+    const escaped = meta.triggers.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    const triggerRegex = new RegExp(`\\b(${escaped.join('|')})\\b`, 'i')
+
+    this.skills.set(meta.name, {
+      name: meta.name,
+      description: meta.description,
+      triggers: meta.triggers,
+      triggerRegex,
+      skillMdPath: join(skillsDir, name, 'SKILL.md')
+    })
+
+    logger.info('skills', 'skill_hot_loaded', { name: meta.name, triggers: meta.triggers.length })
+  }
+
+  /**
    * Get compact list for system prompt injection.
    * @returns {{ name: string, description: string }[]}
    */

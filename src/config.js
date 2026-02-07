@@ -51,10 +51,16 @@ export default {
   // Tools
   maxToolIterations: parseInt(process.env.MAX_TOOL_ITERATIONS || '20', 10),
 
-  // n8n (for n8n_trigger tool)
+  // n8n
   n8n: {
-    webhookBase: process.env.N8N_WEBHOOK_BASE || ''
+    webhookBase: process.env.N8N_WEBHOOK_BASE || '',
+    apiUrl: process.env.N8N_API_URL || '',
+    apiKey: process.env.N8N_API_KEY || ''
   },
+
+  // Self-improvement
+  selfImprovementEnabled: process.env.SELF_IMPROVEMENT_ENABLED === 'true',
+  approvalRequired: process.env.APPROVAL_REQUIRED !== 'false',
 
   // Workspace & GitHub
   workspaceDir: process.env.WORKSPACE_DIR || '',

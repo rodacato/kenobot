@@ -23,6 +23,8 @@ import Watchdog from './watchdog.js'
 import DiagnosticsTool from './tools/diagnostics.js'
 import WorkspaceTool from './tools/workspace.js'
 import GitHubTool from './tools/github.js'
+import ApprovalTool from './tools/approval.js'
+import N8nManageTool from './tools/n8n-manage.js'
 import { initWorkspace } from './workspace.js'
 import { writePid, removePid } from './health.js'
 
@@ -106,6 +108,18 @@ bus.on('health:recovered', ({ previous }) => {
   }
 })
 
+// Approval events → notify owner
+bus.on('approval:proposed', ({ id, type, name }) => {
+  const ownerChat = config.telegram.allowedChatIds[0]
+  if (ownerChat) {
+    bus.emit('message:out', {
+      chatId: ownerChat,
+      text: `New proposal: [${type}] ${name} (ID: ${id})\nUse /approve ${id} or /reject ${id}`,
+      channel: 'telegram'
+    })
+  }
+})
+
 // Initialize scheduler (loadTasks is async, called in start())
 const scheduler = new Scheduler(bus, config.dataDir)
 
@@ -121,6 +135,9 @@ if (config.workspaceDir) {
 if (config.n8n.webhookBase) {
   toolRegistry.register(new N8nTriggerTool(config.n8n))
 }
+if (config.n8n.apiUrl && config.n8n.apiKey) {
+  toolRegistry.register(new N8nManageTool(config.n8n))
+}
 for (const def of toolRegistry.getDefinitions()) {
   const tool = toolRegistry.tools.get(def.name)
   const trigger = tool.trigger ? String(tool.trigger) : 'none'
@@ -134,6 +151,11 @@ const memory = new MemoryManager(config.dataDir)
 
 // Initialize skill loader (loadAll is async, called in start())
 const skillLoader = new SkillLoader(config.skillsDir)
+
+// Register approval tool (needs skillLoader)
+if (config.workspaceDir && config.selfImprovementEnabled) {
+  toolRegistry.register(new ApprovalTool(config.workspaceDir, bus, { skillLoader }))
+}
 
 const contextBuilder = new ContextBuilder(config, storage, memory, toolRegistry, skillLoader)
 const agent = new AgentLoop(bus, provider, contextBuilder, storage, memory, toolRegistry)

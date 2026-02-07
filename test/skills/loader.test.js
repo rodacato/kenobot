@@ -307,6 +307,63 @@ describe('SkillLoader', () => {
     })
   })
 
+  describe('loadOne', () => {
+    it('should hot-load a single skill', async () => {
+      await createSkill('weather', {
+        name: 'weather',
+        description: 'Get weather',
+        triggers: ['weather']
+      })
+
+      await loader.loadOne('weather', tmpDir)
+
+      expect(loader.size).toBe(1)
+      const all = loader.getAll()
+      expect(all[0].name).toBe('weather')
+      expect(logger.info).toHaveBeenCalledWith('skills', 'skill_hot_loaded', {
+        name: 'weather',
+        triggers: 1
+      })
+    })
+
+    it('should overwrite existing skill on hot-load', async () => {
+      await createSkill('weather', {
+        name: 'weather',
+        description: 'Get weather v1',
+        triggers: ['weather']
+      })
+
+      await loader.loadOne('weather', tmpDir)
+      expect(loader.getAll()[0].description).toBe('Get weather v1')
+
+      // Update skill
+      await writeFile(join(tmpDir, 'weather', 'manifest.json'), JSON.stringify({
+        name: 'weather',
+        description: 'Get weather v2',
+        triggers: ['weather', 'clima']
+      }))
+
+      await loader.loadOne('weather', tmpDir)
+      expect(loader.size).toBe(1)
+      expect(loader.getAll()[0].description).toBe('Get weather v2')
+    })
+
+    it('should throw on invalid manifest', async () => {
+      const dir = join(tmpDir, 'bad')
+      await mkdir(dir, { recursive: true })
+      await writeFile(join(dir, 'manifest.json'), JSON.stringify({
+        name: 'bad',
+        description: 'Missing triggers'
+      }))
+
+      await expect(loader.loadOne('bad', tmpDir)).rejects.toThrow('Invalid skill manifest')
+    })
+
+    it('should throw on missing manifest', async () => {
+      await expect(loader.loadOne('nonexistent', tmpDir)).rejects.toThrow()
+    })
+  })
+
   describe('trigger regex edge cases', () => {
     it('should escape regex special characters in triggers without crashing', async () => {
       await createSkill('special', {
