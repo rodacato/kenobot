@@ -87,6 +87,9 @@ export default {
   selfImprovementEnabled: process.env.SELF_IMPROVEMENT_ENABLED === 'true',
   approvalRequired: process.env.APPROVAL_REQUIRED !== 'false',
 
+  // Config backup (git sync)
+  configRepo: process.env.CONFIG_REPO || '',
+
   // Workspace & GitHub
   workspaceDir: process.env.WORKSPACE_DIR || '',
   sshKeyPath: process.env.KENOBOT_SSH_KEY || join(homedir(), '.ssh', 'kenobot_ed25519'),

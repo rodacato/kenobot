@@ -76,6 +76,25 @@ The HTTP channel is opt-in. When enabled, it starts a server with two endpoints:
 | `WEBHOOK_SECRET` | string | — | When `HTTP_ENABLED=true` | HMAC-SHA256 secret for webhook signature validation. Generate with: `openssl rand -hex 32` |
 | `HTTP_TIMEOUT` | integer | `60000` | No | Timeout in milliseconds for webhook responses |
 
+## Config Backup (Git Sync)
+
+When `CONFIG_REPO` is set, KenoBot automatically commits and pushes config changes (identities, skills, memory) to a private git repository. Changes are debounced — multiple writes within 30 seconds are batched into a single commit. Sync failures are logged but never crash the bot.
+
+| Variable | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `CONFIG_REPO` | string | — | No | Git remote URL for config backup (e.g. `git@github.com:user/kenobot-config.git`). When empty, config sync is disabled. |
+
+Setup:
+```bash
+# 1. Create a private repo on GitHub (or similar)
+# 2. Set the env var
+CONFIG_REPO=git@github.com:youruser/kenobot-config.git
+
+# 3. Ensure SSH key is available (uses KENOBOT_SSH_KEY or ~/.ssh/kenobot_ed25519)
+```
+
+Synced files include identities, skills, and memory. Runtime data (sessions, logs, scheduler) and secrets (`.env` files) are excluded via `.gitignore`.
+
 ## Environment Variable: KENOBOT_HOME
 
 The `KENOBOT_HOME` environment variable overrides the default user home directory (`~/.kenobot`). Useful for isolated development or testing:
@@ -111,6 +130,9 @@ ANTHROPIC_API_KEY=sk-ant-api03-...
 # HTTP_HOST=127.0.0.1
 # WEBHOOK_SECRET=your-secret-here
 # HTTP_TIMEOUT=60000
+
+# Config backup (optional)
+# CONFIG_REPO=git@github.com:youruser/kenobot-config.git
 ```
 
 ## Multi-Instance

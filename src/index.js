@@ -26,9 +26,11 @@ import WorkspaceTool from './tools/workspace.js'
 import GitHubTool from './tools/github.js'
 import ApprovalTool from './tools/approval.js'
 import N8nManageTool from './tools/n8n-manage.js'
+import ConfigSync from './config-sync.js'
 import { initWorkspace } from './workspace.js'
 import { writePid, removePid } from './health.js'
 import { setupNotifications } from './notifications.js'
+import paths from './paths.js'
 
 // Configure logger with data directory for JSONL file output
 logger.configure({ dataDir: config.dataDir })
@@ -103,6 +105,20 @@ if (config.n8n.apiUrl) {
 
 // Route health + approval events to owner's Telegram
 setupNotifications(bus, config)
+
+// Initialize config-sync (no-ops if CONFIG_REPO is not set)
+const configSync = new ConfigSync(paths.home, {
+  repoUrl: config.configRepo,
+  sshKeyPath: config.sshKeyPath
+})
+
+bus.on('config:changed', ({ reason }) => {
+  configSync.schedule(reason)
+})
+
+bus.on('approval:approved', () => {
+  configSync.schedule('approval activated')
+})
 
 // Initialize scheduler (loadTasks is async, called in start())
 const scheduler = new Scheduler(bus, config.dataDir)
@@ -188,6 +204,8 @@ async function shutdown(signal) {
   watchdog.stop()
   scheduler.stop()
   agent.stop()
+  await configSync.flush()
+  configSync.stop()
   await Promise.all(channels.map(ch => ch.stop()))
   process.exit(0)
 }
@@ -210,6 +228,8 @@ async function start() {
 
   await scheduler.loadTasks()
   logger.info('system', 'scheduler_loaded', { tasks: scheduler.size })
+
+  await configSync.init()
 
   await agent.start()
   await Promise.all(channels.map(ch => ch.start()))

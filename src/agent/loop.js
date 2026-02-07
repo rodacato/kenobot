@@ -188,11 +188,13 @@ export default class AgentLoop {
         for (const entry of memories) {
           await this.memory.appendDaily(entry)
         }
+        this.bus.emit('config:changed', { reason: 'memory update' })
       }
 
       // Save user preferences to USER.md
       if (userUpdates.length > 0 && this.contextBuilder.identityLoader) {
         await this.contextBuilder.identityLoader.appendUser(userUpdates)
+        this.bus.emit('config:changed', { reason: 'user preferences update' })
       }
 
       // Save both messages to session history (clean text without tags)
