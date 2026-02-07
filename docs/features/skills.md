@@ -58,14 +58,14 @@ Keep it brief. People just want the basics.
 
 ## How It Works
 
-1. **Startup**: `SkillLoader` scans the skills directory (`~/.kenobot/config/skills/`), reads all `manifest.json` files
+1. **Startup**: `SkillLoader.loadAll()` scans the skills directory, reads all `manifest.json` files, compiles trigger regexes
 2. **System prompt**: A compact skill list is injected:
    ```
    ## Available skills
    - weather: Get weather forecasts and current conditions
    - daily-summary: Generate a summary of your day
    ```
-3. **Trigger matching**: When a message contains a trigger word (e.g., "weather"), the full `SKILL.md` is loaded and injected:
+3. **Trigger matching**: When a message contains a trigger word (e.g., "weather"), `SkillLoader.match(text)` returns the matching skill. The full `SKILL.md` is loaded via `getPrompt()` and injected:
    ```
    ## Active skill: weather
    [Full SKILL.md content]
@@ -74,10 +74,47 @@ Keep it brief. People just want the basics.
 
 This keeps context small: 100 skills = ~5KB in system prompt (just names + descriptions). Full prompts loaded only when needed.
 
+## SkillLoader Lifecycle
+
+```
+SkillLoader
+  constructor(skillsDir)
+  loadAll()      — scan directory, read manifests, compile triggers
+  loadOne(name, dir)  — hot-load a single skill (used after approval)
+  match(text)    — match message against trigger regexes
+  getPrompt(name) — load SKILL.md on-demand
+  getAll()       — compact list for system prompt
+  size           — number of loaded skills
+```
+
+Unlike tools, skills don't need a registry or dependency injection — they are pure data (manifest + prompt text) with no code to execute. The agent uses them as context, not as callable functions.
+
+## Hot-loading
+
+Skills can be added at runtime without restarting the bot. The `approval` tool calls `SkillLoader.loadOne(name, dir)` when a proposed skill is approved. This:
+
+1. Reads the new skill's `manifest.json`
+2. Compiles its trigger regex
+3. Adds it to the in-memory skill map
+4. The skill is immediately available for trigger matching
+
+## Self-Improvement Flow
+
+When `SELF_IMPROVEMENT=true`, the bot can propose new skills via the `approval` tool:
+
+1. **Bot proposes**: The LLM creates a `manifest.json` + `SKILL.md` and submits via `approval propose`
+2. **Proposal stored**: Files are written to a pending proposals directory in the workspace
+3. **Owner notified**: A notification is sent to the owner's Telegram chat
+4. **Owner reviews**: `/pending` lists proposals, `/review <id>` shows details
+5. **Owner decides**: `/approve <id>` or `/reject <id> "reason"`
+6. **On approval**: Files are copied to the skills directory and hot-loaded via `loadOne()`
+7. **Config sync**: If `CONFIG_REPO` is set, the new skill is auto-committed and pushed
+
 ## Configuration
 
 ```bash
 SKILLS_DIR=~/.kenobot/config/skills  # Directory to scan for skill plugins (default)
+SELF_IMPROVEMENT=true                # Enable bot-proposed skills (requires WORKSPACE_DIR)
 ```
 
 ## Creating a Custom Skill
@@ -87,7 +124,7 @@ SKILLS_DIR=~/.kenobot/config/skills  # Directory to scan for skill plugins (defa
    mkdir -p ~/.kenobot/config/skills/blog-writer
    ```
 
-2. Create `~/.kenobot/config/skills/blog-writer/manifest.json`:
+2. Create `manifest.json`:
    ```json
    {
      "name": "blog-writer",
@@ -96,7 +133,7 @@ SKILLS_DIR=~/.kenobot/config/skills  # Directory to scan for skill plugins (defa
    }
    ```
 
-3. Create `~/.kenobot/config/skills/blog-writer/SKILL.md`:
+3. Create `SKILL.md`:
    ```markdown
    ## Blog Writer Skill
 
@@ -112,7 +149,7 @@ SKILLS_DIR=~/.kenobot/config/skills  # Directory to scan for skill plugins (defa
    5. Use a conversational, technical tone
    ```
 
-4. Restart the bot — the skill is auto-discovered. Check logs for:
+4. Restart the bot (or let it hot-load via approval). The skill is auto-discovered. Check logs for:
    ```
    [info] skills: skill_loaded { name: "blog-writer", triggers: 4 }
    ```
@@ -133,7 +170,8 @@ Generates a summary of recent activity using memory and conversation context.
 
 ## Source
 
-- [src/skills/loader.js](../../src/skills/loader.js) — Discovery and loading
+- [src/skills/loader.js](../../src/skills/loader.js) — Discovery, loading, and matching
 - [src/agent/context.js](../../src/agent/context.js) — System prompt injection
 - [templates/skills/weather/](../../templates/skills/weather/) — Default skill template
+- [templates/skills/daily-summary/](../../templates/skills/daily-summary/) — Default skill template
 - [test/skills/](../../test/skills/) — Tests
