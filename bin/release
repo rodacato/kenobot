@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Release script: collects [changelog] entries from commits, updates CHANGELOG.md, commits, and tags.
-# Usage: bin/release 2026.02.0
+# Usage: bin/release 0.1.0
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -31,14 +31,14 @@ version="${1:-}"
 
 if [ -z "$version" ]; then
   echo "Usage: bin/release <version>"
-  echo "  Version format: YYYY.MM.patch (CalVer)"
-  echo "  Example: bin/release 2026.02.0"
+  echo "  Version format: X.Y.Z (semver) or YYYY.MM.patch (CalVer)"
+  echo "  Example: bin/release 0.1.0"
   exit 1
 fi
 
-# Validate CalVer format
-if ! echo "$version" | grep -qE "^[0-9]{4}\.[0-9]{2}\.[0-9]+$"; then
-  die "Invalid version format: $version (expected YYYY.MM.patch, e.g. 2026.02.0)"
+# Validate version format (semver or CalVer)
+if ! echo "$version" | grep -qE "^[0-9]+\.[0-9]+\.[0-9]+$"; then
+  die "Invalid version format: $version (expected X.Y.Z, e.g. 0.1.0 or 2026.02.0)"
 fi
 
 # Check we're in repo root
@@ -70,7 +70,12 @@ fi
 
 # --- Parse commits for [changelog] entries ---
 
-declare -a added changed deprecated removed fixed security
+added=()
+changed=()
+deprecated=()
+removed=()
+fixed=()
+security=()
 
 while IFS= read -r commit_hash; do
   msg=$(git log --format="%B" -1 "$commit_hash")

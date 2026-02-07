@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project uses [CalVer](https://calver.org/) versioning: `YYYY.MM.patch`.
+and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
@@ -28,7 +28,7 @@ and this project uses [CalVer](https://calver.org/) versioning: `YYYY.MM.patch`.
 - Research documents analyzing OpenClaw, Claudio, and Nanobot architectures
 - Full implementation plan with 7-phase roadmap
 - Project infrastructure: .editorconfig, git hooks, .env.example
-- Contributing guidelines with conventional commits and CalVer versioning
+- Contributing guidelines with conventional commits
 - Getting started guide with step-by-step Telegram setup
 
 ### Fixed

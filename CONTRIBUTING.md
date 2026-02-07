@@ -81,12 +81,12 @@ The `commit-msg` hook validates the format if the section is present.
 
 ## Versioning
 
-CalVer: `YYYY.MM.patch` (e.g., `2026.02.0`, `2026.02.1`)
+Semver: `MAJOR.MINOR.PATCH` (e.g., `0.1.0`, `0.2.0`, `1.0.0`)
 
-- Year and month reflect when the release was made
-- Patch increments for multiple releases in the same month
-- No backwards compatibility promises — this is a personal tool
-- Tag releases: `git tag v2026.02.0`
+- MAJOR: breaking changes
+- MINOR: new features (backwards-compatible)
+- PATCH: bug fixes
+- Tag releases: `git tag v0.1.0`
 
 ### Changelog
 
