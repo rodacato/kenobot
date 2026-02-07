@@ -1,5 +1,6 @@
 import logger from '../logger.js'
 import { extractMemories } from './memory-extractor.js'
+import { extractUserUpdates } from './user-extractor.js'
 
 /**
  * AgentLoop - Core message handler with session persistence
@@ -7,7 +8,7 @@ import { extractMemories } from './memory-extractor.js'
  * Replaces the inline handler in index.js with proper context building,
  * session routing, and history persistence.
  *
- * Flow: message:in → build context → provider.chat → [tool loop] → extract memories → save session → message:out
+ * Flow: message:in → build context → provider.chat → [tool loop] → extract memories → extract user prefs → save session → message:out
  */
 export default class AgentLoop {
   constructor(bus, provider, contextBuilder, storage, memoryManager, toolRegistry) {
@@ -167,13 +168,17 @@ export default class AgentLoop {
       const durationMs = Date.now() - start
 
       // Extract memory tags from response
-      const { cleanText, memories } = extractMemories(response.content)
+      const { cleanText: afterMemory, memories } = extractMemories(response.content)
+
+      // Extract user preference tags
+      const { cleanText, updates: userUpdates } = extractUserUpdates(afterMemory)
 
       logger.info('agent', 'response_generated', {
         sessionId,
         durationMs,
         contentLength: cleanText.length,
         memoriesExtracted: memories.length,
+        userUpdates: userUpdates.length,
         toolIterations: iterations,
         activeSkill: activeSkill || null
       })
@@ -185,7 +190,12 @@ export default class AgentLoop {
         }
       }
 
-      // Save both messages to session history (clean text without memory tags)
+      // Save user preferences to USER.md
+      if (userUpdates.length > 0 && this.contextBuilder.identityLoader) {
+        await this.contextBuilder.identityLoader.appendUser(userUpdates)
+      }
+
+      // Save both messages to session history (clean text without tags)
       const now = Date.now()
       await this.storage.saveSession(sessionId, [
         { role: 'user', content: message.text, timestamp: now - 1 },

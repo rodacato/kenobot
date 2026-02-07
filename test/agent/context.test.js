@@ -399,4 +399,98 @@ describe('ContextBuilder', () => {
       expect(skillsIdx).toBeGreaterThan(toolsIdx)
     })
   })
+
+  describe('build with identityLoader', () => {
+    let mockIdentityLoader
+
+    beforeEach(() => {
+      mockIdentityLoader = {
+        load: vi.fn(),
+        getSoul: vi.fn().mockReturnValue('# Soul\nI am friendly.'),
+        getIdentity: vi.fn().mockReturnValue('# Identity\nExpert in Node.js.'),
+        getUser: vi.fn().mockResolvedValue(''),
+        appendUser: vi.fn(),
+        reload: vi.fn()
+      }
+
+      context = new ContextBuilder(
+        { identityFile: 'identities/kenobot' },
+        mockStorage,
+        null,
+        null,
+        null,
+        mockIdentityLoader
+      )
+
+      vi.clearAllMocks()
+    })
+
+    it('should use identityLoader for system prompt', async () => {
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).toContain('# Soul')
+      expect(result.system).toContain('I am friendly.')
+      expect(result.system).toContain('# Identity')
+      expect(result.system).toContain('Expert in Node.js.')
+    })
+
+    it('should include user profile when USER.md has content', async () => {
+      mockIdentityLoader.getUser.mockResolvedValue('# User\n- Name: Carlos')
+
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).toContain('## User Profile')
+      expect(result.system).toContain('Name: Carlos')
+      expect(result.system).toContain('<user>')
+      expect(result.system).toContain('How to update user preferences')
+    })
+
+    it('should not include user profile section when USER.md is empty', async () => {
+      mockIdentityLoader.getUser.mockResolvedValue('')
+
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).not.toContain('## User Profile')
+    })
+
+    it('should delegate loadIdentity to identityLoader', async () => {
+      await context.loadIdentity()
+
+      expect(mockIdentityLoader.load).toHaveBeenCalled()
+      expect(mockStorage.readFile).not.toHaveBeenCalled()
+    })
+
+    it('should not use legacy _identity when identityLoader is present', async () => {
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(context._identity).toBeNull()
+      expect(result.system).toContain('# Soul')
+    })
+
+    it('should place user profile before tools and skills', async () => {
+      const mockToolRegistry = {
+        size: 1,
+        getDefinitions: vi.fn().mockReturnValue([
+          { name: 'web_fetch', description: 'Fetch a URL' }
+        ])
+      }
+      mockIdentityLoader.getUser.mockResolvedValue('# User\n- Name: Carlos')
+
+      const ctx = new ContextBuilder(
+        { identityFile: 'identities/kenobot' },
+        mockStorage,
+        null,
+        mockToolRegistry,
+        null,
+        mockIdentityLoader
+      )
+
+      const result = await ctx.build('telegram-123', { text: 'hello' })
+
+      const userIdx = result.system.indexOf('## User Profile')
+      const toolsIdx = result.system.indexOf('## Available tools')
+      expect(userIdx).toBeGreaterThan(-1)
+      expect(toolsIdx).toBeGreaterThan(userIdx)
+    })
+  })
 })

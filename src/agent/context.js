@@ -10,26 +10,33 @@ import logger from '../logger.js'
  *   - mock: ignores system, pattern-matches last message
  *
  * System prompt structure:
- *   [IDENTITY.md] + [Available tools] + [Memory instructions + MEMORY.md + recent daily logs]
+ *   [SOUL.md] + [IDENTITY.md] + [User Profile] + [Available tools] + [Available skills] + [Memory]
  */
 export default class ContextBuilder {
-  constructor(config, storage, memoryManager, toolRegistry, skillLoader) {
+  constructor(config, storage, memoryManager, toolRegistry, skillLoader, identityLoader) {
     this.config = config
     this.storage = storage
     this.memory = memoryManager || null
     this.toolRegistry = toolRegistry || null
     this.skillLoader = skillLoader || null
+    this.identityLoader = identityLoader || null
     this._identity = null
   }
 
   /**
-   * Load identity from file and cache it.
+   * Load identity files and cache them.
    * Called once at startup by AgentLoop.
    */
   async loadIdentity() {
-    const identityFile = this.config.identityFile || 'identities/kenobot.md'
-    this._identity = await this.storage.readFile(identityFile)
-    logger.info('context', 'identity_loaded', { file: identityFile, length: this._identity.length })
+    if (this.identityLoader) {
+      await this.identityLoader.load()
+      logger.info('context', 'identity_loaded', { loader: true })
+    } else {
+      // Legacy path: no IdentityLoader, read single file via storage
+      const identityFile = this.config.identityFile || 'identities/kenobot.md'
+      this._identity = await this.storage.readFile(identityFile)
+      logger.info('context', 'identity_loaded', { file: identityFile, length: this._identity.length })
+    }
   }
 
   /**
@@ -40,7 +47,11 @@ export default class ContextBuilder {
    */
   async build(sessionId, message) {
     // Ensure identity is loaded
-    if (!this._identity) {
+    if (this.identityLoader) {
+      if (!this.identityLoader.getSoul()) {
+        await this.loadIdentity()
+      }
+    } else if (!this._identity) {
       await this.loadIdentity()
     }
 
@@ -65,8 +76,37 @@ export default class ContextBuilder {
    * @private
    */
   async _buildSystemPrompt(messageText = '') {
-    const parts = [this._identity]
+    const parts = []
     let activeSkill = null
+
+    // Identity: IdentityLoader (modular) or legacy single file
+    if (this.identityLoader) {
+      const soul = this.identityLoader.getSoul()
+      if (soul) parts.push(soul)
+
+      const identity = this.identityLoader.getIdentity()
+      if (identity) parts.push('\n---\n\n' + identity)
+
+      const user = await this.identityLoader.getUser()
+      if (user) {
+        const userSection = [
+          '\n---\n',
+          '## User Profile\n',
+          user + '\n',
+          '### How to update user preferences',
+          'When you learn a user preference or profile fact, include it in your response:\n',
+          '<user>Preference category: detail</user>\n',
+          'Rules:',
+          '- Only save genuine user preferences and profile information',
+          '- Be concise: one line per preference',
+          '- Don\'t duplicate existing preferences',
+          '- Use this for communication preferences, timezone, name, recurring patterns\n'
+        ]
+        parts.push(userSection.join('\n'))
+      }
+    } else {
+      parts.push(this._identity)
+    }
 
     // Inject available tool names so the agent knows what it can do
     if (this.toolRegistry?.size > 0) {
@@ -104,7 +144,7 @@ export default class ContextBuilder {
         '## Memory\n',
         'You have persistent memory across conversations. Use it wisely.\n',
         '### How to remember things',
-        'When you learn something worth remembering (user preferences, important facts, project context, decisions made), include it in your response:\n',
+        'When you learn something worth remembering (important facts, project context, decisions made), include it in your response:\n',
         '<memory>Short title: fact to remember</memory>\n',
         'Rules:',
         '- Only save things that matter across conversations',

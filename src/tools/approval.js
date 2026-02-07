@@ -28,21 +28,23 @@ export default class ApprovalTool extends BaseTool {
    * @param {Function} callbacks.onApproved - Called when a proposal is approved
    * @param {Function} callbacks.onRejected - Called when a proposal is rejected
    * @param {Function} callbacks.activateSkill - Called to hot-reload a skill after approval
+   * @param {Function} callbacks.reloadIdentity - Called to reload identity after soul/identity approval
    */
-  constructor(workspaceDir, { onProposed, onApproved, onRejected, activateSkill } = {}) {
+  constructor(workspaceDir, { onProposed, onApproved, onRejected, activateSkill, reloadIdentity } = {}) {
     super()
     this.workspaceDir = workspaceDir
     this._onProposed = onProposed || (() => {})
     this._onApproved = onApproved || (() => {})
     this._onRejected = onRejected || (() => {})
     this._onSkillActivated = activateSkill || (() => {})
+    this._onReloadIdentity = reloadIdentity || (() => {})
     this.queueFile = join(workspaceDir, 'staging', 'approvals.json')
   }
 
   get definition() {
     return {
       name: 'approval',
-      description: 'Propose changes for owner approval. Propose new skills, workflows, or identity changes. Owner approves via /approve, /reject, /pending, /review.',
+      description: 'Propose changes for owner approval. Propose new skills, workflows, soul, or identity changes. Owner approves via /approve, /reject, /pending, /review.',
       input_schema: {
         type: 'object',
         properties: {
@@ -53,7 +55,7 @@ export default class ApprovalTool extends BaseTool {
           },
           type: {
             type: 'string',
-            enum: ['skill', 'workflow', 'identity'],
+            enum: ['skill', 'workflow', 'identity', 'soul'],
             description: 'Type of proposal (required for propose)'
           },
           name: {
@@ -154,11 +156,13 @@ export default class ApprovalTool extends BaseTool {
     try {
       const resolved = safePath(this.workspaceDir, join('staging', `${item.type}s`, item.name))
       // Read manifest or main file
-      const files = item.type === 'skill'
-        ? ['manifest.json', 'SKILL.md']
-        : item.type === 'workflow'
-          ? ['workflow.json']
-          : ['IDENTITY.md']
+      const fileMap = {
+        skill: ['manifest.json', 'SKILL.md'],
+        workflow: ['workflow.json'],
+        identity: ['IDENTITY.md'],
+        soul: ['SOUL.md']
+      }
+      const files = fileMap[item.type] || ['IDENTITY.md']
 
       for (const file of files) {
         try {
@@ -188,6 +192,11 @@ export default class ApprovalTool extends BaseTool {
         break
       case 'identity':
         await this._activateIdentity(item)
+        await this._onReloadIdentity()
+        break
+      case 'soul':
+        await this._activateSoul(item)
+        await this._onReloadIdentity()
         break
     }
 
@@ -239,6 +248,13 @@ export default class ApprovalTool extends BaseTool {
   async _activateIdentity(item) {
     const src = safePath(this.workspaceDir, join('staging', 'identity', item.name))
     const dest = join(this.workspaceDir, 'identity', item.name)
+    await mkdir(dirname(dest), { recursive: true })
+    await cp(src, dest, { recursive: true })
+  }
+
+  async _activateSoul(item) {
+    const src = safePath(this.workspaceDir, join('staging', 'souls', item.name))
+    const dest = join(this.workspaceDir, 'soul', item.name)
     await mkdir(dirname(dest), { recursive: true })
     await cp(src, dest, { recursive: true })
   }

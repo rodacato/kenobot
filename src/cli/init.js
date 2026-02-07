@@ -59,6 +59,12 @@ export default async function init(args, paths) {
     'config/.env'
   )
 
+  // Copy identity templates (directory-based for new installs, legacy single file as fallback)
+  await copyIfMissing(
+    join(tpl, 'identities', 'kenobot'),
+    join(paths.identities, 'kenobot'),
+    'config/identities/kenobot/'
+  )
   await copyIfMissing(
     join(tpl, 'identities', 'kenobot.md'),
     join(paths.identities, 'kenobot.md'),

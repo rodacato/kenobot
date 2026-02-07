@@ -10,6 +10,7 @@ import ClaudeAPIProvider from './providers/claude-api.js'
 import MockProvider from './providers/mock.js'
 import FilesystemStorage from './storage/filesystem.js'
 import MemoryManager from './agent/memory.js'
+import IdentityLoader from './agent/identity.js'
 import ContextBuilder from './agent/context.js'
 import AgentLoop from './agent/loop.js'
 import ToolRegistry from './tools/registry.js'
@@ -132,6 +133,9 @@ logger.info('system', 'tools_registered', { count: toolRegistry.size })
 const storage = new FilesystemStorage(config)
 const memory = new MemoryManager(config.dataDir)
 
+// Initialize identity loader (modular SOUL.md + IDENTITY.md + USER.md)
+const identityLoader = new IdentityLoader(config.identityFile)
+
 // Initialize skill loader (loadAll is async, called in start())
 const skillLoader = new SkillLoader(config.skillsDir)
 
@@ -141,11 +145,12 @@ if (config.workspaceDir && config.selfImprovementEnabled) {
     onProposed: (p) => bus.emit('approval:proposed', p),
     onApproved: (p) => bus.emit('approval:approved', p),
     onRejected: (p) => bus.emit('approval:rejected', p),
-    activateSkill: (name, dir) => skillLoader.loadOne(name, dir)
+    activateSkill: (name, dir) => skillLoader.loadOne(name, dir),
+    reloadIdentity: () => identityLoader.reload()
   }))
 }
 
-const contextBuilder = new ContextBuilder(config, storage, memory, toolRegistry, skillLoader)
+const contextBuilder = new ContextBuilder(config, storage, memory, toolRegistry, skillLoader, identityLoader)
 const agent = new AgentLoop(bus, provider, contextBuilder, storage, memory, toolRegistry)
 agent.maxToolIterations = config.maxToolIterations
 
