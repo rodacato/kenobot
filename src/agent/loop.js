@@ -148,23 +148,17 @@ export default class AgentLoop {
           })
         )
 
-        // Build tool result messages for next provider call
-        context.messages.push({ role: 'assistant', content: response.rawContent })
-        context.messages.push({
-          role: 'user',
-          content: results.map(r => ({
-            type: 'tool_result',
-            tool_use_id: r.id,
-            content: r.result,
-            is_error: r.isError
-          }))
-        })
+        // Build tool result messages in provider-specific format
+        const toolMessages = this.provider.buildToolResultMessages(response.rawContent, results)
+        context.messages.push(...toolMessages)
 
         response = await this.provider.chatWithRetry(context.messages, chatOptions)
       }
 
       // Safety valve: if still requesting tools after max iterations
       if (response.toolCalls) {
+        const pendingTools = response.toolCalls.map(tc => tc.name)
+        logger.warn('agent', 'max_iterations_exceeded', { sessionId, iterations, pendingTools })
         response.content = "I'm having trouble completing this task. Let me try a different approach."
       }
 

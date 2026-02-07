@@ -57,6 +57,28 @@ export default class BaseProvider {
   }
 
   /**
+   * Build messages to append after tool execution results.
+   * Override in subclass if provider uses a different format.
+   * @param {Array} rawContent - Raw assistant response content (for tool_use blocks)
+   * @param {Array<{id: string, result: string, isError: boolean}>} results - Tool execution results
+   * @returns {Array<{role: string, content: any}>} Messages to append to context
+   */
+  buildToolResultMessages(rawContent, results) {
+    return [
+      { role: 'assistant', content: rawContent },
+      {
+        role: 'user',
+        content: results.map(r => ({
+          type: 'tool_result',
+          tool_use_id: r.id,
+          content: r.result,
+          is_error: r.isError
+        }))
+      }
+    ]
+  }
+
+  /**
    * Provider name for logging
    * @returns {string}
    */

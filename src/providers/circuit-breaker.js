@@ -28,6 +28,10 @@ export default class CircuitBreakerProvider extends BaseProvider {
     return this.inner.name
   }
 
+  buildToolResultMessages(rawContent, results) {
+    return this.inner.buildToolResultMessages(rawContent, results)
+  }
+
   async chat(messages, options) {
     if (this.state === 'OPEN') {
       if (Date.now() - this.lastFailure >= this.cooldown) {

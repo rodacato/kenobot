@@ -28,7 +28,21 @@ describe('AgentLoop', () => {
     provider = {
       name: 'mock',
       chat: vi.fn().mockResolvedValue({ content: 'bot response' }),
-      chatWithRetry: vi.fn().mockResolvedValue({ content: 'bot response' })
+      chatWithRetry: vi.fn().mockResolvedValue({ content: 'bot response' }),
+      buildToolResultMessages(rawContent, results) {
+        return [
+          { role: 'assistant', content: rawContent },
+          {
+            role: 'user',
+            content: results.map(r => ({
+              type: 'tool_result',
+              tool_use_id: r.id,
+              content: r.result,
+              is_error: r.isError
+            }))
+          }
+        ]
+      }
     }
 
     contextBuilder = {
