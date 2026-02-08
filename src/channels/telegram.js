@@ -52,19 +52,21 @@ export default class TelegramChannel extends BaseChannel {
       })
     })
 
-    // Listen for typing indicator from the bus
-    this.bus.on('thinking:start', async ({ chatId, channel }) => {
+    // Store handler references for cleanup in stop()
+    this._onThinking = async ({ chatId, channel }) => {
       if (channel !== this.name) return
       try {
         await this.bot.api.sendChatAction(chatId, 'typing')
       } catch { /* ignore typing failures */ }
-    })
+    }
 
-    // Listen for outgoing messages from the bus
-    this.bus.on('message:out', async ({ chatId, text, channel }) => {
+    this._onMessageOut = async ({ chatId, text, channel }) => {
       if (channel !== this.name) return
       await this._safeSend(chatId, text)
-    })
+    }
+
+    this.bus.on('thinking:start', this._onThinking)
+    this.bus.on('message:out', this._onMessageOut)
 
     // Start polling
     await this.bot.start()
@@ -73,6 +75,8 @@ export default class TelegramChannel extends BaseChannel {
 
   async stop() {
     logger.info('telegram', 'stopping')
+    this.bus.off('thinking:start', this._onThinking)
+    this.bus.off('message:out', this._onMessageOut)
     await this.bot.stop()
   }
 
