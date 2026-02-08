@@ -1,4 +1,5 @@
 import logger from '../logger.js'
+import { MESSAGE_IN, MESSAGE_OUT, THINKING_START, CONFIG_CHANGED } from '../events.js'
 import { extractMemories } from './memory-extractor.js'
 import { extractChatMemories } from './chat-memory-extractor.js'
 import { extractUserUpdates } from './user-extractor.js'
@@ -31,7 +32,7 @@ export default class AgentLoop {
     await this.contextBuilder.loadIdentity()
 
     this._handler = (message) => this._handleMessage(message)
-    this.bus.on('message:in', this._handler)
+    this.bus.on(MESSAGE_IN, this._handler)
 
     logger.info('agent', 'started', { provider: this.provider.name })
   }
@@ -41,7 +42,7 @@ export default class AgentLoop {
    */
   stop() {
     if (this._handler) {
-      this.bus.off('message:in', this._handler)
+      this.bus.off(MESSAGE_IN, this._handler)
       this._handler = null
     }
     logger.info('agent', 'stopped')
@@ -95,8 +96,8 @@ export default class AgentLoop {
 
     // Typing indicator
     const typingPayload = { chatId: message.chatId, channel: message.channel }
-    this.bus.emit('thinking:start', typingPayload)
-    const typingInterval = setInterval(() => this.bus.emit('thinking:start', typingPayload), 4000)
+    this.bus.emit(THINKING_START, typingPayload)
+    const typingInterval = setInterval(() => this.bus.emit(THINKING_START, typingPayload), 4000)
 
     try {
       const start = Date.now()
@@ -220,7 +221,7 @@ export default class AgentLoop {
         for (const entry of memories) {
           await this.memory.appendDaily(entry)
         }
-        this.bus.emit('config:changed', { reason: 'memory update' })
+        this.bus.emit(CONFIG_CHANGED, { reason: 'memory update' })
       }
 
       // Save chat-specific memories to per-chat daily log
@@ -228,19 +229,19 @@ export default class AgentLoop {
         for (const entry of chatMemories) {
           await this.memory.appendChatDaily(sessionId, entry)
         }
-        this.bus.emit('config:changed', { reason: 'chat memory update' })
+        this.bus.emit(CONFIG_CHANGED, { reason: 'chat memory update' })
       }
 
       // Save user preferences to USER.md
       if (userUpdates.length > 0 && this.contextBuilder.identityLoader) {
         await this.contextBuilder.identityLoader.appendUser(userUpdates)
-        this.bus.emit('config:changed', { reason: 'user preferences update' })
+        this.bus.emit(CONFIG_CHANGED, { reason: 'user preferences update' })
       }
 
       // Delete BOOTSTRAP.md when bootstrap conversation is complete
       if (bootstrapComplete && this.contextBuilder.identityLoader) {
         await this.contextBuilder.identityLoader.deleteBootstrap()
-        this.bus.emit('config:changed', { reason: 'bootstrap complete' })
+        this.bus.emit(CONFIG_CHANGED, { reason: 'bootstrap complete' })
       }
 
       // Save both messages to session history (clean text without tags)
@@ -251,7 +252,7 @@ export default class AgentLoop {
       ])
 
       // Emit response (clean text without memory tags)
-      this.bus.emit('message:out', {
+      this.bus.emit(MESSAGE_OUT, {
         chatId: message.chatId,
         text: cleanText,
         channel: message.channel
@@ -264,7 +265,7 @@ export default class AgentLoop {
         error: error.message
       })
 
-      this.bus.emit('message:out', {
+      this.bus.emit(MESSAGE_OUT, {
         chatId: message.chatId,
         text: `Error: ${error.message}`,
         channel: message.channel

@@ -25,6 +25,7 @@ import ConfigSync from './config-sync.js'
 import { initWorkspace } from './workspace.js'
 import { writePid, removePid } from './health.js'
 import { setupNotifications } from './notifications.js'
+import { CONFIG_CHANGED, APPROVAL_APPROVED, ERROR } from './events.js'
 import paths from './paths.js'
 
 // Configure logger with data directory for JSONL file output
@@ -100,11 +101,11 @@ const configSync = new ConfigSync(paths.home, {
   sshKeyPath: config.sshKeyPath
 })
 
-bus.on('config:changed', ({ reason }) => {
+bus.on(CONFIG_CHANGED, ({ reason }) => {
   configSync.schedule(reason)
 })
 
-bus.on('approval:approved', () => {
+bus.on(APPROVAL_APPROVED, () => {
   configSync.schedule('approval activated')
 })
 
@@ -152,7 +153,7 @@ if (config.http.enabled) {
 }
 
 // Error handler
-bus.on('error', ({ source, error, context }) => {
+bus.on(ERROR, ({ source, error, context }) => {
   logger.error('bus', 'event_error', {
     source,
     error: typeof error === 'string' ? error : error?.message || String(error)

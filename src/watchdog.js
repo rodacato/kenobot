@@ -1,4 +1,5 @@
 import logger from './logger.js'
+import { HEALTH_RECOVERED, HEALTH_DEGRADED, HEALTH_UNHEALTHY } from './events.js'
 
 /**
  * Watchdog - Internal health monitor that emits bus events
@@ -87,13 +88,13 @@ export default class Watchdog {
 
       if (newState === 'HEALTHY' && (previous === 'DEGRADED' || previous === 'UNHEALTHY')) {
         logger.info('watchdog', 'recovered', { previous })
-        this.bus.emit('health:recovered', { previous, detail })
+        this.bus.emit(HEALTH_RECOVERED, { previous, detail })
       } else if (newState === 'DEGRADED') {
         logger.warn('watchdog', 'degraded', { previous, detail })
-        this.bus.emit('health:degraded', { previous, detail })
+        this.bus.emit(HEALTH_DEGRADED, { previous, detail })
       } else if (newState === 'UNHEALTHY') {
         logger.error('watchdog', 'unhealthy', { previous, detail })
-        this.bus.emit('health:unhealthy', { previous, detail })
+        this.bus.emit(HEALTH_UNHEALTHY, { previous, detail })
       }
     }
   }

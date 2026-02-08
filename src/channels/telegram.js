@@ -1,5 +1,6 @@
 import { Bot } from 'grammy'
 import BaseChannel from './base.js'
+import { THINKING_START, MESSAGE_OUT, NOTIFICATION } from '../events.js'
 import { markdownToHTML } from '../format/telegram.js'
 import logger from '../logger.js'
 
@@ -69,9 +70,9 @@ export default class TelegramChannel extends BaseChannel {
       await this._safeSend(chatId, text)
     }
 
-    this.bus.on('thinking:start', this._onThinking)
-    this.bus.on('message:out', this._onMessageOut)
-    this.bus.on('notification', this._onNotification)
+    this.bus.on(THINKING_START, this._onThinking)
+    this.bus.on(MESSAGE_OUT, this._onMessageOut)
+    this.bus.on(NOTIFICATION, this._onNotification)
 
     // Start polling
     await this.bot.start()
@@ -80,9 +81,9 @@ export default class TelegramChannel extends BaseChannel {
 
   async stop() {
     logger.info('telegram', 'stopping')
-    this.bus.off('thinking:start', this._onThinking)
-    this.bus.off('message:out', this._onMessageOut)
-    this.bus.off('notification', this._onNotification)
+    this.bus.off(THINKING_START, this._onThinking)
+    this.bus.off(MESSAGE_OUT, this._onMessageOut)
+    this.bus.off(NOTIFICATION, this._onNotification)
     await this.bot.stop()
   }
 

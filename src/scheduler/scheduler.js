@@ -2,6 +2,7 @@ import cron from 'node-cron'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { MESSAGE_IN } from '../events.js'
 import logger from '../logger.js'
 
 /**
@@ -106,7 +107,7 @@ export default class Scheduler {
   _startJob(task) {
     const job = cron.schedule(task.cronExpr, () => {
       logger.info('scheduler', 'task_fired', { id: task.id, description: task.description })
-      this.bus.emit('message:in', {
+      this.bus.emit(MESSAGE_IN, {
         text: task.message,
         chatId: task.chatId,
         userId: task.userId,

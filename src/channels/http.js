@@ -1,6 +1,7 @@
 import { createServer } from 'node:http'
 import crypto from 'node:crypto'
 import BaseChannel from './base.js'
+import { MESSAGE_IN, MESSAGE_OUT } from '../events.js'
 import logger from '../logger.js'
 import { getStatus } from '../health.js'
 
@@ -27,7 +28,7 @@ export default class HTTPChannel extends BaseChannel {
 
   async start() {
     this._responseHandler = (msg) => this._handleBusResponse(msg)
-    this.bus.on('message:out', this._responseHandler)
+    this.bus.on(MESSAGE_OUT, this._responseHandler)
 
     this.server = createServer((req, res) => this._route(req, res))
 
@@ -44,7 +45,7 @@ export default class HTTPChannel extends BaseChannel {
 
   async stop() {
     if (this._responseHandler) {
-      this.bus.off('message:out', this._responseHandler)
+      this.bus.off(MESSAGE_OUT, this._responseHandler)
       this._responseHandler = null
     }
 
@@ -146,7 +147,7 @@ export default class HTTPChannel extends BaseChannel {
 
       this._pendingRequests.set(requestId, { resolve, reject, timeout, chatId })
 
-      this.bus.emit('message:in', {
+      this.bus.emit(MESSAGE_IN, {
         text,
         chatId,
         userId: 'webhook',

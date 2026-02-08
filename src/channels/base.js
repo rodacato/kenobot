@@ -1,4 +1,5 @@
 import EventEmitter from 'node:events'
+import { MESSAGE_IN, ERROR } from '../events.js'
 import logger from '../logger.js'
 
 /**
@@ -65,7 +66,7 @@ export default class BaseChannel extends EventEmitter {
     }
 
     // Publish to bus with channel info
-    this.bus.emit('message:in', {
+    this.bus.emit(MESSAGE_IN, {
       ...message,
       channel: this.name
     })
@@ -90,7 +91,7 @@ export default class BaseChannel extends EventEmitter {
       await this.send(chatId, text, options)
     } catch (error) {
       logger.error('channel', 'send_failed', { channel: this.name, chatId, error: error.message })
-      this.bus.emit('error', { source: this.name, error })
+      this.bus.emit(ERROR, { source: this.name, error })
     }
   }
 

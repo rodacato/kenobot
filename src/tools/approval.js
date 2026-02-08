@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir, cp, rm } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { APPROVAL_PROPOSED, APPROVAL_APPROVED, APPROVAL_REJECTED } from '../events.js'
 import BaseTool from './base.js'
 import { safePath } from '../utils/safe-path.js'
 import logger from '../logger.js'
@@ -285,9 +286,9 @@ export default class ApprovalTool extends BaseTool {
 export function register(registry, { config, bus, skillLoader, identityLoader }) {
   if (!config.workspaceDir || !config.selfImprovementEnabled) return
   registry.register(new ApprovalTool(config.workspaceDir, {
-    onProposed: (p) => bus.emit('approval:proposed', p),
-    onApproved: (p) => bus.emit('approval:approved', p),
-    onRejected: (p) => bus.emit('approval:rejected', p),
+    onProposed: (p) => bus.emit(APPROVAL_PROPOSED, p),
+    onApproved: (p) => bus.emit(APPROVAL_APPROVED, p),
+    onRejected: (p) => bus.emit(APPROVAL_REJECTED, p),
     activateSkill: (name, dir) => skillLoader.loadOne(name, dir),
     reloadIdentity: () => identityLoader.reload()
   }))
