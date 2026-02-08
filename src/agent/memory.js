@@ -1,5 +1,6 @@
 import { readFile, appendFile, readdir, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
+import BaseMemory from './base-memory.js'
 import logger from '../logger.js'
 
 /**
@@ -14,8 +15,9 @@ import logger from '../logger.js'
  *   data/memory/2026-02-07.md
  *   data/memory/chats/telegram-63059997/2026-02-07.md
  */
-export default class MemoryManager {
+export default class MemoryManager extends BaseMemory {
   constructor(dataDir) {
+    super()
     this.memoryDir = join(dataDir, 'memory')
     this._dirReady = false
   }
