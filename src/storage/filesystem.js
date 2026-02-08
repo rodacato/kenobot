@@ -3,6 +3,9 @@ import { join } from 'node:path'
 import BaseStorage from './base.js'
 import logger from '../logger.js'
 
+/** Only allow safe sessionId characters (e.g. telegram-123456789) */
+const SAFE_SESSION_ID = /^[a-zA-Z0-9_-]+$/
+
 /**
  * FilesystemStorage - JSONL file persistence for sessions
  *
@@ -21,6 +24,9 @@ export default class FilesystemStorage extends BaseStorage {
   }
 
   async loadSession(sessionId, limit = 20) {
+    if (!SAFE_SESSION_ID.test(sessionId)) {
+      throw new Error(`Invalid sessionId: ${sessionId}`)
+    }
     const filepath = join(this.sessionsDir, `${sessionId}.jsonl`)
 
     let content
@@ -46,6 +52,9 @@ export default class FilesystemStorage extends BaseStorage {
   }
 
   async saveSession(sessionId, messages) {
+    if (!SAFE_SESSION_ID.test(sessionId)) {
+      throw new Error(`Invalid sessionId: ${sessionId}`)
+    }
     await this._ensureDir()
 
     const filepath = join(this.sessionsDir, `${sessionId}.jsonl`)

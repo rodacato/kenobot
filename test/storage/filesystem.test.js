@@ -150,6 +150,31 @@ describe('FilesystemStorage', () => {
     })
   })
 
+  describe('sessionId validation', () => {
+    it('should reject sessionId with path traversal', async () => {
+      await expect(storage.loadSession('../../etc/passwd')).rejects.toThrow('Invalid sessionId')
+      await expect(storage.saveSession('../../etc/passwd', [])).rejects.toThrow('Invalid sessionId')
+    })
+
+    it('should reject sessionId with slashes', async () => {
+      await expect(storage.loadSession('foo/bar')).rejects.toThrow('Invalid sessionId')
+    })
+
+    it('should reject sessionId with dots', async () => {
+      await expect(storage.loadSession('session.evil')).rejects.toThrow('Invalid sessionId')
+    })
+
+    it('should accept valid sessionIds', async () => {
+      const result = await storage.loadSession('telegram-123456789')
+      expect(result).toEqual([])
+    })
+
+    it('should accept sessionId with underscores', async () => {
+      const result = await storage.loadSession('http_webhook_abc')
+      expect(result).toEqual([])
+    })
+  })
+
   describe('readFile', () => {
     it('should return file contents as string', async () => {
       const filePath = join(tmpDir, 'IDENTITY.md')
