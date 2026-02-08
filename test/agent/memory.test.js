@@ -13,15 +13,15 @@ vi.mock('../../src/logger.js', () => ({
 }))
 
 import logger from '../../src/logger.js'
-import MemoryManager from '../../src/agent/memory.js'
+import FileMemory from '../../src/agent/memory.js'
 
-describe('MemoryManager', () => {
+describe('FileMemory', () => {
   let manager
   let tmpDir
 
   beforeEach(async () => {
     tmpDir = await mkdtemp(join(tmpdir(), 'kenobot-memory-'))
-    manager = new MemoryManager(tmpDir)
+    manager = new FileMemory(tmpDir)
     vi.clearAllMocks()
   })
 
@@ -138,7 +138,7 @@ describe('MemoryManager', () => {
     })
 
     it('should return empty string when memory directory does not exist', async () => {
-      const badManager = new MemoryManager(join(tmpDir, 'nonexistent'))
+      const badManager = new FileMemory(join(tmpDir, 'nonexistent'))
 
       const result = await badManager.getRecentDays(3)
 
@@ -334,6 +334,105 @@ describe('MemoryManager', () => {
       expect(dmResult).not.toContain('Group fact')
       expect(groupResult).toContain('Group fact')
       expect(groupResult).not.toContain('DM fact')
+    })
+  })
+
+  describe('listDailyLogs', () => {
+    it('should list daily log files sorted', async () => {
+      const memDir = join(tmpDir, 'memory')
+      await manager._ensureDir()
+      await writeFile(join(memDir, '2026-02-07.md'), 'content\n')
+      await writeFile(join(memDir, '2026-01-15.md'), 'content\n')
+      await writeFile(join(memDir, '2026-02-06.md'), 'content\n')
+
+      const result = await manager.listDailyLogs()
+
+      expect(result).toEqual(['2026-01-15.md', '2026-02-06.md', '2026-02-07.md'])
+    })
+
+    it('should exclude MEMORY.md', async () => {
+      const memDir = join(tmpDir, 'memory')
+      await manager._ensureDir()
+      await writeFile(join(memDir, 'MEMORY.md'), 'long-term\n')
+      await writeFile(join(memDir, '2026-02-07.md'), 'content\n')
+
+      const result = await manager.listDailyLogs()
+
+      expect(result).toEqual(['2026-02-07.md'])
+    })
+
+    it('should return empty array when directory does not exist', async () => {
+      const badManager = new FileMemory(join(tmpDir, 'nonexistent'))
+
+      const result = await badManager.listDailyLogs()
+
+      expect(result).toEqual([])
+    })
+  })
+
+  describe('readDailyLog', () => {
+    it('should read specific daily log content', async () => {
+      const memDir = join(tmpDir, 'memory')
+      await manager._ensureDir()
+      await writeFile(join(memDir, '2026-02-07.md'), '## 10:30 — some fact\n\n')
+
+      const result = await manager.readDailyLog('2026-02-07.md')
+
+      expect(result).toBe('## 10:30 — some fact\n\n')
+    })
+
+    it('should return empty string for nonexistent file', async () => {
+      const result = await manager.readDailyLog('2099-01-01.md')
+
+      expect(result).toBe('')
+    })
+  })
+
+  describe('deleteDailyLog', () => {
+    it('should remove the specified daily log file', async () => {
+      const memDir = join(tmpDir, 'memory')
+      await manager._ensureDir()
+      await writeFile(join(memDir, '2026-01-01.md'), 'old content\n')
+
+      await manager.deleteDailyLog('2026-01-01.md')
+
+      const remaining = await manager.listDailyLogs()
+      expect(remaining).not.toContain('2026-01-01.md')
+    })
+
+    it('should throw when file does not exist', async () => {
+      await manager._ensureDir()
+
+      await expect(manager.deleteDailyLog('nonexistent.md')).rejects.toThrow()
+    })
+  })
+
+  describe('writeLongTermMemory', () => {
+    it('should write content to MEMORY.md', async () => {
+      await manager.writeLongTermMemory('# Facts\n- User likes Rust\n')
+
+      const content = await readFile(join(tmpDir, 'memory', 'MEMORY.md'), 'utf8')
+      expect(content).toBe('# Facts\n- User likes Rust\n')
+    })
+
+    it('should overwrite existing MEMORY.md', async () => {
+      const memDir = join(tmpDir, 'memory')
+      await manager._ensureDir()
+      await writeFile(join(memDir, 'MEMORY.md'), 'old content')
+
+      await manager.writeLongTermMemory('new content')
+
+      const content = await readFile(join(memDir, 'MEMORY.md'), 'utf8')
+      expect(content).toBe('new content')
+    })
+
+    it('should create directory if needed', async () => {
+      const freshManager = new FileMemory(join(tmpDir, 'fresh'))
+
+      await freshManager.writeLongTermMemory('brand new')
+
+      const content = await readFile(join(tmpDir, 'fresh', 'memory', 'MEMORY.md'), 'utf8')
+      expect(content).toBe('brand new')
     })
   })
 })

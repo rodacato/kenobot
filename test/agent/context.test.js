@@ -15,7 +15,7 @@ vi.mock('../../src/logger.js', () => ({
 import logger from '../../src/logger.js'
 import ContextBuilder from '../../src/agent/context.js'
 import FilesystemStorage from '../../src/storage/filesystem.js'
-import MemoryManager from '../../src/agent/memory.js'
+import FileMemory from '../../src/agent/memory.js'
 import IdentityLoader from '../../src/agent/identity.js'
 import ToolRegistry from '../../src/tools/registry.js'
 import BaseTool from '../../src/tools/base.js'
@@ -160,7 +160,10 @@ describe('ContextBuilder', () => {
 
     beforeEach(() => {
       mockMemory = {
-        getPromptSection: vi.fn().mockResolvedValue(null),
+        getLongTermMemory: vi.fn().mockResolvedValue(null),
+        getRecentDays: vi.fn().mockResolvedValue(null),
+        getChatLongTermMemory: vi.fn().mockResolvedValue(null),
+        getChatRecentDays: vi.fn().mockResolvedValue(null),
       }
 
       context = new ContextBuilder(
@@ -172,11 +175,8 @@ describe('ContextBuilder', () => {
       vi.clearAllMocks()
     })
 
-    it('should include memory section when getPromptSection returns content', async () => {
-      mockMemory.getPromptSection.mockResolvedValue({
-        label: 'Memory',
-        content: 'How to remember things\n<memory>fact</memory>'
-      })
+    it('should include memory section when long-term memory has content', async () => {
+      mockMemory.getLongTermMemory.mockResolvedValue('User likes Star Wars')
 
       const result = await context.build('telegram-123', { text: 'hello' })
 
@@ -185,11 +185,8 @@ describe('ContextBuilder', () => {
       expect(result.system).toContain('How to remember things')
     })
 
-    it('should include long-term memory content from section', async () => {
-      mockMemory.getPromptSection.mockResolvedValue({
-        label: 'Memory',
-        content: '### Long-term memory\nUser likes Star Wars'
-      })
+    it('should include long-term memory content in section', async () => {
+      mockMemory.getLongTermMemory.mockResolvedValue('User likes Star Wars')
 
       const result = await context.build('telegram-123', { text: 'hello' })
 
@@ -197,15 +194,35 @@ describe('ContextBuilder', () => {
       expect(result.system).toContain('User likes Star Wars')
     })
 
-    it('should skip memory section when getPromptSection returns null', async () => {
-      mockMemory.getPromptSection.mockResolvedValue(null)
+    it('should include recent notes section', async () => {
+      mockMemory.getRecentDays.mockResolvedValue('### 2026-02-08\n## 14:30 -- Prefers dark mode')
 
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).toContain('### Recent notes')
+      expect(result.system).toContain('Prefers dark mode')
+    })
+
+    it('should include chat-specific memory sections', async () => {
+      mockMemory.getChatLongTermMemory.mockResolvedValue('This chat is about the API refactor')
+      mockMemory.getChatRecentDays.mockResolvedValue('## 10:00 -- Decided on REST over GraphQL')
+
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).toContain('### Chat-specific memory')
+      expect(result.system).toContain('API refactor')
+      expect(result.system).toContain('### Chat-specific notes')
+      expect(result.system).toContain('REST over GraphQL')
+    })
+
+    it('should skip memory section when all CRUD methods return null', async () => {
       const result = await context.build('telegram-123', { text: 'hello' })
 
       expect(result.system).not.toContain('## Memory')
     })
 
-    it('should pass memoryDays from config to getPromptSection', async () => {
+    it('should pass memoryDays from config to getRecentDays', async () => {
+      mockMemory.getLongTermMemory.mockResolvedValue('some fact')
       const ctx = new ContextBuilder(
         { identityFile: 'identities/kenobot.md', memoryDays: 7 },
         mockStorage,
@@ -214,12 +231,11 @@ describe('ContextBuilder', () => {
 
       await ctx.build('telegram-123', { text: 'hello' })
 
-      expect(mockMemory.getPromptSection).toHaveBeenCalledWith(
-        expect.objectContaining({ memoryDays: 7 })
-      )
+      expect(mockMemory.getRecentDays).toHaveBeenCalledWith(7)
     })
 
     it('should default to 3 days when memoryDays not configured', async () => {
+      mockMemory.getLongTermMemory.mockResolvedValue('some fact')
       const ctx = new ContextBuilder(
         { identityFile: 'identities/kenobot.md' },
         mockStorage,
@@ -228,24 +244,20 @@ describe('ContextBuilder', () => {
 
       await ctx.build('telegram-123', { text: 'hello' })
 
-      expect(mockMemory.getPromptSection).toHaveBeenCalledWith(
-        expect.objectContaining({ memoryDays: 3 })
-      )
+      expect(mockMemory.getRecentDays).toHaveBeenCalledWith(3)
     })
 
-    it('should pass sessionId to getPromptSection', async () => {
+    it('should call per-chat methods with sessionId', async () => {
+      mockMemory.getLongTermMemory.mockResolvedValue('some fact')
+
       await context.build('telegram-123', { text: 'hello' })
 
-      expect(mockMemory.getPromptSection).toHaveBeenCalledWith(
-        expect.objectContaining({ sessionId: 'telegram-123' })
-      )
+      expect(mockMemory.getChatLongTermMemory).toHaveBeenCalledWith('telegram-123')
+      expect(mockMemory.getChatRecentDays).toHaveBeenCalledWith('telegram-123', 3)
     })
 
     it('should still include identity at the start of system prompt', async () => {
-      mockMemory.getPromptSection.mockResolvedValue({
-        label: 'Memory',
-        content: 'some memory'
-      })
+      mockMemory.getLongTermMemory.mockResolvedValue('some memory')
 
       const result = await context.build('telegram-123', { text: 'hello' })
 
@@ -406,9 +418,12 @@ describe('ContextBuilder', () => {
   })
 
   describe('error boundaries in prompt sources', () => {
-    it('should continue building context when one source fails', async () => {
+    it('should continue building context when memory fails', async () => {
       const failingMemory = {
-        getPromptSection: vi.fn().mockRejectedValue(new Error('disk full'))
+        getLongTermMemory: vi.fn().mockRejectedValue(new Error('disk full')),
+        getRecentDays: vi.fn().mockRejectedValue(new Error('disk full')),
+        getChatLongTermMemory: vi.fn().mockRejectedValue(new Error('disk full')),
+        getChatRecentDays: vi.fn().mockRejectedValue(new Error('disk full')),
       }
       const workingToolRegistry = {
         getPromptSection: vi.fn().mockReturnValue({
@@ -431,9 +446,12 @@ describe('ContextBuilder', () => {
       expect(result.system).not.toContain('## Memory')
     })
 
-    it('should log warning when a source fails', async () => {
+    it('should log warning when memory fails', async () => {
       const failingMemory = {
-        getPromptSection: vi.fn().mockRejectedValue(new Error('disk full'))
+        getLongTermMemory: vi.fn().mockRejectedValue(new Error('disk full')),
+        getRecentDays: vi.fn().mockRejectedValue(new Error('disk full')),
+        getChatLongTermMemory: vi.fn().mockRejectedValue(new Error('disk full')),
+        getChatRecentDays: vi.fn().mockRejectedValue(new Error('disk full')),
       }
 
       const ctx = new ContextBuilder(
@@ -445,6 +463,7 @@ describe('ContextBuilder', () => {
       await ctx.build('telegram-123', { text: 'hello' })
 
       expect(logger.warn).toHaveBeenCalledWith('context', 'source_failed', expect.objectContaining({
+        source: 'Memory',
         error: 'disk full'
       }))
     })
@@ -460,10 +479,10 @@ describe('ContextBuilder', () => {
         })
       }
       const workingMemory = {
-        getPromptSection: vi.fn().mockResolvedValue({
-          label: 'Memory',
-          content: 'User likes Star Wars'
-        })
+        getLongTermMemory: vi.fn().mockResolvedValue('User likes Star Wars'),
+        getRecentDays: vi.fn().mockResolvedValue(null),
+        getChatLongTermMemory: vi.fn().mockResolvedValue(null),
+        getChatRecentDays: vi.fn().mockResolvedValue(null),
       }
 
       const ctx = new ContextBuilder(
@@ -663,7 +682,7 @@ describe('ContextBuilder', () => {
 
       // Wire real components
       storage = new FilesystemStorage({ dataDir: tmpDir })
-      memory = new MemoryManager(tmpDir)
+      memory = new FileMemory(tmpDir)
       identityLoader = new IdentityLoader(join(tmpDir, 'identities', 'kenobot'))
       await identityLoader.load()
 

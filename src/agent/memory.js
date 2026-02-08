@@ -1,10 +1,10 @@
-import { readFile, appendFile, readdir, mkdir } from 'node:fs/promises'
+import { readFile, writeFile, appendFile, readdir, mkdir, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import BaseMemory from './base-memory.js'
 import defaultLogger from '../logger.js'
 
 /**
- * MemoryManager - Daily logs + long-term MEMORY.md
+ * FileMemory - Filesystem-backed daily logs + long-term MEMORY.md
  *
  * Manages two tiers of memory:
  * - Global: MEMORY.md + YYYY-MM-DD.md in data/memory/
@@ -15,7 +15,7 @@ import defaultLogger from '../logger.js'
  *   data/memory/2026-02-07.md
  *   data/memory/chats/telegram-63059997/2026-02-07.md
  */
-export default class MemoryManager extends BaseMemory {
+export default class FileMemory extends BaseMemory {
   constructor(dataDir, { logger = defaultLogger } = {}) {
     super()
     this.memoryDir = join(dataDir, 'memory')
@@ -23,7 +23,7 @@ export default class MemoryManager extends BaseMemory {
     this._dirReady = false
   }
 
-  // --- Global memory (existing behavior) ---
+  // --- Global memory ---
 
   /**
    * Append a timestamped entry to today's global daily log.
@@ -87,58 +87,54 @@ export default class MemoryManager extends BaseMemory {
     return this._getLongTermFromDir(join(this.memoryDir, 'chats', sessionId))
   }
 
+  // --- Compaction support ---
+
   /**
-   * Prompt section for ContextBuilder.
-   * @param {{ sessionId?: string, memoryDays?: number }} context
-   * @returns {{ label: string, content: string }|null}
+   * List all daily log filenames in the global memory directory.
+   * @returns {Promise<string[]>} Sorted filenames, e.g. ["2026-01-01.md", "2026-01-02.md"]
    */
-  async getPromptSection({ sessionId = null, memoryDays = 3 } = {}) {
-    const promises = [
-      this.getLongTermMemory(),
-      this.getRecentDays(memoryDays)
-    ]
-    if (sessionId) {
-      promises.push(this.getChatLongTermMemory(sessionId))
-      promises.push(this.getChatRecentDays(sessionId, memoryDays))
+  async listDailyLogs() {
+    let files
+    try {
+      files = await readdir(this.memoryDir)
+    } catch {
+      return []
     }
+    return files
+      .filter(f => /^\d{4}-\d{2}-\d{2}\.md$/.test(f))
+      .sort()
+  }
 
-    const [longTerm, recentNotes, chatLongTerm, chatRecent] = await Promise.all(promises)
-
-    if (!longTerm && !recentNotes && !chatLongTerm && !chatRecent) return null
-
-    const lines = [
-      'You have persistent memory across conversations. Use it wisely.\n',
-      '### How to remember things',
-      'When you learn something worth remembering (important facts, project context, decisions made), include it in your response:\n',
-      '<memory>Short title: fact to remember</memory>\n',
-      'For facts specific to THIS conversation or chat context, use:\n',
-      '<chat-memory>Short title: chat-specific fact</chat-memory>\n',
-      'Rules:',
-      '- Only save things that matter across conversations',
-      '- Be concise: one line per memory',
-      '- Don\'t save things already in your long-term memory',
-      '- You can include multiple <memory> and <chat-memory> tags in one response',
-      '- Use <memory> for global facts, <chat-memory> for chat-specific context\n'
-    ]
-
-    if (longTerm) {
-      lines.push('### Long-term memory')
-      lines.push(longTerm + '\n')
+  /**
+   * Read a specific daily log by filename.
+   * @param {string} filename - e.g. "2026-01-15.md"
+   * @returns {Promise<string>} File content, or empty string if not found
+   */
+  async readDailyLog(filename) {
+    try {
+      return await readFile(join(this.memoryDir, filename), 'utf8')
+    } catch {
+      return ''
     }
-    if (recentNotes) {
-      lines.push('### Recent notes')
-      lines.push(recentNotes + '\n')
-    }
-    if (chatLongTerm) {
-      lines.push('### Chat-specific memory')
-      lines.push(chatLongTerm + '\n')
-    }
-    if (chatRecent) {
-      lines.push('### Chat-specific notes')
-      lines.push(chatRecent)
-    }
+  }
 
-    return { label: 'Memory', content: lines.join('\n') }
+  /**
+   * Delete a specific daily log file.
+   * @param {string} filename - e.g. "2026-01-15.md"
+   */
+  async deleteDailyLog(filename) {
+    await unlink(join(this.memoryDir, filename))
+    this.logger.info('memory', 'daily_log_deleted', { filename })
+  }
+
+  /**
+   * Overwrite the global MEMORY.md with new content.
+   * @param {string} content - Full content to write
+   */
+  async writeLongTermMemory(content) {
+    await this._ensureDir()
+    await writeFile(join(this.memoryDir, 'MEMORY.md'), content, 'utf8')
+    this.logger.info('memory', 'long_term_written', { sizeBytes: content.length })
   }
 
   // --- Private helpers ---

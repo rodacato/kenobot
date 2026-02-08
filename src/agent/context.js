@@ -116,14 +116,14 @@ export default class ContextBuilder {
       parts.push(this._identity)
     }
 
-    // Collect prompt sections from pluggable sources
+    // Collect prompt sections from pluggable sources (tools, skills)
     const sectionContext = {
       messageText,
       sessionId,
       memoryDays: this.config.memoryDays ?? 3
     }
 
-    const sources = [this.toolRegistry, this.skillLoader, this.memory].filter(Boolean)
+    const sources = [this.toolRegistry, this.skillLoader].filter(Boolean)
     const results = await Promise.allSettled(
       sources.map(s => s.getPromptSection(sectionContext))
     )
@@ -143,6 +143,77 @@ export default class ContextBuilder {
       if (section.metadata?.activeSkill) activeSkill = section.metadata.activeSkill
     }
 
+    // Memory section (built inline from CRUD methods)
+    if (this.memory) {
+      try {
+        const memorySection = await this._buildMemorySection(sessionId, sectionContext.memoryDays)
+        if (memorySection) {
+          parts.push(`\n---\n\n## ${memorySection.label}\n${memorySection.content}\n`)
+        }
+      } catch (error) {
+        this.logger.warn('context', 'source_failed', {
+          source: 'Memory',
+          error: error.message || String(error)
+        })
+      }
+    }
+
     return { system: parts.join('\n'), activeSkill }
+  }
+
+  /**
+   * Build memory section for system prompt from CRUD methods.
+   * @private
+   * @param {string|null} sessionId
+   * @param {number} memoryDays
+   * @returns {Promise<{ label: string, content: string }|null>}
+   */
+  async _buildMemorySection(sessionId, memoryDays = 3) {
+    const promises = [
+      this.memory.getLongTermMemory(),
+      this.memory.getRecentDays(memoryDays)
+    ]
+    if (sessionId) {
+      promises.push(this.memory.getChatLongTermMemory(sessionId))
+      promises.push(this.memory.getChatRecentDays(sessionId, memoryDays))
+    }
+
+    const [longTerm, recentNotes, chatLongTerm, chatRecent] = await Promise.all(promises)
+
+    if (!longTerm && !recentNotes && !chatLongTerm && !chatRecent) return null
+
+    const lines = [
+      'You have persistent memory across conversations. Use it wisely.\n',
+      '### How to remember things',
+      'When you learn something worth remembering (important facts, project context, decisions made), include it in your response:\n',
+      '<memory>Short title: fact to remember</memory>\n',
+      'For facts specific to THIS conversation or chat context, use:\n',
+      '<chat-memory>Short title: chat-specific fact</chat-memory>\n',
+      'Rules:',
+      '- Only save things that matter across conversations',
+      '- Be concise: one line per memory',
+      '- Don\'t save things already in your long-term memory',
+      '- You can include multiple <memory> and <chat-memory> tags in one response',
+      '- Use <memory> for global facts, <chat-memory> for chat-specific context\n'
+    ]
+
+    if (longTerm) {
+      lines.push('### Long-term memory')
+      lines.push(longTerm + '\n')
+    }
+    if (recentNotes) {
+      lines.push('### Recent notes')
+      lines.push(recentNotes + '\n')
+    }
+    if (chatLongTerm) {
+      lines.push('### Chat-specific memory')
+      lines.push(chatLongTerm + '\n')
+    }
+    if (chatRecent) {
+      lines.push('### Chat-specific notes')
+      lines.push(chatRecent)
+    }
+
+    return { label: 'Memory', content: lines.join('\n') }
   }
 }
