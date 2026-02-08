@@ -2,18 +2,24 @@ import EventEmitter from 'node:events'
 import { MESSAGE_IN, ERROR } from '../events.js'
 import logger from '../logger.js'
 
+const DEFAULT_RATE_LIMIT = { maxPerMinute: 0, maxPerHour: 0 }
+
 /**
  * BaseChannel - Interface for I/O channels (Telegram, Discord, HTTP, etc.)
  *
  * Template Method pattern: common logic in base class, specifics in subclasses.
  * Each channel only needs to implement start(), stop(), send().
- * Permission checking and bus wiring are inherited.
+ * Permission checking, rate limiting, and bus wiring are inherited.
  */
 export default class BaseChannel extends EventEmitter {
   constructor(bus, config) {
     super()
     this.bus = bus
     this.config = config
+
+    // Rate limiting: per-user sliding window (disabled when limits are 0)
+    this._rateLimit = config.rateLimit || DEFAULT_RATE_LIMIT
+    this._rateBuckets = new Map() // userId → { timestamps: number[] }
   }
 
   /**
@@ -65,6 +71,12 @@ export default class BaseChannel extends EventEmitter {
       return
     }
 
+    // Rate limiting (if configured)
+    if (this._isRateLimited(message.userId)) {
+      logger.warn('channel', 'rate_limited', { userId: message.userId, channel: this.name })
+      return
+    }
+
     // Publish to bus with channel info
     this.bus.emit(MESSAGE_IN, {
       ...message,
@@ -93,6 +105,38 @@ export default class BaseChannel extends EventEmitter {
       logger.error('channel', 'send_failed', { channel: this.name, chatId, error: error.message })
       this.bus.emit(ERROR, { source: this.name, error })
     }
+  }
+
+  /**
+   * Check if a user has exceeded rate limits.
+   * Uses a sliding window per user. Returns false (not limited) when limits are 0.
+   * @param {string} userId
+   * @returns {boolean}
+   * @protected
+   */
+  _isRateLimited(userId) {
+    const { maxPerMinute, maxPerHour } = this._rateLimit
+    if (!maxPerMinute && !maxPerHour) return false
+
+    const now = Date.now()
+    const bucket = this._rateBuckets.get(userId) || { timestamps: [] }
+
+    // Prune timestamps older than 1 hour
+    bucket.timestamps = bucket.timestamps.filter(t => now - t < 3600000)
+
+    if (maxPerMinute) {
+      const recentMinute = bucket.timestamps.filter(t => now - t < 60000).length
+      if (recentMinute >= maxPerMinute) return true
+    }
+
+    if (maxPerHour) {
+      if (bucket.timestamps.length >= maxPerHour) return true
+    }
+
+    // Record this request
+    bucket.timestamps.push(now)
+    this._rateBuckets.set(userId, bucket)
+    return false
   }
 
   _isAllowed(userId, chatId) {
