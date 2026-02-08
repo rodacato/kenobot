@@ -1,5 +1,5 @@
-import { readdir, stat } from 'node:fs/promises'
-import { join } from 'node:path'
+import { readdir, lstat, realpath } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
 import BaseTool from './base.js'
 import logger from '../logger.js'
 
@@ -64,7 +64,14 @@ class DevTool extends BaseTool {
     // Verify project directory exists
     const projectPath = join(this.projectsDir, projectName)
     try {
-      const s = await stat(projectPath)
+      // Resolve to real path first to catch symlink escapes
+      const real = await realpath(projectPath)
+      const base = resolve(this.projectsDir)
+      if (!real.startsWith(base + '/') && real !== base) {
+        return 'Invalid project name.'
+      }
+
+      const s = await lstat(real)
       if (!s.isDirectory()) {
         const projects = await this._listProjects()
         return `'${projectName}' is not a directory.\nAvailable projects: ${projects.join(', ')}`

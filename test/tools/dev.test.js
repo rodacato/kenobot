@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, writeFile, rm, symlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -154,6 +154,12 @@ describe('DevTool', () => {
 
       it('should reject path traversal with backslash', async () => {
         const result = await tool.execute({ text: 'foo\\bar do thing' })
+        expect(result).toContain('Invalid project name')
+      })
+
+      it('should reject symlinks that escape projectsDir', async () => {
+        await symlink('/tmp', join(projectsDir, 'escape'))
+        const result = await tool.execute({ text: 'escape do thing' })
         expect(result).toContain('Invalid project name')
       })
     })
