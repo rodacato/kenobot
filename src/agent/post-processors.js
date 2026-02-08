@@ -3,6 +3,7 @@ import { extractChatMemories } from './chat-memory-extractor.js'
 import { extractUserUpdates } from './user-extractor.js'
 import { extractBootstrapComplete } from './bootstrap-extractor.js'
 import { CONFIG_CHANGED } from '../events.js'
+import logger from '../logger.js'
 
 /**
  * Post-processor pipeline for agent responses.
@@ -77,7 +78,11 @@ export async function runPostProcessors(text, deps, processors = defaultPostProc
     const { cleanText: nextText, data } = pp.extract(cleanText)
     cleanText = nextText
     stats[pp.name] = data
-    await pp.apply(data, deps)
+    try {
+      await pp.apply(data, deps)
+    } catch (error) {
+      logger.error('post-processor', 'apply_failed', { name: pp.name, error: error.message })
+    }
   }
 
   return { cleanText, stats }
