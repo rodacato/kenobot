@@ -30,7 +30,7 @@ if [ ! -f ".env" ]; then
   echo "❌ .env file not found"
   echo "Create .env with:"
   echo "  TELEGRAM_BOT_TOKEN=your_token_here"
-  echo "  TELEGRAM_ALLOWED_CHAT_IDS=your_chat_id_here"
+  echo "  TELEGRAM_ALLOWED_USERS=your_user_id_here"
   exit 1
 fi
 

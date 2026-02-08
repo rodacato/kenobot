@@ -37,7 +37,7 @@ Telegram bot with memory, tools, skills, scheduling, and n8n integration — all
 ```bash
 npm install -g github:rodacato/kenobot
 kenobot init                 # Scaffold ~/.kenobot/ directories
-kenobot config edit          # Set TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS, PROVIDER
+kenobot config edit          # Set TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_USERS, PROVIDER
 kenobot start                # Start the bot
 ```
 
@@ -91,7 +91,8 @@ Use `kenobot config edit` to open it, or pass `--config path/to/file.env` when r
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `TELEGRAM_BOT_TOKEN` | *required* | Bot token from @BotFather |
-| `TELEGRAM_ALLOWED_CHAT_IDS` | *required* | Comma-separated allowed chat IDs |
+| `TELEGRAM_ALLOWED_USERS` | *required** | Comma-separated allowed user IDs |
+| `TELEGRAM_ALLOWED_CHAT_IDS` | optional | Comma-separated allowed group chat IDs |
 | `PROVIDER` | `claude-cli` | `claude-api`, `claude-cli`, or `mock` |
 | `MODEL` | `sonnet` | `sonnet`, `opus`, or `haiku` |
 | `ANTHROPIC_API_KEY` | — | Required for `claude-api` provider |

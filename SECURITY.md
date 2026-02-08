@@ -44,14 +44,16 @@ KenoBot is designed as a **single-user personal assistant**. Its security model 
 
 ### Channel Access Control
 
-**Telegram** uses an explicit allowlist:
+**Telegram** uses an explicit allowlist with two layers:
 
 ```bash
-# .env — only these chat IDs can interact with the bot
-TELEGRAM_ALLOWED_CHAT_IDS=123456789,987654321
+# .env — user-based (responds to you in any chat)
+TELEGRAM_ALLOWED_USERS=123456789
+# Optional: chat-based (allows all users in specific groups)
+TELEGRAM_ALLOWED_CHAT_IDS=-1001234567890
 ```
 
-If `TELEGRAM_ALLOWED_CHAT_IDS` is empty or missing, the bot rejects **all** messages. This is intentional — failing closed is safer than failing open.
+If neither `TELEGRAM_ALLOWED_USERS` nor `TELEGRAM_ALLOWED_CHAT_IDS` is set, the bot rejects **all** messages. This is intentional — failing closed is safer than failing open. In groups, the bot only responds when @mentioned or replied to.
 
 **HTTP webhooks** use HMAC-SHA256 signature validation:
 
@@ -127,7 +129,7 @@ Use `kenobot install-service` to set up a systemd user service with automatic re
 Before deploying to production:
 
 - [ ] `~/.kenobot/config/.env` has `chmod 600` permissions
-- [ ] `TELEGRAM_ALLOWED_CHAT_IDS` is set to your specific chat ID(s)
+- [ ] `TELEGRAM_ALLOWED_USERS` is set to your specific user ID(s)
 - [ ] `WEBHOOK_SECRET` is set (if using HTTP channel)
 - [ ] Bot process runs as non-root user
 - [ ] HTTP channel bound to `127.0.0.1` (not `0.0.0.0`)

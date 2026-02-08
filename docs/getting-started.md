@@ -98,8 +98,8 @@ code .env
 # Paste the token BotFather gave you
 TELEGRAM_BOT_TOKEN=PASTE_YOUR_TOKEN_HERE
 
-# Paste your chat ID (the number from userinfobot)
-TELEGRAM_ALLOWED_CHAT_IDS=PASTE_YOUR_CHAT_ID_HERE
+# Paste your user ID (the number from userinfobot)
+TELEGRAM_ALLOWED_USERS=PASTE_YOUR_CHAT_ID_HERE
 
 # For testing, use the mock provider
 PROVIDER=mock
@@ -111,7 +111,7 @@ MODEL=sonnet
 **Complete example**:
 ```bash
 TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
-TELEGRAM_ALLOWED_CHAT_IDS=123456789
+TELEGRAM_ALLOWED_USERS=123456789
 PROVIDER=mock
 MODEL=sonnet
 ```
@@ -132,7 +132,7 @@ You should see something like (secrets are redacted automatically):
 Config: /home/you/.kenobot/config/.env
 
 TELEGRAM_BOT_TOKEN=********
-TELEGRAM_ALLOWED_CHAT_IDS=123456789
+TELEGRAM_ALLOWED_USERS=123456789
 PROVIDER=mock
 MODEL=sonnet
 ```
@@ -300,12 +300,12 @@ See [providers.md](features/providers.md) for details on each provider.
 - Your `.env` doesn't have all values
 - Check that it has:
   - `TELEGRAM_BOT_TOKEN=...`
-  - `TELEGRAM_ALLOWED_CHAT_IDS=...`
+  - `TELEGRAM_ALLOWED_USERS=...`
 
 ### Bot responds to anyone
 
 - This is a security issue
-- Verify that `TELEGRAM_ALLOWED_CHAT_IDS` has YOUR chat ID
+- Verify that `TELEGRAM_ALLOWED_USERS` has YOUR user ID
 - Check logs: unauthorized users should be rejected
 
 ---
@@ -337,7 +337,7 @@ Because KenoBot uses your Chat ID for **security**:
 }
 
 // The bot verifies:
-if (userId === TELEGRAM_ALLOWED_CHAT_IDS) {
+if (userId === TELEGRAM_ALLOWED_USERS) {
   // Authorized, respond
 } else {
   // Unauthorized, ignore
@@ -364,10 +364,10 @@ TELEGRAM_BOT_TOKEN=7891234567:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw
 #                  ^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #                  Bot ID    Secret token (don't share)
 
-# Your Chat ID (from @userinfobot)
-TELEGRAM_ALLOWED_CHAT_IDS=123456789
-#                         ^^^^^^^^^
-#                         Your user ID
+# Your user ID (from @userinfobot)
+TELEGRAM_ALLOWED_USERS=123456789
+#                      ^^^^^^^^^
+#                      Your user ID
 ```
 
 ### Can I use the same bot on multiple devices?
@@ -377,7 +377,7 @@ Yes. The **bot token** is the same, but each **person** has their own **Chat ID*
 If you want another person to use the bot:
 ```bash
 # Multiple users (comma-separated)
-TELEGRAM_ALLOWED_CHAT_IDS=123456789,987654321,111222333
+TELEGRAM_ALLOWED_USERS=123456789,987654321,111222333
 ```
 
 ### What happens if someone else messages my bot?

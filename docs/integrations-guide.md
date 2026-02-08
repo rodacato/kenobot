@@ -408,7 +408,7 @@ All variables are set in `~/.kenobot/config/.env`.
 | Variable | Description |
 |----------|-------------|
 | `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather |
-| `TELEGRAM_ALLOWED_CHAT_IDS` | Comma-separated allowed chat IDs |
+| `TELEGRAM_ALLOWED_USERS` | Comma-separated allowed user IDs |
 
 ### Provider
 

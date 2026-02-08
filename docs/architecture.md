@@ -52,7 +52,7 @@ KenoBot follows an **event-driven architecture** where all components communicat
 When a user sends a message in Telegram:
 
 1. **TelegramChannel** receives the message via grammy
-2. **Auth check**: `_isAllowed()` verifies the sender is in `TELEGRAM_ALLOWED_CHAT_IDS` (deny-by-default)
+2. **Auth check**: `_isAllowed()` verifies the sender is in `TELEGRAM_ALLOWED_USERS` (deny-by-default)
 3. **Bus publish**: Channel emits `message:in` with `{text, chatId, userId, channel, timestamp}`
 4. **AgentLoop** picks up `message:in`, derives session ID: `telegram-{chatId}`
 5. **Trigger check**: Registry checks if message matches a tool slash command (e.g. `/fetch`)

@@ -22,9 +22,14 @@ kenobot start --config config/main.env     # Use alternate config file
 | Variable | Type | Default | Required | Description |
 |----------|------|---------|----------|-------------|
 | `TELEGRAM_BOT_TOKEN` | string | — | **Yes** | Bot token from [@BotFather](https://t.me/botfather) |
-| `TELEGRAM_ALLOWED_CHAT_IDS` | string | — | **Yes** | Comma-separated list of allowed Telegram chat IDs. Empty = reject all. |
+| `TELEGRAM_ALLOWED_USERS` | string | — | One of these | Comma-separated Telegram user IDs. These users can talk to the bot in any chat (DM or group). |
+| `TELEGRAM_ALLOWED_CHAT_IDS` | string | — | One of these | Comma-separated Telegram chat IDs. Anyone in these chats can talk to the bot. |
 
-Get your chat ID from [@userinfobot](https://t.me/userinfobot). For group chats, add the bot to the group and check the logs for the chat ID.
+At least one of `TELEGRAM_ALLOWED_USERS` or `TELEGRAM_ALLOWED_CHAT_IDS` must be set.
+
+Get your user ID from [@userinfobot](https://t.me/userinfobot). For group chat IDs, add the bot to the group and check the logs.
+
+**Group behavior**: In groups, the bot only responds when **@mentioned** or **replied to**. This prevents the bot from reacting to every message. In DMs, it always responds.
 
 ## Claude API Provider
 
@@ -43,6 +48,12 @@ Get your chat ID from [@userinfobot](https://t.me/userinfobot). For group chats,
 | Variable | Type | Default | Required | Description |
 |----------|------|---------|----------|-------------|
 | `MEMORY_DAYS` | integer | `3` | No | Number of recent daily log files to include in context |
+
+The bot supports two memory tiers:
+- **Global memory** (`<memory>` tags): stored in `data/memory/`, shared across all chats.
+- **Per-chat memory** (`<chat-memory>` tags): stored in `data/memory/chats/{sessionId}/`, scoped to a specific conversation.
+
+Per-chat memory is zero-config — directories are auto-created when the bot first writes a `<chat-memory>` tag. You can also manually create a `data/memory/chats/{sessionId}/MEMORY.md` for curated per-chat facts.
 
 ## Skills
 
@@ -114,7 +125,7 @@ KENOBOT_HOME=/tmp/kenobot-test kenobot start
 ```bash
 # Required
 TELEGRAM_BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
-TELEGRAM_ALLOWED_CHAT_IDS=123456789
+TELEGRAM_ALLOWED_USERS=123456789
 
 # Provider (pick one)
 PROVIDER=claude-api
@@ -151,7 +162,7 @@ PROVIDER=claude-api
 MODEL=opus
 IDENTITY_FILE=identities/kenobot
 TELEGRAM_BOT_TOKEN=<main_bot_token>
-TELEGRAM_ALLOWED_CHAT_IDS=123456789
+TELEGRAM_ALLOWED_USERS=123456789
 DATA_DIR=~/.kenobot/data/main
 
 # ~/.kenobot/config/quick.env
@@ -159,7 +170,7 @@ PROVIDER=claude-api
 MODEL=haiku
 IDENTITY_FILE=identities/quick.md
 TELEGRAM_BOT_TOKEN=<quick_bot_token>
-TELEGRAM_ALLOWED_CHAT_IDS=123456789
+TELEGRAM_ALLOWED_USERS=123456789
 DATA_DIR=~/.kenobot/data/quick
 ```
 

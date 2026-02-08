@@ -19,7 +19,7 @@ git config pull.rebase true
 
 ```bash
 kenobot init            # Scaffold ~/.kenobot/ directories
-kenobot config edit     # Set TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS, PROVIDER
+kenobot config edit     # Set TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_USERS, PROVIDER
 kenobot start           # Start the bot (foreground)
 ```
 

@@ -25,7 +25,7 @@ PROVIDER=claude-api
 MODEL=opus
 IDENTITY_FILE=identities/kenobot
 TELEGRAM_BOT_TOKEN=<main_bot_token>
-TELEGRAM_ALLOWED_CHAT_IDS=123456789
+TELEGRAM_ALLOWED_USERS=123456789
 ANTHROPIC_API_KEY=sk-ant-api03-...
 DATA_DIR=~/.kenobot/data/main
 ```
@@ -36,7 +36,7 @@ PROVIDER=claude-api
 MODEL=haiku
 IDENTITY_FILE=identities/quick.md
 TELEGRAM_BOT_TOKEN=<quick_bot_token>
-TELEGRAM_ALLOWED_CHAT_IDS=123456789
+TELEGRAM_ALLOWED_USERS=123456789
 ANTHROPIC_API_KEY=sk-ant-api03-...
 DATA_DIR=~/.kenobot/data/quick
 ```

@@ -49,7 +49,7 @@ kenobot config edit    # Opens ~/.kenobot/config/.env in $EDITOR
 Set at minimum:
 ```bash
 TELEGRAM_BOT_TOKEN=your_token_here
-TELEGRAM_ALLOWED_CHAT_IDS=your_chat_id
+TELEGRAM_ALLOWED_USERS=your_chat_id
 PROVIDER=claude-api
 MODEL=sonnet
 ANTHROPIC_API_KEY=sk-ant-api03-...

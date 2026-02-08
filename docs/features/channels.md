@@ -21,7 +21,7 @@ Primary channel using the [grammy](https://grammy.dev) library.
 
 ```bash
 TELEGRAM_BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
-TELEGRAM_ALLOWED_CHAT_IDS=123456789,987654321
+TELEGRAM_ALLOWED_USERS=123456789,987654321
 ```
 
 ### Features

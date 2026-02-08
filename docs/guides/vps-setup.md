@@ -58,7 +58,7 @@ kenobot config edit
 
 Set at minimum:
 - `TELEGRAM_BOT_TOKEN` — from [@BotFather](https://t.me/BotFather) on Telegram
-- `TELEGRAM_ALLOWED_CHAT_IDS` — your Telegram user ID (send `/start` to [@userinfobot](https://t.me/userinfobot))
+- `TELEGRAM_ALLOWED_USERS` — your Telegram user ID (send `/start` to [@userinfobot](https://t.me/userinfobot))
 - `PROVIDER` — `claude-api` (recommended) or `claude-cli`
 - `ANTHROPIC_API_KEY` — if using `claude-api`
 
