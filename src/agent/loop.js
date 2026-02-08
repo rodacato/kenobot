@@ -23,6 +23,13 @@ export default class AgentLoop {
       ? new ToolOrchestrator(toolRegistry, provider)
       : null
     this._handler = null
+
+    if (toolRegistry && !provider.supportsTools) {
+      logger.warn('agent', 'tools_without_support', {
+        provider: provider.name,
+        hint: 'Provider does not support native tool_use — tool calls will not work'
+      })
+    }
   }
 
   get maxToolIterations() {

@@ -88,6 +88,10 @@ export default class ClaudeAPIProvider extends BaseProvider {
     }
   }
 
+  get supportsTools() {
+    return true
+  }
+
   get name() {
     return 'claude-api'
   }

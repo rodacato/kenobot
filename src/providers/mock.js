@@ -67,6 +67,10 @@ export default class MockProvider extends BaseProvider {
     }
   }
 
+  get supportsTools() {
+    return true
+  }
+
   get name() {
     return 'mock'
   }

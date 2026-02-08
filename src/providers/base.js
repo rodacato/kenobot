@@ -3,12 +3,61 @@ import logger from '../logger.js'
 const RETRYABLE_STATUSES = [429, 500, 502, 503]
 
 /**
+ * Required methods that subclasses must implement.
+ */
+const REQUIRED_METHODS = ['chat']
+const REQUIRED_GETTERS = ['name']
+
+/**
  * BaseProvider - Interface for LLM providers
  *
  * All providers must implement this interface.
  * Allows swapping providers (Claude, Gemini, OpenRouter) without changing agent code.
+ *
+ * Required contract:
+ *   - chat(messages, options) → { content, toolCalls, stopReason, rawContent?, usage? }
+ *   - get name → string
+ *
+ * Optional (tool support):
+ *   - adaptToolDefinitions(definitions) → adapted definitions
+ *   - buildToolResultMessages(rawContent, results) → messages
+ *   - get supportsTools → true
  */
 export default class BaseProvider {
+  constructor() {
+    // Validate required interface at construction time (skip for BaseProvider itself)
+    if (this.constructor !== BaseProvider) {
+      this._validateInterface()
+    }
+  }
+
+  /**
+   * Validate that the subclass implements the required interface.
+   * Logs warnings for missing methods — does not throw, to avoid breaking existing code.
+   * @private
+   */
+  _validateInterface() {
+    for (const method of REQUIRED_METHODS) {
+      if (typeof this[method] !== 'function' || this[method] === BaseProvider.prototype[method]) {
+        logger.warn('provider', 'missing_method', {
+          provider: this.constructor.name,
+          method
+        })
+      }
+    }
+    for (const getter of REQUIRED_GETTERS) {
+      try {
+        // Accessing the getter will throw if it's the base stub
+        this[getter]
+      } catch {
+        logger.warn('provider', 'missing_getter', {
+          provider: this.constructor.name,
+          getter
+        })
+      }
+    }
+  }
+
   /**
    * Send messages to LLM and get response
    * @param {Array<{role: string, content: string|Array}>} messages - Conversation history
@@ -86,6 +135,15 @@ export default class BaseProvider {
         }))
       }
     ]
+  }
+
+  /**
+   * Whether this provider supports native tool_use.
+   * Override to return true in providers that handle tool calls.
+   * @returns {boolean}
+   */
+  get supportsTools() {
+    return false
   }
 
   /**
