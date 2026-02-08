@@ -19,5 +19,8 @@ class MessageBus extends EventEmitter {
   }
 }
 
-// Export singleton instance
+// Named export: class for testing and multi-instance scenarios
+export { MessageBus }
+
+// Default export: singleton for the composition root (index.js)
 export default new MessageBus()
