@@ -59,8 +59,8 @@ export default class BaseChannel extends EventEmitter {
    */
   _publishMessage(message) {
     // Security: deny by default
-    if (!this._isAllowed(message.userId)) {
-      logger.warn('channel', 'auth_rejected', { userId: message.userId, channel: this.name })
+    if (!this._isAllowed(message.userId, message.chatId)) {
+      logger.warn('channel', 'auth_rejected', { userId: message.userId, chatId: message.chatId, channel: this.name })
       return
     }
 
@@ -94,15 +94,24 @@ export default class BaseChannel extends EventEmitter {
     }
   }
 
-  _isAllowed(userId) {
-    const allowFrom = this.config.allowFrom || []
+  _isAllowed(userId, chatId) {
+    const { allowFrom, allowedUsers = [], allowedChatIds = [] } = this.config
+
+    // Backwards compat: old config passes allowFrom
+    if (allowFrom) return allowFrom.includes(userId)
 
     // Deny by default (security)
-    if (allowFrom.length === 0) {
+    if (allowedUsers.length === 0 && allowedChatIds.length === 0) {
       logger.error('channel', 'no_allowlist', { channel: this.name })
       return false
     }
 
-    return allowFrom.includes(userId)
+    // User-based: this specific user is allowed anywhere
+    if (allowedUsers.includes(userId)) return true
+
+    // Chat-based: anyone in this specific chat is allowed
+    if (chatId && allowedChatIds.includes(chatId)) return true
+
+    return false
   }
 }

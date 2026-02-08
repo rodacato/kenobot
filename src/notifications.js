@@ -5,7 +5,7 @@
  * as messages to the first allowed chat ID (owner).
  */
 export function setupNotifications(bus, config) {
-  const ownerChat = config.telegram.allowedChatIds[0]
+  const ownerChat = config.telegram.allowedUsers?.[0] || config.telegram.allowedChatIds?.[0]
   if (!ownerChat) return
 
   const notify = (text) => bus.emit('message:out', { chatId: ownerChat, text, channel: 'telegram' })

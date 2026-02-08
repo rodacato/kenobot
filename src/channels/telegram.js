@@ -20,15 +20,34 @@ export default class TelegramChannel extends BaseChannel {
 
     // Handle incoming text messages
     this.bot.on('message:text', async (ctx) => {
+      const chatType = ctx.chat.type
+      const isGroup = chatType === 'group' || chatType === 'supergroup'
+      let text = ctx.message.text
+
+      // In groups: only respond to mentions or replies to the bot
+      if (isGroup) {
+        const botId = ctx.me.id
+        const botUsername = ctx.me.username
+        const isReply = ctx.message.reply_to_message?.from?.id === botId
+        const isMention = botUsername && text.includes(`@${botUsername}`)
+
+        if (!isReply && !isMention) return // silently skip
+
+        // Strip @botname from message text
+        if (isMention && botUsername) {
+          text = text.replace(new RegExp(`@${botUsername}\\b`, 'gi'), '').trim()
+        }
+      }
+
       this._publishMessage({
-        text: ctx.message.text,
+        text,
         chatId: String(ctx.chat.id),
         userId: String(ctx.from.id),
         timestamp: Date.now(),
         metadata: {
           username: ctx.from.username,
           firstName: ctx.from.first_name,
-          chatType: ctx.chat.type
+          chatType
         }
       })
     })

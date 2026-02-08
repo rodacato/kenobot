@@ -101,4 +101,96 @@ describe('TelegramChannel', () => {
       expect(channel.name).toBe('telegram')
     })
   })
+
+  describe('_isAllowed (dual auth)', () => {
+    it('should allow user in allowedUsers list', () => {
+      const ch = new TelegramChannel(bus, {
+        token: 'fake',
+        allowedUsers: ['111'],
+        allowedChatIds: [],
+      })
+      expect(ch._isAllowed('111', '-1001234')).toBe(true)
+    })
+
+    it('should allow anyone in allowedChatIds', () => {
+      const ch = new TelegramChannel(bus, {
+        token: 'fake',
+        allowedUsers: [],
+        allowedChatIds: ['-1001234'],
+      })
+      expect(ch._isAllowed('999', '-1001234')).toBe(true)
+    })
+
+    it('should reject unknown user in non-allowed chat', () => {
+      const ch = new TelegramChannel(bus, {
+        token: 'fake',
+        allowedUsers: ['111'],
+        allowedChatIds: ['-1001234'],
+      })
+      expect(ch._isAllowed('999', '-9999')).toBe(false)
+    })
+
+    it('should reject when no allowlist configured', () => {
+      const ch = new TelegramChannel(bus, {
+        token: 'fake',
+        allowedUsers: [],
+        allowedChatIds: [],
+      })
+      expect(ch._isAllowed('111', '111')).toBe(false)
+    })
+
+    it('should support legacy allowFrom config', () => {
+      const ch = new TelegramChannel(bus, {
+        token: 'fake',
+        allowFrom: ['111'],
+      })
+      expect(ch._isAllowed('111', '111')).toBe(true)
+      expect(ch._isAllowed('222', '222')).toBe(false)
+    })
+  })
+
+  describe('_publishMessage (auth integration)', () => {
+    it('should emit message:in for allowed user', () => {
+      const ch = new TelegramChannel(bus, {
+        token: 'fake',
+        allowedUsers: ['111'],
+        allowedChatIds: [],
+      })
+      const emitted = []
+      bus.on('message:in', (msg) => emitted.push(msg))
+
+      ch._publishMessage({ text: 'hi', chatId: '111', userId: '111', timestamp: 1 })
+
+      expect(emitted).toHaveLength(1)
+      expect(emitted[0].text).toBe('hi')
+    })
+
+    it('should not emit for unauthorized user', () => {
+      const ch = new TelegramChannel(bus, {
+        token: 'fake',
+        allowedUsers: ['111'],
+        allowedChatIds: [],
+      })
+      const emitted = []
+      bus.on('message:in', (msg) => emitted.push(msg))
+
+      ch._publishMessage({ text: 'hi', chatId: '999', userId: '999', timestamp: 1 })
+
+      expect(emitted).toHaveLength(0)
+    })
+
+    it('should allow user in allowed group chat even if not in allowedUsers', () => {
+      const ch = new TelegramChannel(bus, {
+        token: 'fake',
+        allowedUsers: [],
+        allowedChatIds: ['-1001234'],
+      })
+      const emitted = []
+      bus.on('message:in', (msg) => emitted.push(msg))
+
+      ch._publishMessage({ text: 'hi', chatId: '-1001234', userId: '999', timestamp: 1 })
+
+      expect(emitted).toHaveLength(1)
+    })
+  })
 })

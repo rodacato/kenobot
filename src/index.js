@@ -39,6 +39,7 @@ process.on('unhandledRejection', (reason) => {
 logger.info('system', 'startup', {
   provider: config.provider,
   model: config.model,
+  allowedUsers: config.telegram.allowedUsers.length,
   allowedChats: config.telegram.allowedChatIds.length
 })
 
@@ -141,7 +142,8 @@ const channels = []
 
 const telegram = new TelegramChannel(bus, {
   token: config.telegram.token,
-  allowFrom: config.telegram.allowedChatIds
+  allowedUsers: config.telegram.allowedUsers,
+  allowedChatIds: config.telegram.allowedChatIds,
 })
 channels.push(telegram)
 

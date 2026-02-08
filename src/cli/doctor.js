@@ -96,8 +96,10 @@ async function checkConfig(paths) {
   if (!env.TELEGRAM_BOT_TOKEN || env.TELEGRAM_BOT_TOKEN === 'your_bot_token_here') {
     issues.push('TELEGRAM_BOT_TOKEN not set')
   }
-  if (!env.TELEGRAM_ALLOWED_CHAT_IDS || env.TELEGRAM_ALLOWED_CHAT_IDS === '123456789') {
-    issues.push('TELEGRAM_ALLOWED_CHAT_IDS not set')
+  const hasAllowedUsers = env.TELEGRAM_ALLOWED_USERS && env.TELEGRAM_ALLOWED_USERS !== '123456789'
+  const hasAllowedChats = env.TELEGRAM_ALLOWED_CHAT_IDS && env.TELEGRAM_ALLOWED_CHAT_IDS !== '123456789'
+  if (!hasAllowedUsers && !hasAllowedChats) {
+    issues.push('TELEGRAM_ALLOWED_USERS or TELEGRAM_ALLOWED_CHAT_IDS not set')
   }
 
   // Provider-specific

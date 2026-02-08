@@ -40,7 +40,7 @@ async function seedHealthy(paths) {
   // Valid .env
   await writeFile(paths.envFile, [
     'TELEGRAM_BOT_TOKEN=123456:ABC-DEF',
-    'TELEGRAM_ALLOWED_CHAT_IDS=12345678',
+    'TELEGRAM_ALLOWED_USERS=12345678',
     'PROVIDER=mock',
   ].join('\n'))
 
@@ -137,7 +137,7 @@ describe('kenobot doctor', () => {
   it('detects unconfigured telegram token', async () => {
     const paths = makePaths(tmpDir)
     await seedHealthy(paths)
-    await writeFile(paths.envFile, 'TELEGRAM_BOT_TOKEN=your_bot_token_here\nTELEGRAM_ALLOWED_CHAT_IDS=123\nPROVIDER=mock\n')
+    await writeFile(paths.envFile, 'TELEGRAM_BOT_TOKEN=your_bot_token_here\nTELEGRAM_ALLOWED_USERS=123\nPROVIDER=mock\n')
 
     const output = captureOutput()
     try {
@@ -155,7 +155,7 @@ describe('kenobot doctor', () => {
     const paths = makePaths(tmpDir)
     // Only create minimal structure (no data dirs)
     await mkdir(paths.config, { recursive: true })
-    await writeFile(paths.envFile, 'TELEGRAM_BOT_TOKEN=abc\nTELEGRAM_ALLOWED_CHAT_IDS=123\nPROVIDER=mock\n')
+    await writeFile(paths.envFile, 'TELEGRAM_BOT_TOKEN=abc\nTELEGRAM_ALLOWED_USERS=123\nPROVIDER=mock\n')
 
     const output = captureOutput()
     try {

@@ -17,12 +17,17 @@ const { values } = parseArgs({
 loadEnv({ path: values.config, override: true })
 
 // Validate required config
-const required = ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_ALLOWED_CHAT_IDS']
-for (const key of required) {
-  if (!process.env[key]) {
-    logger.error('system', 'config_missing', { key, hint: `set ${key} in .env` })
-    process.exit(1)
-  }
+if (!process.env.TELEGRAM_BOT_TOKEN) {
+  logger.error('system', 'config_missing', { key: 'TELEGRAM_BOT_TOKEN', hint: 'set TELEGRAM_BOT_TOKEN in .env' })
+  process.exit(1)
+}
+
+if (!process.env.TELEGRAM_ALLOWED_USERS && !process.env.TELEGRAM_ALLOWED_CHAT_IDS) {
+  logger.error('system', 'config_missing', {
+    key: 'TELEGRAM_ALLOWED_USERS',
+    hint: 'set TELEGRAM_ALLOWED_USERS and/or TELEGRAM_ALLOWED_CHAT_IDS in .env'
+  })
+  process.exit(1)
 }
 
 /**
@@ -58,7 +63,8 @@ export default {
   // Telegram config
   telegram: {
     token: process.env.TELEGRAM_BOT_TOKEN,
-    allowedChatIds: process.env.TELEGRAM_ALLOWED_CHAT_IDS?.split(',').map(id => id.trim()) || []
+    allowedUsers: process.env.TELEGRAM_ALLOWED_USERS?.split(',').map(id => id.trim()) || [],
+    allowedChatIds: process.env.TELEGRAM_ALLOWED_CHAT_IDS?.split(',').map(id => id.trim()) || [],
   },
 
   // Data directories
