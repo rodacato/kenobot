@@ -164,6 +164,7 @@ describe('ContextBuilder', () => {
         getRecentDays: vi.fn().mockResolvedValue(null),
         getChatLongTermMemory: vi.fn().mockResolvedValue(null),
         getChatRecentDays: vi.fn().mockResolvedValue(null),
+        getWorkingMemory: vi.fn().mockResolvedValue(null),
       }
 
       context = new ContextBuilder(
@@ -262,6 +263,80 @@ describe('ContextBuilder', () => {
       const result = await context.build('telegram-123', { text: 'hello' })
 
       expect(result.system.startsWith('# KenoBot Identity')).toBe(true)
+    })
+
+    it('should include working memory section with age label', async () => {
+      const twoHoursAgo = Date.now() - 2 * 3600000
+      mockMemory.getLongTermMemory.mockResolvedValue('some fact')
+      mockMemory.getWorkingMemory.mockResolvedValue({
+        content: '- Topic: EU AI Act\n- Pending: sanctions',
+        updatedAt: twoHoursAgo
+      })
+
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).toContain('### Working memory (updated 2 hours ago)')
+      expect(result.system).toContain('- Topic: EU AI Act')
+      expect(result.system).toContain('- Pending: sanctions')
+    })
+
+    it('should not include working memory when null', async () => {
+      mockMemory.getLongTermMemory.mockResolvedValue('some fact')
+      mockMemory.getWorkingMemory.mockResolvedValue(null)
+
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).not.toContain('### Working memory')
+    })
+
+    it('should exclude stale working memory beyond threshold', async () => {
+      const eightDaysAgo = Date.now() - 8 * 86400000
+      mockMemory.getLongTermMemory.mockResolvedValue('some fact')
+      mockMemory.getWorkingMemory.mockResolvedValue({
+        content: '- Old stale context',
+        updatedAt: eightDaysAgo
+      })
+
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).not.toContain('### Working memory')
+      expect(result.system).not.toContain('Old stale context')
+    })
+
+    it('should include working memory within custom stale threshold', async () => {
+      const twoDaysAgo = Date.now() - 2 * 86400000
+      mockMemory.getWorkingMemory.mockResolvedValue({
+        content: '- Recent context',
+        updatedAt: twoDaysAgo
+      })
+
+      const ctx = new ContextBuilder(
+        { identityFile: 'identities/kenobot.md', workingMemoryStaleThreshold: 3 },
+        mockStorage,
+        mockMemory
+      )
+
+      const result = await ctx.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).toContain('### Working memory')
+      expect(result.system).toContain('Recent context')
+    })
+
+    it('should call getWorkingMemory with sessionId', async () => {
+      mockMemory.getLongTermMemory.mockResolvedValue('some fact')
+
+      await context.build('telegram-123', { text: 'hello' })
+
+      expect(mockMemory.getWorkingMemory).toHaveBeenCalledWith('telegram-123')
+    })
+
+    it('should include working memory instructions in prompt', async () => {
+      mockMemory.getLongTermMemory.mockResolvedValue('some fact')
+
+      const result = await context.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).toContain('<working-memory>')
+      expect(result.system).toContain('How to maintain working memory')
     })
   })
 
@@ -424,6 +499,7 @@ describe('ContextBuilder', () => {
         getRecentDays: vi.fn().mockRejectedValue(new Error('disk full')),
         getChatLongTermMemory: vi.fn().mockRejectedValue(new Error('disk full')),
         getChatRecentDays: vi.fn().mockRejectedValue(new Error('disk full')),
+        getWorkingMemory: vi.fn().mockRejectedValue(new Error('disk full')),
       }
       const workingToolRegistry = {
         getPromptSection: vi.fn().mockReturnValue({
@@ -452,6 +528,7 @@ describe('ContextBuilder', () => {
         getRecentDays: vi.fn().mockRejectedValue(new Error('disk full')),
         getChatLongTermMemory: vi.fn().mockRejectedValue(new Error('disk full')),
         getChatRecentDays: vi.fn().mockRejectedValue(new Error('disk full')),
+        getWorkingMemory: vi.fn().mockRejectedValue(new Error('disk full')),
       }
 
       const ctx = new ContextBuilder(
@@ -483,6 +560,7 @@ describe('ContextBuilder', () => {
         getRecentDays: vi.fn().mockResolvedValue(null),
         getChatLongTermMemory: vi.fn().mockResolvedValue(null),
         getChatRecentDays: vi.fn().mockResolvedValue(null),
+        getWorkingMemory: vi.fn().mockResolvedValue(null),
       }
 
       const ctx = new ContextBuilder(

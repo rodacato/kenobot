@@ -9,7 +9,7 @@ vi.mock('../../src/logger.js', () => ({
 }))
 
 import logger from '../../src/logger.js'
-import { runPostProcessors } from '../../src/agent/post-processors.js'
+import { runPostProcessors, defaultPostProcessors } from '../../src/agent/post-processors.js'
 
 describe('runPostProcessors', () => {
   it('should run extract and apply for each processor', async () => {
@@ -88,5 +88,55 @@ describe('runPostProcessors', () => {
 
     expect(cleanText).toBe('hello  world')
     expect(stats.failing).toEqual({ extracted: true })
+  })
+})
+
+describe('working-memory processor', () => {
+  const workingMemoryProcessor = defaultPostProcessors.find(p => p.name === 'working-memory')
+
+  it('should exist in the default pipeline', () => {
+    expect(workingMemoryProcessor).toBeDefined()
+  })
+
+  it('should extract working-memory tags and return clean text', () => {
+    const input = 'Answer.\n\n<working-memory>- Current topic</working-memory>'
+    const { cleanText, data } = workingMemoryProcessor.extract(input)
+
+    expect(cleanText).toBe('Answer.')
+    expect(data.workingMemory).toBe('- Current topic')
+  })
+
+  it('should call memory.writeWorkingMemory on apply', async () => {
+    const mockMemory = { writeWorkingMemory: vi.fn() }
+    const deps = { memory: mockMemory, sessionId: 'telegram-123' }
+
+    await workingMemoryProcessor.apply({ workingMemory: '- Context notes' }, deps)
+
+    expect(mockMemory.writeWorkingMemory).toHaveBeenCalledWith('telegram-123', '- Context notes')
+  })
+
+  it('should skip apply when no working memory extracted', async () => {
+    const mockMemory = { writeWorkingMemory: vi.fn() }
+    const deps = { memory: mockMemory, sessionId: 'telegram-123' }
+
+    await workingMemoryProcessor.apply({ workingMemory: null }, deps)
+
+    expect(mockMemory.writeWorkingMemory).not.toHaveBeenCalled()
+  })
+
+  it('should skip apply when no memory manager', async () => {
+    const deps = { memory: null, sessionId: 'telegram-123' }
+
+    // Should not throw
+    await workingMemoryProcessor.apply({ workingMemory: '- notes' }, deps)
+  })
+
+  it('should skip apply when no sessionId', async () => {
+    const mockMemory = { writeWorkingMemory: vi.fn() }
+    const deps = { memory: mockMemory, sessionId: null }
+
+    await workingMemoryProcessor.apply({ workingMemory: '- notes' }, deps)
+
+    expect(mockMemory.writeWorkingMemory).not.toHaveBeenCalled()
   })
 })

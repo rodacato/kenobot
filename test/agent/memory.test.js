@@ -337,6 +337,86 @@ describe('FileMemory', () => {
     })
   })
 
+  describe('writeWorkingMemory', () => {
+    it('should write content to working memory file', async () => {
+      await manager.writeWorkingMemory('telegram-123', '- Current topic: AI regulation')
+
+      const content = await readFile(
+        join(tmpDir, 'memory', 'working', 'telegram-123.md'), 'utf8'
+      )
+      expect(content).toBe('- Current topic: AI regulation')
+    })
+
+    it('should create working directory automatically', async () => {
+      await manager.writeWorkingMemory('telegram-999', '- test')
+
+      const content = await readFile(
+        join(tmpDir, 'memory', 'working', 'telegram-999.md'), 'utf8'
+      )
+      expect(content).toContain('test')
+    })
+
+    it('should overwrite previous working memory', async () => {
+      await manager.writeWorkingMemory('telegram-123', '- old context')
+      await manager.writeWorkingMemory('telegram-123', '- new context')
+
+      const content = await readFile(
+        join(tmpDir, 'memory', 'working', 'telegram-123.md'), 'utf8'
+      )
+      expect(content).toBe('- new context')
+    })
+  })
+
+  describe('getWorkingMemory', () => {
+    it('should return null when no working memory exists', async () => {
+      const result = await manager.getWorkingMemory('telegram-nonexistent')
+      expect(result).toBeNull()
+    })
+
+    it('should return content and updatedAt timestamp', async () => {
+      await manager.writeWorkingMemory('telegram-123', '- Current task: testing')
+
+      const result = await manager.getWorkingMemory('telegram-123')
+
+      expect(result).not.toBeNull()
+      expect(result.content).toBe('- Current task: testing')
+      expect(result.updatedAt).toBeTypeOf('number')
+      expect(result.updatedAt).toBeGreaterThan(0)
+    })
+
+    it('should reflect the latest write', async () => {
+      await manager.writeWorkingMemory('telegram-123', '- v1')
+      await manager.writeWorkingMemory('telegram-123', '- v2')
+
+      const result = await manager.getWorkingMemory('telegram-123')
+
+      expect(result.content).toBe('- v2')
+    })
+  })
+
+  describe('working memory round-trip', () => {
+    it('should write and read back working memory', async () => {
+      const content = '- Topic: EU AI Act\n- Status: comparing with US regulation'
+      await manager.writeWorkingMemory('telegram-123', content)
+
+      const result = await manager.getWorkingMemory('telegram-123')
+
+      expect(result.content).toBe(content)
+      expect(result.updatedAt).toBeLessThanOrEqual(Date.now())
+    })
+
+    it('should isolate working memory between sessions', async () => {
+      await manager.writeWorkingMemory('telegram-123', '- DM context')
+      await manager.writeWorkingMemory('telegram-456', '- Group context')
+
+      const dm = await manager.getWorkingMemory('telegram-123')
+      const group = await manager.getWorkingMemory('telegram-456')
+
+      expect(dm.content).toBe('- DM context')
+      expect(group.content).toBe('- Group context')
+    })
+  })
+
   describe('listDailyLogs', () => {
     it('should list daily log files sorted', async () => {
       const memDir = join(tmpDir, 'memory')
