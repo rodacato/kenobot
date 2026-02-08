@@ -5,7 +5,9 @@ import { Logger } from './logger.js'
 import TelegramChannel from './channels/telegram.js'
 import HTTPChannel from './channels/http.js'
 import FilesystemStorage from './storage/filesystem.js'
-import MemoryManager from './agent/memory.js'
+import FileMemory from './agent/memory.js'
+import CompactingMemory from './agent/compacting-memory.js'
+import HeuristicCompactor from './agent/heuristic-compactor.js'
 import IdentityLoader from './agent/identity.js'
 import ContextBuilder from './agent/context.js'
 import AgentLoop from './agent/loop.js'
@@ -89,7 +91,12 @@ export function createApp(config, provider, options = {}) {
   // Core components
   const scheduler = new Scheduler(bus, config.dataDir, { logger })
   const storage = new FilesystemStorage(config, { logger })
-  const memory = new MemoryManager(config.dataDir, { logger })
+  const fileMemory = new FileMemory(config.dataDir, { logger })
+  const compactor = new HeuristicCompactor()
+  const memory = new CompactingMemory(fileMemory, compactor, {
+    retentionDays: config.memoryRetentionDays,
+    logger
+  })
   const identityLoader = new IdentityLoader(config.identityFile, { logger })
   const skillLoader = new SkillLoader(config.skillsDir, { logger })
 
@@ -147,6 +154,11 @@ export function createApp(config, provider, options = {}) {
     logger.info('system', 'scheduler_loaded', { tasks: scheduler.size })
 
     await configSync.init()
+
+    // Fire-and-forget memory compaction on startup
+    memory.compact().catch(err =>
+      logger.warn('system', 'compaction_failed', { error: err.message })
+    )
 
     await agent.start()
     await Promise.all(channels.map(ch => ch.start()))
