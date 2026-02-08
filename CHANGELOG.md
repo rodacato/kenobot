@@ -7,6 +7,117 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-02-08
+
+### Added
+- `release` commit type and changelog category for version boundaries
+- Security audit script (bin/audit) for scanning secrets and PII
+- Telegram bot token pattern detection in pre-commit hook
+- IDENTITY.md for development agent role and working style
+- Limits & constraints reference, cost estimates, and daily log maintenance docs
+- Configurable session history limit via SESSION_HISTORY_LIMIT env var
+- Provider retry with exponential backoff on transient HTTP errors
+- Memory size warning when MEMORY.md exceeds 10KB
+- Unified `kenobot` CLI with subcommand routing (version, help)
+- Path resolution module for ~/.kenobot/ user directory
+- `kenobot init` command to scaffold ~/.kenobot/ user directory
+- `kenobot migrate` command to copy files from old-style layout
+- Templates directory for init scaffolding
+- `kenobot start [-d]` command with foreground and daemon modes
+- `kenobot stop` command with graceful shutdown
+- `kenobot restart` command
+- `kenobot status` command showing PID, uptime, and paths
+- `kenobot logs` command with tail and date filtering
+- `kenobot backup` command with rotation (30 max)
+- `kenobot config [edit]` command with secret redaction
+- `kenobot update [--check]` command with tag-based releases and rollback
+- `kenobot audit` command wrapping existing security audit script
+- `kenobot install-service` command for systemd user service setup
+- npm-based distribution (npm install -g github:rodacato/kenobot)
+- Unit tests for config-cmd and install-service
+- Circuit breaker provider decorator for cascading failure protection
+- Watchdog health monitor with pluggable checks and bus events
+- Diagnostics tool for system health reporting
+- Safe-path utility for sandboxed file operations
+- workspace tool for sandboxed file operations (read/write/list/delete)
+- github tool for git operations (status/commit/push/pull/log)
+- workspace initialization with directory structure at startup
+- path traversal protection via shared safePath utility
+- WORKSPACE_DIR, GITHUB_TOKEN, GITHUB_REPO config vars
+- approval tool with propose/approve/reject/review/pending actions
+- n8n_manage tool for workflow CRUD via n8n REST API
+- self-improvement skill with instructions for creating skills and workflows
+- skill hot-reload (loadOne) for activating skills after approval
+- approval bus events with Telegram owner notifications
+- SELF_IMPROVEMENT_ENABLED, N8N_API_URL, N8N_API_KEY config vars
+- gmail skill with inbox, send, read, and search capabilities via n8n workflows
+- SSH keypair generation (ed25519) during kenobot init
+- GIT_SSH_COMMAND integration in github tool and workspace sync
+- n8n watchdog health check when N8N_API_URL configured
+- kenobot setup-tunnel CLI command for cloudflared config generation
+- workspace, n8n, and self-improvement sections to deployment docs
+- comprehensive step-by-step integrations guide (docs/integrations-guide.md)
+- complete environment variables reference with all phases
+- Modular identity system with SOUL.md, IDENTITY.md, USER.md
+- Bot-writable user preferences via <user> tags (no approval needed)
+- Soul proposal type in approval system with hot-reload
+- CONFIG_REPO env var for automatic config backup to a private git repo
+- Integration tests for ContextBuilder and AgentLoop with real collaborators
+- First-conversation bootstrap onboarding via BOOTSTRAP.md
+- Identity system feature guide (docs/features/identity.md)
+- kenobot purge command with three reset levels (base, --memory, --all)
+- kenobot doctor command for diagnosing installation problems
+- shared CLI utils (exists, dirSize, formatBytes, colors)
+- Diagnostic logging for identity loading (bootstrap_pending, empty_identity)
+- /dev tool for running development tasks in workspace projects
+- Dynamic CWD support in claude-cli provider (defaults to $HOME)
+- HEARTBEAT.md template for dev session continuity
+
+### Changed
+- Release script uses commit-based boundaries instead of tags
+- Getting started guide translated to English
+- AGENTS.md slimmed down with references to docs/ instead of duplicated content
+- config.js respects KENOBOT_CONFIG env var for .env path
+- health.js respects KENOBOT_PID_FILE env var for PID location
+- install-service uses dynamic path resolution instead of hardcoded path
+- init output uses colored [✓]/[–] formatting
+- All documentation updated for npm install flow
+- templates/env.example with all new env vars from phases 1-4
+- deployment.md links to integrations guide instead of inline sections
+- Config now validates numeric env vars at startup with bounds checking
+- Notification routing extracted from index.js to notifications.js
+- Channel send errors now handled consistently via BaseChannel._safeSend()
+- Tool result message format is now provider-overridable via buildToolResultMessages()
+- ApprovalTool uses callbacks instead of direct bus/skillLoader coupling
+- Watchdog health checks now run in parallel for faster completion
+- Tool registration uses auto-discovery via ToolLoader instead of manual wiring in index.js
+- Tools and skills documentation updated with architecture, all built-in tools, lifecycle hooks, and self-improvement flow
+- Test suite uses real filesystem I/O instead of mocks for memory and storage tests
+- Testing guidelines in AGENTS.md now document when to use real implementations vs mocks
+- Default identity path from identities/kenobot.md to identities/kenobot (directory mode)
+- Documentation updated for directory-mode identity default
+- init now restores missing template files without overwriting existing ones
+- init, doctor, and purge share a single directory structure definition
+- BOOTSTRAP.md adapts to user language and asks one question at a time
+- Documentation updated for all v0.2.0 features
+
+### Removed
+- Duplicate GETTING_STARTED.md from root (use docs/getting-started.md)
+- install.sh and uninstall.sh (replaced by npm)
+- Legacy single-file identity template (kenobot.md)
+
+### Fixed
+- Personal identifiers (chat ID, username) replaced with generic examples in docs
+- MODEL value inconsistency and Gemini status in documentation
+- HTTP status code preserved in claude-api error wrapping
+- config edit shows helpful error when editor is not found
+- Logger no longer silently swallows directory creation errors
+- N8nManageTool config mapping (apiUrl was undefined)
+- Bootstrap onboarding not triggering on first conversation
+
+### Security
+- PID file default moved from world-writable /tmp to ~/.kenobot/data/
+
 ## [0.1.0] - 2026-02-07
 
 ### Added
