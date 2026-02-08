@@ -48,6 +48,7 @@ Get your user ID from [@userinfobot](https://t.me/userinfobot). For group chat I
 | Variable | Type | Default | Required | Description |
 |----------|------|---------|----------|-------------|
 | `MEMORY_DAYS` | integer | `3` | No | Number of recent daily log files to include in context |
+| `MEMORY_RETENTION_DAYS` | integer | `30` | No | Days before daily logs are compacted into MEMORY.md (range: 1-365) |
 
 The bot supports two memory tiers:
 - **Global memory** (`<memory>` tags): stored in `data/memory/`, shared across all chats.
@@ -136,6 +137,7 @@ ANTHROPIC_API_KEY=sk-ant-api03-...
 # IDENTITY_FILE=identities/kenobot
 # SESSION_HISTORY_LIMIT=20
 # MEMORY_DAYS=3
+# MEMORY_RETENTION_DAYS=30
 # MAX_TOOL_ITERATIONS=20
 
 # n8n (optional)

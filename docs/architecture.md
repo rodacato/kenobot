@@ -134,14 +134,26 @@ Assembles the system prompt and message history for each provider call.
 
 **Messages array:** Last 20 messages from the session + current user message.
 
-### Memory Manager (`src/agent/memory.js`)
+### Memory System (`src/agent/memory.js`, `src/agent/compacting-memory.js`)
 
-Two-tier memory system:
+Layered memory architecture with swappable storage and compaction strategies:
 
-- **MEMORY.md** (`~/.kenobot/data/memory/MEMORY.md`): Long-term curated facts. Human or agent-editable.
-- **Daily logs** (`~/.kenobot/data/memory/YYYY-MM-DD.md`): Append-only daily notes. Auto-extracted from `<memory>` tags in responses.
+```
+ContextBuilder._buildMemorySection()   ← Prompt formatting (CRUD calls)
+  │
+BaseMemory (interface)                 ← 6 CRUD + 4 compaction methods
+  │
+  ├── FileMemory                       ← Filesystem: MEMORY.md + YYYY-MM-DD.md
+  │
+  └── CompactingMemory (decorator)     ← Wraps any BaseMemory, adds compact()
+        └── HeuristicCompactor         ← Strategy: dedup old logs → MEMORY.md
+```
 
-The agent is instructed to use `<memory>` tags for facts worth remembering. The memory extractor strips these from the user-facing response and appends them to the daily log.
+Two tiers of memory:
+- **Global**: `MEMORY.md` + daily logs in `data/memory/`
+- **Per-chat**: Same structure under `data/memory/chats/{sessionId}/`
+
+**Compaction** runs on startup (fire-and-forget). Daily logs older than `MEMORY_RETENTION_DAYS` (default 30) are merged into MEMORY.md via case-insensitive deduplication, then deleted. See `MEMORY_COMPACTION.md` for the full flow.
 
 ## Interfaces & Contracts
 
@@ -271,13 +283,13 @@ All runtime data lives in `~/.kenobot/data/` (or `$KENOBOT_HOME/data/`):
 | Telegram message chunk | 4000 characters | No (Telegram API limit) |
 | web_fetch output cap | 10KB | No (hardcoded) |
 | MEMORY.md size | Unlimited | No (grows with usage) |
-| Daily logs | Accumulate indefinitely | No (no auto-pruning) |
+| Daily logs retention | 30 days (compacted into MEMORY.md) | Yes (`MEMORY_RETENTION_DAYS`) |
 | System prompt budget | No token limit enforced | No |
 | Provider timeout | 120s (CLI), none (API) | No |
 
 **Known scaling risks:**
 - Long conversations with large MEMORY.md and many daily logs can approach the model's context window (~200K tokens for Claude). No automatic truncation is in place — the provider will return an error if the context is exceeded.
-- Daily logs accumulate one file per day indefinitely. After months of use, consider manually archiving old logs (see [Memory](features/memory.md#maintenance)).
+- Daily logs are automatically compacted after 30 days (configurable via `MEMORY_RETENTION_DAYS`). Unique entries are merged into MEMORY.md and old log files are deleted.
 
 ## Composition Root
 

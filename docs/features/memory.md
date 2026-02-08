@@ -39,7 +39,8 @@ This gives the LLM continuity across conversations without explicit session mana
 ## Configuration
 
 ```bash
-MEMORY_DAYS=3    # How many days of recent notes to include in context (default: 3)
+MEMORY_DAYS=3              # How many days of recent notes to include in context (default: 3)
+MEMORY_RETENTION_DAYS=30   # Days before daily logs are compacted into MEMORY.md (default: 30)
 # Memory is stored in DATA_DIR/memory/ (default: ~/.kenobot/data/memory/)
 ```
 
@@ -134,26 +135,36 @@ When you learn something worth remembering, include it in your response:
 [Contents of last 3 daily log files]
 ```
 
-## Maintenance
+## Compaction
 
-### Daily Log Cleanup
+Daily logs are **automatically compacted** on bot startup. Logs older than `MEMORY_RETENTION_DAYS` (default: 30) are processed:
 
-Daily logs accumulate one file per day indefinitely. After months of use, consider archiving old logs:
+1. Entries are extracted from old daily logs
+2. Duplicates are detected via case-insensitive substring matching against MEMORY.md
+3. Unique entries are appended to MEMORY.md under `## Compacted memories`
+4. Old log files are deleted
 
-```bash
-# View how many daily logs exist
-ls ~/.kenobot/data/memory/*.md | wc -l
+This uses the **HeuristicCompactor** strategy — zero API cost, since memories are already pre-processed by the LLM (extracted from `<memory>` tags).
 
-# Archive logs older than 30 days
-mkdir -p ~/.kenobot/data/memory/archive
-find ~/.kenobot/data/memory -name "????-??-??.md" -mtime +30 -exec mv {} ~/.kenobot/data/memory/archive/ \;
+For the full compaction algorithm and architecture, see [MEMORY_COMPACTION.md](../../MEMORY_COMPACTION.md).
+
+### Swappable Strategies
+
+The compaction system uses a decorator + strategy pattern:
+
+```
+CompactingMemory (decorator) → wraps FileMemory
+  └── HeuristicCompactor (current strategy, zero cost)
+  └── LLMCompactor (future: uses provider to summarize)
 ```
 
-Archived logs are no longer included in context but remain available for reference.
+The storage backend is also swappable — `FileMemory` implements `BaseMemory`, and future backends (e.g. SQLiteMemory) can implement the same interface.
+
+## Maintenance
 
 ### MEMORY.md Curation
 
-`MEMORY.md` grows as you manually add facts. Periodically review it to:
+`MEMORY.md` grows as facts are added (manually or via compaction). Periodically review it to:
 - Remove outdated information
 - Consolidate duplicate entries
 - Keep it under ~10KB for optimal context budget usage
@@ -162,7 +173,10 @@ A large MEMORY.md consumes context tokens on every message. If it exceeds ~10KB,
 
 ## Source
 
-- [src/agent/memory.js](../src/agent/memory.js) — MemoryManager
+- [src/agent/memory.js](../src/agent/memory.js) — FileMemory (filesystem storage)
+- [src/agent/compacting-memory.js](../src/agent/compacting-memory.js) — CompactingMemory (decorator)
+- [src/agent/heuristic-compactor.js](../src/agent/heuristic-compactor.js) — HeuristicCompactor (strategy)
+- [src/agent/base-memory.js](../src/agent/base-memory.js) — BaseMemory (interface)
 - [src/agent/memory-extractor.js](../src/agent/memory-extractor.js) — Tag parser
-- [src/agent/context.js](../src/agent/context.js) — Context injection
-- [test/agent/memory.test.js](../test/agent/memory.test.js) — Tests
+- [src/agent/context.js](../src/agent/context.js) — Context injection (`_buildMemorySection`)
+- [MEMORY_COMPACTION.md](../../MEMORY_COMPACTION.md) — Architecture documentation
