@@ -1,15 +1,22 @@
 # Memory
 
-> Persistent memory across conversations. The bot remembers facts, preferences, and context using daily logs and a curated long-term memory file.
+> Persistent memory across conversations. The bot remembers facts, preferences, and context using daily logs, a curated long-term memory file, and per-session working memory.
 
 ## Overview
 
-KenoBot has a two-tier memory system:
+KenoBot has a three-tier memory system:
+
+| Tier | Tag | Scope | Persistence | Purpose |
+|------|-----|-------|-------------|---------|
+| **Global memory** | `<memory>` | All chats | Permanent | Long-term facts, preferences |
+| **Chat memory** | `<chat-memory>` | Per chat | Permanent | Chat-specific context |
+| **Working memory** | `<working-memory>` | Per session | Volatile | Current conversation state |
 
 - **MEMORY.md**: Long-term curated facts. Human or agent-editable.
 - **Daily logs** (`YYYY-MM-DD.md`): Append-only notes auto-extracted from responses.
+- **Working memory** (`working/{sessionId}.md`): Current session scratchpad, auto-replaced on each update.
 
-Both are plain markdown files stored in `~/.kenobot/data/memory/`. Human-readable, zero dependencies.
+All are plain markdown files stored in `~/.kenobot/data/memory/`. Human-readable, zero dependencies.
 
 ## How It Works
 
@@ -39,8 +46,9 @@ This gives the LLM continuity across conversations without explicit session mana
 ## Configuration
 
 ```bash
-MEMORY_DAYS=3              # How many days of recent notes to include in context (default: 3)
-MEMORY_RETENTION_DAYS=30   # Days before daily logs are compacted into MEMORY.md (default: 30)
+MEMORY_DAYS=3                   # How many days of recent notes to include in context (default: 3)
+MEMORY_RETENTION_DAYS=30        # Days before daily logs are compacted into MEMORY.md (default: 30)
+WORKING_MEMORY_STALE_DAYS=7     # Days before working memory is excluded from context (default: 7)
 # Memory is stored in DATA_DIR/memory/ (default: ~/.kenobot/data/memory/)
 ```
 
@@ -48,10 +56,13 @@ MEMORY_RETENTION_DAYS=30   # Days before daily logs are compacted into MEMORY.md
 
 ```
 ~/.kenobot/data/memory/
-  MEMORY.md         # Long-term curated facts
-  2026-02-07.md     # Today's auto-extracted notes
-  2026-02-06.md     # Yesterday
-  2026-02-05.md     # Two days ago
+  MEMORY.md                        # Long-term curated facts
+  2026-02-07.md                    # Today's auto-extracted notes
+  2026-02-06.md                    # Yesterday
+  2026-02-05.md                    # Two days ago
+  chats/telegram-123/MEMORY.md     # Per-chat long-term memory
+  chats/telegram-123/2026-02-07.md # Per-chat daily notes
+  working/telegram-123.md          # Working memory (volatile)
 ```
 
 ### MEMORY.md
@@ -128,11 +139,53 @@ You have persistent memory across conversations. Use it wisely.
 When you learn something worth remembering, include it in your response:
 <memory>Short title: fact to remember</memory>
 
+### How to maintain working memory
+<working-memory>
+- Current topic/task being discussed
+- Key decisions or facts from this conversation
+- What's pending or next
+</working-memory>
+
 ### Long-term memory
 [Contents of MEMORY.md]
 
 ### Recent notes
 [Contents of last 3 daily log files]
+
+### Working memory (updated 2 hours ago)
+[Contents of working/{sessionId}.md, if fresh]
+```
+
+## Working Memory
+
+Working memory gives the bot a self-maintained scratchpad for the current conversation. Unlike `<memory>` (append to daily log), `<working-memory>` **replaces** the file entirely each time — it's always the current snapshot.
+
+```
+User: Let's compare EU AI Act vs US regulation.
+Bot: Great, let's start with the EU approach...
+
+     <working-memory>
+     - Topic: EU AI Act vs US AI regulation comparison
+     - Covered: EU risk classification tiers
+     - Pending: US executive order details, enforcement comparison
+     - Context: User preparing a presentation
+     </working-memory>
+```
+
+### How It Differs from Other Memory Types
+
+- `<memory>` → "User prefers Spanish" (permanent global fact)
+- `<chat-memory>` → "This chat is about AI regulation" (permanent per-chat fact)
+- `<working-memory>` → "We're comparing sections 3 and 4, already covered enforcement" (volatile session state)
+
+### Staleness
+
+Working memory includes its age when injected into context (e.g., "updated 2 hours ago", "updated 3 days ago"). Memory older than `WORKING_MEMORY_STALE_DAYS` (default: 7) is excluded. No cleanup cron needed — stale files are simply ignored and overwritten on next use.
+
+### Configuration
+
+```bash
+WORKING_MEMORY_STALE_DAYS=7  # Days before working memory is excluded from context (default: 7)
 ```
 
 ## Compaction
@@ -177,6 +230,8 @@ A large MEMORY.md consumes context tokens on every message. If it exceeds ~10KB,
 - [src/agent/compacting-memory.js](../src/agent/compacting-memory.js) — CompactingMemory (decorator)
 - [src/agent/heuristic-compactor.js](../src/agent/heuristic-compactor.js) — HeuristicCompactor (strategy)
 - [src/agent/base-memory.js](../src/agent/base-memory.js) — BaseMemory (interface)
-- [src/agent/memory-extractor.js](../src/agent/memory-extractor.js) — Tag parser
+- [src/agent/memory-extractor.js](../src/agent/memory-extractor.js) — Memory tag parser
+- [src/agent/chat-memory-extractor.js](../src/agent/chat-memory-extractor.js) — Chat memory tag parser
+- [src/agent/working-memory-extractor.js](../src/agent/working-memory-extractor.js) — Working memory tag parser
 - [src/agent/context.js](../src/agent/context.js) — Context injection (`_buildMemorySection`)
 - [MEMORY_COMPACTION.md](../../MEMORY_COMPACTION.md) — Architecture documentation
