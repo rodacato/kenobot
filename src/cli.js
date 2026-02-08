@@ -10,7 +10,8 @@ const subcommand = args[0] || 'help'
 if (process.getuid && process.getuid() === 0) {
   console.error('\x1b[33mWarning: Running as root is not recommended.\x1b[0m')
   console.error('The claude-cli provider will not work as root.')
-  console.error('Create a dedicated user: sudo useradd -r -m kenobot\n')
+  console.error('Create a dedicated user: sudo adduser kenobot')
+  console.error('See: docs/guides/vps-setup.md\n')
 }
 
 // First run: suggest kenobot init when ~/.kenobot/ doesn't exist

@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { GREEN, YELLOW, NC, exists, requiredDirs } from './utils.js'
+import { GREEN, RED, YELLOW, NC, exists, requiredDirs } from './utils.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -44,6 +44,17 @@ async function syncDir(srcDir, destDir, label) {
 }
 
 export default async function init(args, paths) {
+  // Fail early if running as root
+  if (process.getuid?.() === 0) {
+    console.error(`\n${RED}[✗]${NC} Running as root is not supported.\n`)
+    console.error(`  Create a dedicated user and try again:`)
+    console.error(`    sudo adduser kenobot`)
+    console.error(`    su - kenobot`)
+    console.error(`    kenobot init\n`)
+    console.error(`  See: docs/guides/vps-setup.md\n`)
+    process.exit(1)
+  }
+
   console.log(`Setting up KenoBot in ${paths.home}\n`)
 
   // Create directory structure (from shared requiredDirs)

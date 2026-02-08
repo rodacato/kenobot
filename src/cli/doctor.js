@@ -37,6 +37,18 @@ function parseEnvFile(content) {
 // --- Individual checks ---
 // Each returns { status: 'ok'|'warn'|'fail'|'skip', label, detail?, fix? }
 
+function checkRoot() {
+  if (process.getuid?.() === 0) {
+    return {
+      status: 'warn',
+      label: 'Running as root — not recommended',
+      fix: 'Create a dedicated user: sudo adduser kenobot',
+      details: ['claude-cli provider does not work as root', 'See: docs/guides/vps-setup.md'],
+    }
+  }
+  return { status: 'ok', label: 'User (non-root)' }
+}
+
 async function checkDirs(paths) {
   const missing = []
   for (const dir of requiredDirs(paths)) {
@@ -472,12 +484,44 @@ async function analyzeLogFile(logFile, dateLabel) {
   }
 }
 
+async function checkN8n(paths) {
+  let env = {}
+  try {
+    const content = await readFile(paths.envFile, 'utf8')
+    env = parseEnvFile(content)
+  } catch {
+    return { status: 'skip', label: 'n8n (no config file)' }
+  }
+
+  const apiUrl = env.N8N_API_URL
+  const webhookBase = env.N8N_WEBHOOK_BASE
+
+  if (!apiUrl && !webhookBase) {
+    return { status: 'skip', label: 'n8n (not configured)' }
+  }
+
+  // Try to reach n8n via API URL first, then webhook base
+  const url = apiUrl || webhookBase
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(5000) })
+    // Any response means n8n is reachable (even 401/404)
+    return { status: 'ok', label: `n8n (reachable at ${new URL(url).host})` }
+  } catch {
+    return {
+      status: 'warn',
+      label: `n8n — unreachable at ${url}`,
+      fix: 'Check that n8n is running. See: docs/guides/n8n.md',
+    }
+  }
+}
+
 // --- Main ---
 
 export default async function doctor(args, paths) {
   console.log(`\n${BOLD}Checking installation health...${NC}\n`)
 
   const checks = [
+    checkRoot(),
     await checkDirs(paths),
     await checkConfig(paths),
     await checkProvider(paths),
@@ -487,6 +531,7 @@ export default async function doctor(args, paths) {
     await checkPidFile(paths),
     await checkDiskUsage(paths),
     await checkSSHKey(paths),
+    await checkN8n(paths),
     await checkRecentLogs(paths),
   ]
 
