@@ -1,14 +1,15 @@
 /**
- * Notifications - Routes system events to the bot owner via Telegram
+ * Notifications - Routes system events to the bot owner
  *
- * Listens for health and approval bus events and forwards them
- * as messages to the first allowed chat ID (owner).
+ * Emits 'notification' events on the bus. Channels listen for these
+ * and deliver to the owner. Channel-agnostic — works with Telegram,
+ * HTTP, or any future channel.
  */
 export function setupNotifications(bus, config) {
   const ownerChat = config.telegram.allowedUsers?.[0] || config.telegram.allowedChatIds?.[0]
   if (!ownerChat) return
 
-  const notify = (text) => bus.emit('message:out', { chatId: ownerChat, text, channel: 'telegram' })
+  const notify = (text) => bus.emit('notification', { chatId: ownerChat, text })
 
   bus.on('health:degraded', ({ detail }) => notify(`Health degraded: ${detail}`))
   bus.on('health:unhealthy', ({ detail }) => notify(`UNHEALTHY: ${detail}`))

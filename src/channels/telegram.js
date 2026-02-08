@@ -65,8 +65,13 @@ export default class TelegramChannel extends BaseChannel {
       await this._safeSend(chatId, text)
     }
 
+    this._onNotification = async ({ chatId, text }) => {
+      await this._safeSend(chatId, text)
+    }
+
     this.bus.on('thinking:start', this._onThinking)
     this.bus.on('message:out', this._onMessageOut)
+    this.bus.on('notification', this._onNotification)
 
     // Start polling
     await this.bot.start()
@@ -77,6 +82,7 @@ export default class TelegramChannel extends BaseChannel {
     logger.info('telegram', 'stopping')
     this.bus.off('thinking:start', this._onThinking)
     this.bus.off('message:out', this._onMessageOut)
+    this.bus.off('notification', this._onNotification)
     await this.bot.stop()
   }
 
