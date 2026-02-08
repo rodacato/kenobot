@@ -279,14 +279,38 @@ All runtime data lives in `~/.kenobot/data/` (or `$KENOBOT_HOME/data/`):
 - Long conversations with large MEMORY.md and many daily logs can approach the model's context window (~200K tokens for Claude). No automatic truncation is in place — the provider will return an error if the context is exceeded.
 - Daily logs accumulate one file per day indefinitely. After months of use, consider manually archiving old logs (see [Memory](features/memory.md#maintenance)).
 
+## Composition Root
+
+KenoBot separates side effects from component wiring:
+
+- **`src/app.js`** — Pure factory. `createApp(config, provider)` builds and wires all components, returns an app object with `start()`/`stop()`. No global side effects. Can be called multiple times for isolated instances.
+
+- **`src/index.js`** — Thin entry point. Handles config loading (env vars, `.env` file), provider self-registration (side-effect imports), process signal handlers (`SIGTERM`, `SIGINT`), and calls `createApp()`.
+
+This separation enables programmatic boot for E2E testing:
+
+```javascript
+import { createConfig } from './config.js'
+import { createApp } from './app.js'
+
+const { config } = createConfig({ PROVIDER: 'mock', TELEGRAM_BOT_TOKEN: 'test', ... })
+const app = createApp(config, mockProvider)
+await app.start()
+// ... send messages via app.bus, assert results
+await app.stop()
+```
+
+The `createApp()` return object exposes all internal components (`bus`, `agent`, `channels`, `watchdog`, `scheduler`, `storage`, `memory`, etc.) for diagnostics and testing.
+
 ## Extending KenoBot
 
 ### Add a new Provider
 
 1. Create `src/providers/my-provider.js` extending `BaseProvider`
 2. Implement `chat(messages, options)` and `get name()`
-3. Add a case in `src/index.js` switch statement
-4. Set `PROVIDER=my-provider` in `.env`
+3. Call `registerProvider('my-provider', (config) => new MyProvider(config))` at the bottom
+4. Import the file in `src/index.js` for self-registration
+5. Set `PROVIDER=my-provider` in `.env`
 
 ### Add a new Channel
 

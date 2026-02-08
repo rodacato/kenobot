@@ -47,6 +47,8 @@ User ← Telegram ← TelegramChannel ← bus 'message:out' ← AgentLoop (tool 
 
 **Bus events**: `message:in`, `message:out`, `thinking:start`, `error`
 
+**Composition root**: `src/app.js` exports `createApp(config, provider)` — pure factory, no side effects, returns `{ bus, agent, channels, start(), stop(), ... }`. `src/index.js` is the thin entry point (config loading, provider registration, process signals). Use `createApp` for programmatic boot in E2E tests.
+
 For module details, interfaces, and design patterns → `docs/architecture.md`
 
 ## Tech Stack
