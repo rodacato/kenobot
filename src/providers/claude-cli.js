@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import BaseProvider from './base.js'
+import { registerProvider } from './registry.js'
 import logger from '../logger.js'
 
 /**
@@ -127,3 +128,5 @@ export default class ClaudeCLIProvider extends BaseProvider {
     return 'claude-cli'
   }
 }
+
+registerProvider('claude-cli', (config) => new ClaudeCLIProvider(config))

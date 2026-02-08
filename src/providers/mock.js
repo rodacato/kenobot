@@ -1,4 +1,5 @@
 import BaseProvider from './base.js'
+import { registerProvider } from './registry.js'
 
 /**
  * MockProvider - Simple mock for testing without real LLM
@@ -70,3 +71,5 @@ export default class MockProvider extends BaseProvider {
     return 'mock'
   }
 }
+
+registerProvider('mock', (config) => new MockProvider(config))

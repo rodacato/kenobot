@@ -5,9 +5,11 @@ import logger from './logger.js'
 import bus from './bus.js'
 import TelegramChannel from './channels/telegram.js'
 import HTTPChannel from './channels/http.js'
-import ClaudeCLIProvider from './providers/claude-cli.js'
-import ClaudeAPIProvider from './providers/claude-api.js'
-import MockProvider from './providers/mock.js'
+// Provider self-registration: importing triggers registerProvider()
+import './providers/mock.js'
+import './providers/claude-cli.js'
+import './providers/claude-api.js'
+import { createProvider } from './providers/registry.js'
 import FilesystemStorage from './storage/filesystem.js'
 import MemoryManager from './agent/memory.js'
 import IdentityLoader from './agent/identity.js'
@@ -43,22 +45,14 @@ logger.info('system', 'startup', {
   allowedChats: config.telegram.allowedChatIds.length
 })
 
-// Initialize provider based on config
+// Initialize provider from registry (providers self-register on import)
 let provider
-switch (config.provider) {
-  case 'mock':
-    provider = new MockProvider(config)
-    logger.warn('system', 'mock_provider_active')
-    break
-  case 'claude-cli':
-    provider = new ClaudeCLIProvider(config)
-    break
-  case 'claude-api':
-    provider = new ClaudeAPIProvider(config)
-    break
-  default:
-    logger.error('system', 'unknown_provider', { provider: config.provider })
-    process.exit(1)
+try {
+  provider = createProvider(config.provider, config)
+  if (config.provider === 'mock') logger.warn('system', 'mock_provider_active')
+} catch (error) {
+  logger.error('system', 'unknown_provider', { provider: config.provider, error: error.message })
+  process.exit(1)
 }
 
 // Wrap provider with circuit breaker

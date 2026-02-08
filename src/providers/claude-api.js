@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import BaseProvider from './base.js'
+import { registerProvider } from './registry.js'
 import logger from '../logger.js'
 
 /**
@@ -91,3 +92,5 @@ export default class ClaudeAPIProvider extends BaseProvider {
     return 'claude-api'
   }
 }
+
+registerProvider('claude-api', (config) => new ClaudeAPIProvider(config))
