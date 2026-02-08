@@ -6,6 +6,14 @@ vi.mock('../../src/logger.js', () => ({
     warn: vi.fn(),
     error: vi.fn(),
     configure: vi.fn()
+  },
+  Logger: class MockLogger {
+    constructor() {
+      this.info = vi.fn()
+      this.warn = vi.fn()
+      this.error = vi.fn()
+      this.configure = vi.fn()
+    }
   }
 }))
 

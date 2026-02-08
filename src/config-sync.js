@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import { writeFile, access, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import logger from './logger.js'
+import defaultLogger from './logger.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -23,11 +23,12 @@ export default class ConfigSync {
    * @param {string} options.sshKeyPath - Path to SSH key for push
    * @param {number} options.debounceMs - Debounce interval (default: 30000)
    */
-  constructor(homeDir, { repoUrl, sshKeyPath, debounceMs } = {}) {
+  constructor(homeDir, { repoUrl, sshKeyPath, debounceMs, logger = defaultLogger } = {}) {
     this.homeDir = homeDir
     this.repoUrl = repoUrl
     this.sshKeyPath = sshKeyPath || ''
     this.debounceMs = debounceMs ?? 30000
+    this.logger = logger
     this._timer = null
     this._syncing = false
   }
@@ -45,7 +46,7 @@ export default class ConfigSync {
     await this._ensureGitConfig()
     await this._pull()
 
-    logger.info('config-sync', 'initialized', { repo: this.repoUrl })
+    this.logger.info('config-sync', 'initialized', { repo: this.repoUrl })
   }
 
   /**
@@ -116,9 +117,9 @@ export default class ConfigSync {
 
       await this._git(['push', '-u', 'origin', 'main'])
 
-      logger.info('config-sync', 'synced', { reason })
+      this.logger.info('config-sync', 'synced', { reason })
     } catch (error) {
-      logger.warn('config-sync', 'sync_failed', { reason, error: error.message })
+      this.logger.warn('config-sync', 'sync_failed', { reason, error: error.message })
     } finally {
       this._syncing = false
     }
@@ -133,7 +134,7 @@ export default class ConfigSync {
       await access(join(this.homeDir, '.git'))
     } catch {
       await this._git(['init', '-b', 'main'])
-      logger.info('config-sync', 'git_init', { dir: this.homeDir })
+      this.logger.info('config-sync', 'git_init', { dir: this.homeDir })
     }
   }
 
@@ -162,7 +163,7 @@ export default class ConfigSync {
       await access(gitignorePath)
     } catch {
       await writeFile(gitignorePath, GITIGNORE_TEMPLATE, 'utf8')
-      logger.info('config-sync', 'gitignore_created')
+      this.logger.info('config-sync', 'gitignore_created')
     }
   }
 

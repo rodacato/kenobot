@@ -1,4 +1,4 @@
-import logger from '../logger.js'
+import defaultLogger from '../logger.js'
 
 const FALLBACK_MESSAGE = "I'm having trouble completing this task. Let me try a different approach."
 
@@ -10,10 +10,11 @@ const FALLBACK_MESSAGE = "I'm having trouble completing this task. Let me try a 
  * - ToolOrchestrator: tool execution cycle, iteration limits, parallel execution
  */
 export default class ToolOrchestrator {
-  constructor(toolRegistry, provider, { maxIterations = 20 } = {}) {
+  constructor(toolRegistry, provider, { maxIterations = 20, logger = defaultLogger } = {}) {
     this.toolRegistry = toolRegistry
     this.provider = provider
     this.maxIterations = maxIterations
+    this.logger = logger
   }
 
   /**
@@ -32,7 +33,7 @@ export default class ToolOrchestrator {
 
     while (response.toolCalls && iterations < this.maxIterations) {
       iterations++
-      logger.info('agent', 'tool_calls', {
+      this.logger.info('agent', 'tool_calls', {
         sessionId,
         iteration: iterations,
         tools: response.toolCalls.map(tc => tc.name)
@@ -60,7 +61,7 @@ export default class ToolOrchestrator {
     // Safety valve: if still requesting tools after max iterations
     if (response.toolCalls) {
       const pendingTools = response.toolCalls.map(tc => tc.name)
-      logger.warn('agent', 'max_iterations_exceeded', { sessionId, iterations, pendingTools })
+      this.logger.warn('agent', 'max_iterations_exceeded', { sessionId, iterations, pendingTools })
       response = { ...response, content: FALLBACK_MESSAGE }
     }
 

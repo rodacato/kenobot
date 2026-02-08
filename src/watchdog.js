@@ -1,4 +1,4 @@
-import logger from './logger.js'
+import defaultLogger from './logger.js'
 import { HEALTH_RECOVERED, HEALTH_DEGRADED, HEALTH_UNHEALTHY } from './events.js'
 
 /**
@@ -16,8 +16,9 @@ import { HEALTH_RECOVERED, HEALTH_DEGRADED, HEALTH_UNHEALTHY } from './events.js
  *   health:recovered — back to healthy from degraded/unhealthy
  */
 export default class Watchdog {
-  constructor(bus, options = {}) {
+  constructor(bus, { logger = defaultLogger, ...options } = {}) {
     this.bus = bus
+    this.logger = logger
     this.interval = options.interval || 60000
     this.state = 'HEALTHY'
     this.checks = new Map()
@@ -45,7 +46,7 @@ export default class Watchdog {
     this._timer = setInterval(() => this._runChecks(), this.interval)
     // Run initial check after a short delay (let components initialize)
     setTimeout(() => this._runChecks(), 5000)
-    logger.info('watchdog', 'started', { interval: this.interval, checks: this.checks.size })
+    this.logger.info('watchdog', 'started', { interval: this.interval, checks: this.checks.size })
   }
 
   stop() {
@@ -87,13 +88,13 @@ export default class Watchdog {
       const detail = this._summarize(results)
 
       if (newState === 'HEALTHY' && (previous === 'DEGRADED' || previous === 'UNHEALTHY')) {
-        logger.info('watchdog', 'recovered', { previous })
+        this.logger.info('watchdog', 'recovered', { previous })
         this.bus.emit(HEALTH_RECOVERED, { previous, detail })
       } else if (newState === 'DEGRADED') {
-        logger.warn('watchdog', 'degraded', { previous, detail })
+        this.logger.warn('watchdog', 'degraded', { previous, detail })
         this.bus.emit(HEALTH_DEGRADED, { previous, detail })
       } else if (newState === 'UNHEALTHY') {
-        logger.error('watchdog', 'unhealthy', { previous, detail })
+        this.logger.error('watchdog', 'unhealthy', { previous, detail })
         this.bus.emit(HEALTH_UNHEALTHY, { previous, detail })
       }
     }

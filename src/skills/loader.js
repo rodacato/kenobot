@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import logger from '../logger.js'
+import defaultLogger from '../logger.js'
 
 const MAX_TRIGGERS = 20
 const MAX_TRIGGER_LENGTH = 100
@@ -44,8 +44,9 @@ function validateManifest(meta) {
  * when a message triggers the skill, keeping memory usage low.
  */
 export default class SkillLoader {
-  constructor(skillsDir) {
+  constructor(skillsDir, { logger = defaultLogger } = {}) {
     this.skillsDir = skillsDir
+    this.logger = logger
     this.skills = new Map()
   }
 
@@ -59,7 +60,7 @@ export default class SkillLoader {
       entries = await readdir(this.skillsDir, { withFileTypes: true })
     } catch (error) {
       if (error.code === 'ENOENT') {
-        logger.info('skills', 'no_skills_directory', { dir: this.skillsDir })
+        this.logger.info('skills', 'no_skills_directory', { dir: this.skillsDir })
         return
       }
       throw error
@@ -75,7 +76,7 @@ export default class SkillLoader {
 
         const invalid = validateManifest(meta)
         if (invalid) {
-          logger.warn('skills', 'invalid_skill', { dir: entry.name, reason: invalid })
+          this.logger.warn('skills', 'invalid_skill', { dir: entry.name, reason: invalid })
           continue
         }
 
@@ -90,12 +91,12 @@ export default class SkillLoader {
           skillMdPath: join(this.skillsDir, entry.name, 'SKILL.md')
         })
 
-        logger.info('skills', 'skill_loaded', {
+        this.logger.info('skills', 'skill_loaded', {
           name: meta.name,
           triggers: meta.triggers.length
         })
       } catch (error) {
-        logger.warn('skills', 'skill_load_failed', {
+        this.logger.warn('skills', 'skill_load_failed', {
           dir: entry.name,
           error: error.message
         })
@@ -130,7 +131,7 @@ export default class SkillLoader {
       skillMdPath: join(skillsDir, name, 'SKILL.md')
     })
 
-    logger.info('skills', 'skill_hot_loaded', { name: meta.name, triggers: meta.triggers.length })
+    this.logger.info('skills', 'skill_hot_loaded', { name: meta.name, triggers: meta.triggers.length })
   }
 
   /**
@@ -170,7 +171,7 @@ export default class SkillLoader {
     try {
       return await readFile(skill.skillMdPath, 'utf8')
     } catch (error) {
-      logger.warn('skills', 'prompt_load_failed', {
+      this.logger.warn('skills', 'prompt_load_failed', {
         name,
         error: error.message
       })

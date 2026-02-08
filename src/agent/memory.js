@@ -1,7 +1,7 @@
 import { readFile, appendFile, readdir, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import BaseMemory from './base-memory.js'
-import logger from '../logger.js'
+import defaultLogger from '../logger.js'
 
 /**
  * MemoryManager - Daily logs + long-term MEMORY.md
@@ -16,9 +16,10 @@ import logger from '../logger.js'
  *   data/memory/chats/telegram-63059997/2026-02-07.md
  */
 export default class MemoryManager extends BaseMemory {
-  constructor(dataDir) {
+  constructor(dataDir, { logger = defaultLogger } = {}) {
     super()
     this.memoryDir = join(dataDir, 'memory')
+    this.logger = logger
     this._dirReady = false
   }
 
@@ -151,7 +152,7 @@ export default class MemoryManager extends BaseMemory {
     const line = `## ${time} — ${entry}\n\n`
     await appendFile(filepath, line, 'utf8')
 
-    logger.info('memory', 'daily_append', { date, scope, entry: entry.slice(0, 80) })
+    this.logger.info('memory', 'daily_append', { date, scope, entry: entry.slice(0, 80) })
   }
 
   async _getRecentDaysFromDir(dir, days = 3) {
@@ -187,7 +188,7 @@ export default class MemoryManager extends BaseMemory {
     try {
       const content = await readFile(join(dir, 'MEMORY.md'), 'utf8')
       if (content.length > 10240) {
-        logger.warn('memory', 'memory_file_large', {
+        this.logger.warn('memory', 'memory_file_large', {
           file: 'MEMORY.md',
           dir,
           sizeBytes: content.length,

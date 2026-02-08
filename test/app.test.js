@@ -6,6 +6,14 @@ vi.mock('../src/logger.js', () => ({
     warn: vi.fn(),
     error: vi.fn(),
     configure: vi.fn(),
+  },
+  Logger: class MockLogger {
+    constructor() {
+      this.info = vi.fn()
+      this.warn = vi.fn()
+      this.error = vi.fn()
+      this.configure = vi.fn()
+    }
   }
 }))
 
@@ -112,5 +120,32 @@ describe('createApp', () => {
     const app = createApp(config, provider)
 
     expect(app.agent.maxToolIterations).toBe(10)
+  })
+
+  it('should create isolated loggers per instance', () => {
+    const app1 = createApp(config, provider)
+    const app2 = createApp(config, provider)
+
+    expect(app1.logger).not.toBe(app2.logger)
+  })
+
+  it('should expose logger on the returned app object', () => {
+    const app = createApp(config, provider)
+
+    expect(app.logger).toBeDefined()
+    expect(typeof app.logger.info).toBe('function')
+    expect(typeof app.logger.warn).toBe('function')
+    expect(typeof app.logger.error).toBe('function')
+    expect(typeof app.logger.configure).toBe('function')
+  })
+
+  it('should pass logger to agent and other components', () => {
+    const app = createApp(config, provider)
+
+    expect(app.agent.logger).toBe(app.logger)
+    expect(app.watchdog.logger).toBe(app.logger)
+    expect(app.scheduler.logger).toBe(app.logger)
+    expect(app.storage.logger).toBe(app.logger)
+    expect(app.memory.logger).toBe(app.logger)
   })
 })

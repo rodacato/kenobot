@@ -1,7 +1,7 @@
 import { readdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import logger from '../logger.js'
+import defaultLogger from '../logger.js'
 
 const SKIP_FILES = new Set(['base.js', 'registry.js', 'loader.js'])
 
@@ -20,6 +20,7 @@ export default class ToolLoader {
   constructor(registry, deps = {}) {
     this.registry = registry
     this.deps = deps
+    this.logger = deps.logger || defaultLogger
     this.toolsDir = dirname(fileURLToPath(import.meta.url))
   }
 
@@ -41,7 +42,7 @@ export default class ToolLoader {
           mod.register(this.registry, this.deps)
         }
       } catch (error) {
-        logger.error('tools', 'tool_load_failed', { file, error: error.message })
+        this.logger.error('tools', 'tool_load_failed', { file, error: error.message })
       }
     }
 
@@ -51,7 +52,7 @@ export default class ToolLoader {
         try {
           await tool.init()
         } catch (error) {
-          logger.error('tools', 'tool_init_failed', {
+          this.logger.error('tools', 'tool_init_failed', {
             name: tool.definition.name,
             error: error.message
           })
@@ -63,9 +64,9 @@ export default class ToolLoader {
     for (const def of this.registry.getDefinitions()) {
       const tool = this.registry.tools.get(def.name)
       const trigger = tool.trigger ? String(tool.trigger) : 'none'
-      logger.info('system', 'tool_loaded', { name: def.name, trigger })
+      this.logger.info('system', 'tool_loaded', { name: def.name, trigger })
     }
-    logger.info('system', 'tools_registered', { count: this.registry.size })
+    this.logger.info('system', 'tools_registered', { count: this.registry.size })
   }
 
   /**
@@ -78,7 +79,7 @@ export default class ToolLoader {
         try {
           await tool.stop()
         } catch (error) {
-          logger.error('tools', 'tool_stop_failed', {
+          this.logger.error('tools', 'tool_stop_failed', {
             name: tool.definition.name,
             error: error.message
           })

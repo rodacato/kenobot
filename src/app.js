@@ -1,7 +1,7 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { MessageBus } from './bus.js'
-import logger from './logger.js'
+import { Logger } from './logger.js'
 import TelegramChannel from './channels/telegram.js'
 import HTTPChannel from './channels/http.js'
 import FilesystemStorage from './storage/filesystem.js'
@@ -31,17 +31,20 @@ import { CONFIG_CHANGED, APPROVAL_APPROVED, ERROR } from './events.js'
  * @param {Object} provider - Provider instance (already created, e.g. from registry)
  * @param {Object} [options]
  * @param {string} [options.homePath] - KenoBot home dir for ConfigSync
+ * @param {Object} [options.logger] - Logger instance (default: new Logger per instance)
  */
 export function createApp(config, provider, options = {}) {
   const bus = new MessageBus()
 
+  // Per-instance logger (isolates log output between createApp() calls)
+  const logger = options.logger || new Logger()
   logger.configure({ dataDir: config.dataDir })
 
   // Wrap provider with circuit breaker
-  const circuitBreaker = new CircuitBreakerProvider(provider, config.circuitBreaker)
+  const circuitBreaker = new CircuitBreakerProvider(provider, { ...config.circuitBreaker, logger })
 
   // Watchdog + health checks
-  const watchdog = new Watchdog(bus, { interval: config.watchdogInterval })
+  const watchdog = new Watchdog(bus, { interval: config.watchdogInterval, logger })
 
   watchdog.registerCheck('provider', () => {
     const status = circuitBreaker.getStatus()
@@ -76,26 +79,27 @@ export function createApp(config, provider, options = {}) {
   const homePath = options.homePath || join(homedir(), '.kenobot')
   const configSync = new ConfigSync(homePath, {
     repoUrl: config.configRepo,
-    sshKeyPath: config.sshKeyPath
+    sshKeyPath: config.sshKeyPath,
+    logger
   })
 
   bus.on(CONFIG_CHANGED, ({ reason }) => configSync.schedule(reason))
   bus.on(APPROVAL_APPROVED, () => configSync.schedule('approval activated'))
 
   // Core components
-  const scheduler = new Scheduler(bus, config.dataDir)
-  const storage = new FilesystemStorage(config)
-  const memory = new MemoryManager(config.dataDir)
-  const identityLoader = new IdentityLoader(config.identityFile)
-  const skillLoader = new SkillLoader(config.skillsDir)
+  const scheduler = new Scheduler(bus, config.dataDir, { logger })
+  const storage = new FilesystemStorage(config, { logger })
+  const memory = new MemoryManager(config.dataDir, { logger })
+  const identityLoader = new IdentityLoader(config.identityFile, { logger })
+  const skillLoader = new SkillLoader(config.skillsDir, { logger })
 
   const toolRegistry = new ToolRegistry()
   const toolLoader = new ToolLoader(toolRegistry, {
-    config, scheduler, watchdog, circuitBreaker, bus, skillLoader, identityLoader
+    config, scheduler, watchdog, circuitBreaker, bus, skillLoader, identityLoader, logger
   })
 
-  const contextBuilder = new ContextBuilder(config, storage, memory, toolRegistry, skillLoader, identityLoader)
-  const agent = new AgentLoop(bus, circuitBreaker, contextBuilder, storage, memory, toolRegistry)
+  const contextBuilder = new ContextBuilder(config, storage, memory, toolRegistry, skillLoader, identityLoader, { logger })
+  const agent = new AgentLoop(bus, circuitBreaker, contextBuilder, storage, memory, toolRegistry, { logger })
   agent.maxToolIterations = config.maxToolIterations
 
   // Channels
@@ -105,6 +109,7 @@ export function createApp(config, provider, options = {}) {
     token: config.telegram.token,
     allowedUsers: config.telegram.allowedUsers,
     allowedChatIds: config.telegram.allowedChatIds,
+    logger,
   })
   channels.push(telegram)
 
@@ -112,7 +117,7 @@ export function createApp(config, provider, options = {}) {
     if (!config.http.webhookSecret) {
       throw new Error('WEBHOOK_SECRET is required when HTTP_ENABLED=true')
     }
-    const httpChannel = new HTTPChannel(bus, config.http)
+    const httpChannel = new HTTPChannel(bus, { ...config.http, logger })
     channels.push(httpChannel)
   }
 
@@ -129,7 +134,7 @@ export function createApp(config, provider, options = {}) {
     await writePid()
 
     if (config.workspaceDir) {
-      await initWorkspace(config.workspaceDir, { sshKeyPath: config.sshKeyPath })
+      await initWorkspace(config.workspaceDir, { sshKeyPath: config.sshKeyPath, logger })
       logger.info('system', 'workspace_initialized', { dir: config.workspaceDir })
     }
 
@@ -171,6 +176,7 @@ export function createApp(config, provider, options = {}) {
     circuitBreaker,
     storage,
     memory,
+    logger,
     start,
     stop,
   }

@@ -2,7 +2,7 @@ import { Bot } from 'grammy'
 import BaseChannel from './base.js'
 import { THINKING_START, MESSAGE_OUT, NOTIFICATION } from '../events.js'
 import { markdownToHTML } from '../format/telegram.js'
-import logger from '../logger.js'
+// logger inherited from BaseChannel via this.logger
 
 /**
  * TelegramChannel - Telegram Bot API integration via grammy
@@ -17,7 +17,7 @@ export default class TelegramChannel extends BaseChannel {
   }
 
   async start() {
-    logger.info('telegram', 'starting')
+    this.logger.info('telegram', 'starting')
 
     // Handle incoming text messages
     this.bot.on('message:text', async (ctx) => {
@@ -76,11 +76,11 @@ export default class TelegramChannel extends BaseChannel {
 
     // Start polling
     await this.bot.start()
-    logger.info('telegram', 'started')
+    this.logger.info('telegram', 'started')
   }
 
   async stop() {
-    logger.info('telegram', 'stopping')
+    this.logger.info('telegram', 'stopping')
     this.bus.off(THINKING_START, this._onThinking)
     this.bus.off(MESSAGE_OUT, this._onMessageOut)
     this.bus.off(NOTIFICATION, this._onNotification)

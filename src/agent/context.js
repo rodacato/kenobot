@@ -1,4 +1,4 @@
-import logger from '../logger.js'
+import defaultLogger from '../logger.js'
 
 /**
  * ContextBuilder - Assembles system prompt and message history for providers
@@ -13,13 +13,14 @@ import logger from '../logger.js'
  *   [SOUL.md] + [IDENTITY.md] + [User Profile] + [Available tools] + [Available skills] + [Memory]
  */
 export default class ContextBuilder {
-  constructor(config, storage, memoryManager, toolRegistry, skillLoader, identityLoader) {
+  constructor(config, storage, memoryManager, toolRegistry, skillLoader, identityLoader, { logger = defaultLogger } = {}) {
     this.config = config
     this.storage = storage
     this.memory = memoryManager || null
     this.toolRegistry = toolRegistry || null
     this.skillLoader = skillLoader || null
     this.identityLoader = identityLoader || null
+    this.logger = logger
     this._identity = null
   }
 
@@ -30,12 +31,12 @@ export default class ContextBuilder {
   async loadIdentity() {
     if (this.identityLoader) {
       await this.identityLoader.load()
-      logger.info('context', 'identity_loaded', { loader: true })
+      this.logger.info('context', 'identity_loaded', { loader: true })
     } else {
       // Legacy path: no IdentityLoader, read single file via storage
       const identityFile = this.config.identityFile || 'identities/kenobot'
       this._identity = await this.storage.readFile(identityFile)
-      logger.info('context', 'identity_loaded', { file: identityFile, length: this._identity.length })
+      this.logger.info('context', 'identity_loaded', { file: identityFile, length: this._identity.length })
     }
   }
 
@@ -108,7 +109,7 @@ export default class ContextBuilder {
       // Bootstrap prompt for first-conversation onboarding
       const bootstrap = await this.identityLoader.getBootstrap()
       if (bootstrap) {
-        logger.info('context', 'bootstrap_injected', { length: bootstrap.length })
+        this.logger.info('context', 'bootstrap_injected', { length: bootstrap.length })
         parts.push('\n---\n\n## First Conversation — Bootstrap\n' + bootstrap)
       }
     } else {
@@ -130,7 +131,7 @@ export default class ContextBuilder {
     for (let i = 0; i < results.length; i++) {
       const result = results[i]
       if (result.status === 'rejected') {
-        logger.warn('context', 'source_failed', {
+        this.logger.warn('context', 'source_failed', {
           source: sources[i].constructor?.name || 'unknown',
           error: result.reason?.message || String(result.reason)
         })

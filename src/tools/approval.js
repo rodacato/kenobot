@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { APPROVAL_PROPOSED, APPROVAL_APPROVED, APPROVAL_REJECTED } from '../events.js'
 import BaseTool from './base.js'
 import { safePath } from '../utils/safe-path.js'
-import logger from '../logger.js'
+import defaultLogger from '../logger.js'
 
 /**
  * ApprovalTool - Manage proposals that require owner approval
@@ -31,9 +31,10 @@ export default class ApprovalTool extends BaseTool {
    * @param {Function} callbacks.activateSkill - Called to hot-reload a skill after approval
    * @param {Function} callbacks.reloadIdentity - Called to reload identity after soul/identity approval
    */
-  constructor(workspaceDir, { onProposed, onApproved, onRejected, activateSkill, reloadIdentity } = {}) {
+  constructor(workspaceDir, { onProposed, onApproved, onRejected, activateSkill, reloadIdentity, logger = defaultLogger } = {}) {
     super()
     this.workspaceDir = workspaceDir
+    this.logger = logger
     this._onProposed = onProposed || (() => {})
     this._onApproved = onApproved || (() => {})
     this._onRejected = onRejected || (() => {})
@@ -123,7 +124,7 @@ export default class ApprovalTool extends BaseTool {
     queue.push(item)
     await this._saveQueue(queue)
 
-    logger.info('approval', 'proposed', { id, type, name })
+    this.logger.info('approval', 'proposed', { id, type, name })
     this._onProposed({ id, type, name, description: item.description })
 
     return `Proposed: ${name} (${type}) — ID: ${id}\nAwaiting owner approval via /approve ${id}`
@@ -205,7 +206,7 @@ export default class ApprovalTool extends BaseTool {
     item.approvedAt = new Date().toISOString()
     await this._saveQueue(queue)
 
-    logger.info('approval', 'approved', { id: item.id, type: item.type, name: item.name })
+    this.logger.info('approval', 'approved', { id: item.id, type: item.type, name: item.name })
     this._onApproved({ id: item.id, type: item.type, name: item.name })
 
     return `Approved: ${item.name} (${item.type})`
@@ -223,7 +224,7 @@ export default class ApprovalTool extends BaseTool {
     item.reason = reason || ''
     await this._saveQueue(queue)
 
-    logger.info('approval', 'rejected', { id: item.id, type: item.type, name: item.name, reason })
+    this.logger.info('approval', 'rejected', { id: item.id, type: item.type, name: item.name, reason })
     this._onRejected({ id: item.id, type: item.type, name: item.name, reason })
 
     return `Rejected: ${item.name} (${item.type})${reason ? ` — ${reason}` : ''}`
@@ -283,13 +284,14 @@ export default class ApprovalTool extends BaseTool {
   }
 }
 
-export function register(registry, { config, bus, skillLoader, identityLoader }) {
+export function register(registry, { config, bus, skillLoader, identityLoader, logger }) {
   if (!config.workspaceDir || !config.selfImprovementEnabled) return
   registry.register(new ApprovalTool(config.workspaceDir, {
     onProposed: (p) => bus.emit(APPROVAL_PROPOSED, p),
     onApproved: (p) => bus.emit(APPROVAL_APPROVED, p),
     onRejected: (p) => bus.emit(APPROVAL_REJECTED, p),
     activateSkill: (name, dir) => skillLoader.loadOne(name, dir),
-    reloadIdentity: () => identityLoader.reload()
+    reloadIdentity: () => identityLoader.reload(),
+    logger
   }))
 }

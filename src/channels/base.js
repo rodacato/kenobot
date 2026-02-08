@@ -1,6 +1,6 @@
 import EventEmitter from 'node:events'
 import { MESSAGE_IN, ERROR } from '../events.js'
-import logger from '../logger.js'
+import defaultLogger from '../logger.js'
 
 const DEFAULT_RATE_LIMIT = { maxPerMinute: 0, maxPerHour: 0 }
 
@@ -16,6 +16,7 @@ export default class BaseChannel extends EventEmitter {
     super()
     this.bus = bus
     this.config = config
+    this.logger = config.logger || defaultLogger
 
     // Rate limiting: per-user sliding window (disabled when limits are 0)
     this._rateLimit = config.rateLimit || DEFAULT_RATE_LIMIT
@@ -67,13 +68,13 @@ export default class BaseChannel extends EventEmitter {
   _publishMessage(message) {
     // Security: deny by default
     if (!this._isAllowed(message.userId, message.chatId)) {
-      logger.warn('channel', 'auth_rejected', { userId: message.userId, chatId: message.chatId, channel: this.name })
+      this.logger.warn('channel', 'auth_rejected', { userId: message.userId, chatId: message.chatId, channel: this.name })
       return
     }
 
     // Rate limiting (if configured)
     if (this._isRateLimited(message.userId)) {
-      logger.warn('channel', 'rate_limited', { userId: message.userId, channel: this.name })
+      this.logger.warn('channel', 'rate_limited', { userId: message.userId, channel: this.name })
       return
     }
 
@@ -102,7 +103,7 @@ export default class BaseChannel extends EventEmitter {
     try {
       await this.send(chatId, text, options)
     } catch (error) {
-      logger.error('channel', 'send_failed', { channel: this.name, chatId, error: error.message })
+      this.logger.error('channel', 'send_failed', { channel: this.name, chatId, error: error.message })
       this.bus.emit(ERROR, { source: this.name, error })
     }
   }
@@ -147,7 +148,7 @@ export default class BaseChannel extends EventEmitter {
 
     // Deny by default (security)
     if (allowedUsers.length === 0 && allowedChatIds.length === 0) {
-      logger.error('channel', 'no_allowlist', { channel: this.name })
+      this.logger.error('channel', 'no_allowlist', { channel: this.name })
       return false
     }
 

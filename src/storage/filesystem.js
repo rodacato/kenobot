@@ -1,7 +1,7 @@
 import { readFile, appendFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import BaseStorage from './base.js'
-import logger from '../logger.js'
+import defaultLogger from '../logger.js'
 
 /** Only allow safe sessionId characters (e.g. telegram-123456789) */
 const SAFE_SESSION_ID = /^[a-zA-Z0-9_-]+$/
@@ -16,10 +16,11 @@ const SAFE_SESSION_ID = /^[a-zA-Z0-9_-]+$/
  *   {"role":"user","content":"hello","timestamp":1707235200000}
  */
 export default class FilesystemStorage extends BaseStorage {
-  constructor(config) {
+  constructor(config, { logger = defaultLogger } = {}) {
     super()
     this.dataDir = config.dataDir || './data'
     this.sessionsDir = join(this.dataDir, 'sessions')
+    this.logger = logger
     this._dirReady = false
   }
 
@@ -44,7 +45,7 @@ export default class FilesystemStorage extends BaseStorage {
       try {
         messages.push(JSON.parse(line))
       } catch {
-        logger.warn('storage', 'corrupt_jsonl_line', { sessionId, line: line.slice(0, 100) })
+        this.logger.warn('storage', 'corrupt_jsonl_line', { sessionId, line: line.slice(0, 100) })
       }
     }
 

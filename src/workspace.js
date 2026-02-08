@@ -2,7 +2,7 @@ import { mkdir, access, readdir } from 'node:fs/promises'
 import { execFile } from 'node:child_process'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import logger from './logger.js'
+import defaultLogger from './logger.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -16,7 +16,7 @@ const execFileAsync = promisify(execFile)
  * @param {Object} options - Optional configuration
  * @param {string} options.sshKeyPath - Path to SSH key for git operations
  */
-export async function initWorkspace(workspaceDir, options = {}) {
+export async function initWorkspace(workspaceDir, { logger = defaultLogger, ...options } = {}) {
   // 1. Ensure directory exists
   await mkdir(workspaceDir, { recursive: true })
 

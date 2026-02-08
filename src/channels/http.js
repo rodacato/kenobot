@@ -2,7 +2,7 @@ import { createServer } from 'node:http'
 import crypto from 'node:crypto'
 import BaseChannel from './base.js'
 import { MESSAGE_IN, MESSAGE_OUT } from '../events.js'
-import logger from '../logger.js'
+// logger inherited from BaseChannel via this.logger
 import { getStatus } from '../health.js'
 
 /**
@@ -40,7 +40,7 @@ export default class HTTPChannel extends BaseChannel {
       })
     })
 
-    logger.info('http', 'started', { port: this.config.port, host: this.config.host })
+    this.logger.info('http', 'started', { port: this.config.port, host: this.config.host })
   }
 
   async stop() {
@@ -60,7 +60,7 @@ export default class HTTPChannel extends BaseChannel {
       this.server = null
     }
 
-    logger.info('http', 'stopped')
+    this.logger.info('http', 'stopped')
   }
 
   // HMAC validation replaces userId allowlist for HTTP channel
@@ -97,7 +97,7 @@ export default class HTTPChannel extends BaseChannel {
     // Validate HMAC signature
     const signature = req.headers['x-webhook-signature']
     if (!this._validateSignature(rawBody, signature)) {
-      logger.warn('http', 'auth_rejected', { reason: 'invalid signature' })
+      this.logger.warn('http', 'auth_rejected', { reason: 'invalid signature' })
       res.writeHead(401, { 'Content-Type': 'application/json' })
       return res.end(JSON.stringify({ error: 'invalid signature' }))
     }
@@ -119,7 +119,7 @@ export default class HTTPChannel extends BaseChannel {
     const requestId = crypto.randomUUID()
     const chatId = data.chat_id ? `http-${data.chat_id}` : requestId
 
-    logger.info('http', 'webhook_received', { requestId, chatId, length: data.message.length })
+    this.logger.info('http', 'webhook_received', { requestId, chatId, length: data.message.length })
 
     try {
       const responseText = await this._waitForResponse(requestId, chatId, data.message)
@@ -127,7 +127,7 @@ export default class HTTPChannel extends BaseChannel {
       res.end(JSON.stringify({ response: responseText, status: 'ok' }))
     } catch (error) {
       const statusCode = error.message === 'timeout' ? 408 : 500
-      logger.error('http', 'webhook_failed', { requestId, error: error.message })
+      this.logger.error('http', 'webhook_failed', { requestId, error: error.message })
       res.writeHead(statusCode, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ error: error.message, status: 'error' }))
     }

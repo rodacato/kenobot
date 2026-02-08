@@ -1,5 +1,5 @@
 import BaseProvider from './base.js'
-import logger from '../logger.js'
+import defaultLogger from '../logger.js'
 
 /**
  * CircuitBreakerProvider - Decorator that protects against cascading failures
@@ -13,9 +13,10 @@ import logger from '../logger.js'
  *   provider = new CircuitBreakerProvider(provider, { threshold: 5 })
  */
 export default class CircuitBreakerProvider extends BaseProvider {
-  constructor(innerProvider, options = {}) {
+  constructor(innerProvider, { logger = defaultLogger, ...options } = {}) {
     super()
     this.inner = innerProvider
+    this.logger = logger
     this.threshold = options.threshold || 5
     this.cooldown = options.cooldown || 60000
     this.state = 'CLOSED'
@@ -40,7 +41,7 @@ export default class CircuitBreakerProvider extends BaseProvider {
     if (this.state === 'OPEN') {
       if (Date.now() - this.lastFailure >= this.cooldown) {
         this.state = 'HALF_OPEN'
-        logger.info('provider', 'circuit_half_open', { provider: this.inner.name })
+        this.logger.info('provider', 'circuit_half_open', { provider: this.inner.name })
       } else {
         throw new CircuitBreakerOpenError(this.inner.name, this.cooldown - (Date.now() - this.lastFailure))
       }
@@ -58,7 +59,7 @@ export default class CircuitBreakerProvider extends BaseProvider {
 
   _onSuccess() {
     if (this.state === 'HALF_OPEN') {
-      logger.info('provider', 'circuit_closed', {
+      this.logger.info('provider', 'circuit_closed', {
         provider: this.inner.name,
         previousFailures: this.failures
       })
@@ -74,7 +75,7 @@ export default class CircuitBreakerProvider extends BaseProvider {
 
     if (this.state === 'HALF_OPEN' || this.failures >= this.threshold) {
       this.state = 'OPEN'
-      logger.warn('provider', 'circuit_opened', {
+      this.logger.warn('provider', 'circuit_opened', {
         provider: this.inner.name,
         failures: this.failures,
         cooldownMs: this.cooldown,

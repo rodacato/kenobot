@@ -3,7 +3,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { MESSAGE_IN } from '../events.js'
-import logger from '../logger.js'
+import defaultLogger from '../logger.js'
 
 /**
  * Scheduler - Cron-based task scheduler with persistence
@@ -17,11 +17,12 @@ import logger from '../logger.js'
 const DEFAULT_MAX_TASKS = 50
 
 export default class Scheduler {
-  constructor(bus, dataDir, { maxTasks = DEFAULT_MAX_TASKS } = {}) {
+  constructor(bus, dataDir, { maxTasks = DEFAULT_MAX_TASKS, logger = defaultLogger } = {}) {
     this.bus = bus
     this.tasksFile = join(dataDir, 'scheduler', 'tasks.json')
     this.tasks = new Map()
     this.maxTasks = maxTasks
+    this.logger = logger
   }
 
   /**
@@ -40,7 +41,7 @@ export default class Scheduler {
     for (const task of tasks) {
       this._startJob(task)
     }
-    logger.info('scheduler', 'tasks_loaded', { count: this.tasks.size })
+    this.logger.info('scheduler', 'tasks_loaded', { count: this.tasks.size })
   }
 
   /**
@@ -76,7 +77,7 @@ export default class Scheduler {
 
     this._startJob(task)
     await this._persist()
-    logger.info('scheduler', 'task_added', { id: task.id, cron: cronExpr, description: task.description })
+    this.logger.info('scheduler', 'task_added', { id: task.id, cron: cronExpr, description: task.description })
     return task.id
   }
 
@@ -90,7 +91,7 @@ export default class Scheduler {
     entry.job.stop()
     this.tasks.delete(id)
     await this._persist()
-    logger.info('scheduler', 'task_removed', { id })
+    this.logger.info('scheduler', 'task_removed', { id })
   }
 
   /**
@@ -107,13 +108,13 @@ export default class Scheduler {
     for (const { job } of this.tasks.values()) {
       job.stop()
     }
-    logger.info('scheduler', 'stopped', { tasks: this.tasks.size })
+    this.logger.info('scheduler', 'stopped', { tasks: this.tasks.size })
   }
 
   /** @private Start a cron job for a task */
   _startJob(task) {
     const job = cron.schedule(task.cronExpr, () => {
-      logger.info('scheduler', 'task_fired', { id: task.id, description: task.description })
+      this.logger.info('scheduler', 'task_fired', { id: task.id, description: task.description })
       this.bus.emit(MESSAGE_IN, {
         text: task.message,
         chatId: task.chatId,

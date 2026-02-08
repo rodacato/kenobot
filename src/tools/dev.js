@@ -1,7 +1,7 @@
 import { readdir, lstat, realpath } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import BaseTool from './base.js'
-import logger from '../logger.js'
+import defaultLogger from '../logger.js'
 
 /**
  * DevTool - Run development tasks in workspace projects
@@ -12,9 +12,10 @@ import logger from '../logger.js'
  * Flow: /dev kenobot fix bug → AgentLoop detects devMode → provider runs from ~/Workspaces/kenobot
  */
 class DevTool extends BaseTool {
-  constructor(projectsDir) {
+  constructor(projectsDir, { logger = defaultLogger } = {}) {
     super()
     this.projectsDir = projectsDir
+    this.logger = logger
   }
 
   get trigger() {
@@ -85,7 +86,7 @@ class DevTool extends BaseTool {
       return `No task specified.\nUsage: /dev ${projectName} <describe what to do>`
     }
 
-    logger.info('dev', 'dev_mode_activated', { project: projectName, cwd: projectPath })
+    this.logger.info('dev', 'dev_mode_activated', { project: projectName, cwd: projectPath })
 
     // Return devMode signal — AgentLoop reads this to set provider CWD
     return JSON.stringify({ devMode: true, cwd: projectPath, project: projectName, task })
@@ -108,7 +109,7 @@ class DevTool extends BaseTool {
   }
 }
 
-export function register(registry, { config }) {
+export function register(registry, { config, logger }) {
   if (!config.projectsDir) return
-  registry.register(new DevTool(config.projectsDir))
+  registry.register(new DevTool(config.projectsDir, { logger }))
 }

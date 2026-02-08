@@ -1,4 +1,4 @@
-import logger from '../logger.js'
+import defaultLogger from '../logger.js'
 import { MESSAGE_IN, MESSAGE_OUT } from '../events.js'
 import { runPostProcessors } from './post-processors.js'
 import ToolOrchestrator from './tool-orchestrator.js'
@@ -13,20 +13,21 @@ import { withTypingIndicator } from './typing-indicator.js'
  * Flow: message:in → build context → provider.chat → [tool loop] → extract memories → extract user prefs → save session → message:out
  */
 export default class AgentLoop {
-  constructor(bus, provider, contextBuilder, storage, memoryManager, toolRegistry) {
+  constructor(bus, provider, contextBuilder, storage, memoryManager, toolRegistry, { logger = defaultLogger } = {}) {
     this.bus = bus
     this.provider = provider
     this.contextBuilder = contextBuilder
     this.storage = storage
     this.memory = memoryManager || null
     this.toolRegistry = toolRegistry || null
+    this.logger = logger
     this._toolOrchestrator = toolRegistry
-      ? new ToolOrchestrator(toolRegistry, provider)
+      ? new ToolOrchestrator(toolRegistry, provider, { logger })
       : null
     this._handler = null
 
     if (toolRegistry && !provider.supportsTools) {
-      logger.warn('agent', 'tools_without_support', {
+      this.logger.warn('agent', 'tools_without_support', {
         provider: provider.name,
         hint: 'Provider does not support native tool_use — tool calls will not work'
       })
@@ -50,7 +51,7 @@ export default class AgentLoop {
     this._handler = (message) => this._handleMessage(message)
     this.bus.on(MESSAGE_IN, this._handler)
 
-    logger.info('agent', 'started', { provider: this.provider.name })
+    this.logger.info('agent', 'started', { provider: this.provider.name })
   }
 
   /**
@@ -61,7 +62,7 @@ export default class AgentLoop {
       this.bus.off(MESSAGE_IN, this._handler)
       this._handler = null
     }
-    logger.info('agent', 'stopped')
+    this.logger.info('agent', 'stopped')
   }
 
   /**
@@ -78,7 +79,7 @@ export default class AgentLoop {
     const { tool, input } = match
     const toolName = tool.definition.name
 
-    logger.info('agent', 'trigger_matched', { sessionId, tool: toolName, input })
+    this.logger.info('agent', 'trigger_matched', { sessionId, tool: toolName, input })
 
     try {
       const result = await tool.execute(input, messageContext)
@@ -88,7 +89,7 @@ export default class AgentLoop {
         enrichedPrompt: `${text}\n\n[${toolName} result]\n${result}`
       }
     } catch (error) {
-      logger.error('agent', 'trigger_failed', { sessionId, tool: toolName, error: error.message })
+      this.logger.error('agent', 'trigger_failed', { sessionId, tool: toolName, error: error.message })
       return {
         toolName,
         result: error.message,
@@ -104,7 +105,7 @@ export default class AgentLoop {
   async _handleMessage(message) {
     const sessionId = `${message.channel}-${message.chatId}`
 
-    logger.info('agent', 'message_received', {
+    this.logger.info('agent', 'message_received', {
       sessionId,
       userId: message.userId,
       length: message.text.length
@@ -127,7 +128,7 @@ export default class AgentLoop {
         const { activeSkill } = context
 
         if (activeSkill) {
-          logger.info('agent', 'skill_activated', { sessionId, skill: activeSkill })
+          this.logger.info('agent', 'skill_activated', { sessionId, skill: activeSkill })
         }
 
         // Dev mode: detect devMode signal from /dev tool
@@ -137,7 +138,7 @@ export default class AgentLoop {
             const parsed = JSON.parse(triggerResult.result)
             if (parsed.devMode) {
               devMode = parsed
-              logger.info('agent', 'dev_mode', { sessionId, project: parsed.project, cwd: parsed.cwd })
+              this.logger.info('agent', 'dev_mode', { sessionId, project: parsed.project, cwd: parsed.cwd })
             }
           } catch { /* not JSON — normal tool result */ }
         }
@@ -186,10 +187,11 @@ export default class AgentLoop {
           memory: this.memory,
           identityLoader: this.contextBuilder.identityLoader,
           bus: this.bus,
-          sessionId
+          sessionId,
+          logger: this.logger
         })
 
-        logger.info('agent', 'response_generated', {
+        this.logger.info('agent', 'response_generated', {
           sessionId,
           durationMs,
           contentLength: cleanText.length,
@@ -216,7 +218,7 @@ export default class AgentLoop {
         })
       })
     } catch (error) {
-      logger.error('agent', 'message_failed', {
+      this.logger.error('agent', 'message_failed', {
         sessionId,
         error: error.message
       })

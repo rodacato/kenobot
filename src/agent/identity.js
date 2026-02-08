@@ -1,6 +1,6 @@
 import { readFile, writeFile, mkdir, stat, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
-import logger from '../logger.js'
+import defaultLogger from '../logger.js'
 
 /**
  * IdentityLoader - Loads modular identity files (SOUL.md, IDENTITY.md, USER.md)
@@ -16,8 +16,9 @@ import logger from '../logger.js'
  *   - USER.md: fresh read every request (bot can write to it)
  */
 export default class IdentityLoader {
-  constructor(identityPath) {
+  constructor(identityPath, { logger = defaultLogger } = {}) {
     this.identityPath = identityPath
+    this.logger = logger
     this._isDirectory = null
     this._soul = ''
     this._identity = ''
@@ -34,14 +35,14 @@ export default class IdentityLoader {
       this._soul = await this._readSafe(join(this.identityPath, 'SOUL.md'))
       this._identity = await this._readSafe(join(this.identityPath, 'IDENTITY.md'))
       const hasBootstrap = await this._readSafe(join(this.identityPath, 'BOOTSTRAP.md'))
-      logger.info('identity', 'loaded_directory', {
+      this.logger.info('identity', 'loaded_directory', {
         path: this.identityPath,
         soul: this._soul.length,
         identity: this._identity.length,
         bootstrap: hasBootstrap.length > 0
       })
       if (hasBootstrap) {
-        logger.info('identity', 'bootstrap_pending', {
+        this.logger.info('identity', 'bootstrap_pending', {
           hint: 'First conversation will trigger onboarding flow'
         })
       }
@@ -49,12 +50,12 @@ export default class IdentityLoader {
       // File mode: entire file is treated as soul
       this._soul = await this._readSafe(this.identityPath)
       this._identity = ''
-      logger.info('identity', 'loaded_file', {
+      this.logger.info('identity', 'loaded_file', {
         path: this.identityPath,
         length: this._soul.length
       })
       if (!this._soul) {
-        logger.warn('identity', 'empty_identity', {
+        this.logger.warn('identity', 'empty_identity', {
           path: this.identityPath,
           hint: 'Bot will run without personality. Check IDENTITY_FILE path or run kenobot init'
         })
@@ -90,7 +91,7 @@ export default class IdentityLoader {
     const content = await this._readSafe(userPath)
 
     if (content.length > 5120) {
-      logger.warn('identity', 'user_file_large', {
+      this.logger.warn('identity', 'user_file_large', {
         file: 'USER.md',
         sizeBytes: content.length,
         hint: 'Consider curating USER.md to keep it under 5KB for optimal context usage'
@@ -127,7 +128,7 @@ export default class IdentityLoader {
     }
 
     await writeFile(userPath, content, 'utf8')
-    logger.info('identity', 'user_updated', { entries: entries.length })
+    this.logger.info('identity', 'user_updated', { entries: entries.length })
   }
 
   /**
@@ -149,7 +150,7 @@ export default class IdentityLoader {
     if (!this._isDirectory) return
     try {
       await unlink(join(this.identityPath, 'BOOTSTRAP.md'))
-      logger.info('identity', 'bootstrap_deleted', { path: this.identityPath })
+      this.logger.info('identity', 'bootstrap_deleted', { path: this.identityPath })
     } catch (err) {
       if (err.code !== 'ENOENT') throw err
     }
@@ -163,13 +164,13 @@ export default class IdentityLoader {
     if (this._isDirectory) {
       this._soul = await this._readSafe(join(this.identityPath, 'SOUL.md'))
       this._identity = await this._readSafe(join(this.identityPath, 'IDENTITY.md'))
-      logger.info('identity', 'reloaded', {
+      this.logger.info('identity', 'reloaded', {
         soul: this._soul.length,
         identity: this._identity.length
       })
     } else {
       this._soul = await this._readSafe(this.identityPath)
-      logger.info('identity', 'reloaded', { length: this._soul.length })
+      this.logger.info('identity', 'reloaded', { length: this._soul.length })
     }
   }
 
