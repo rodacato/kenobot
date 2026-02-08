@@ -95,6 +95,33 @@ describe('Scheduler', () => {
       expect(tasks[0].description).toBe('Check calendar')
     })
 
+    it('should reject when task limit is reached', async () => {
+      const limited = new Scheduler(mockBus, dataDir, { maxTasks: 2 })
+
+      await limited.add({ cronExpr: '0 9 * * *', message: 'task1', chatId: '123' })
+      await limited.add({ cronExpr: '0 10 * * *', message: 'task2', chatId: '123' })
+
+      await expect(limited.add({
+        cronExpr: '0 11 * * *',
+        message: 'task3',
+        chatId: '123'
+      })).rejects.toThrow('Task limit reached (max 2)')
+
+      limited.stop()
+    })
+
+    it('should allow adding after removing when at limit', async () => {
+      const limited = new Scheduler(mockBus, dataDir, { maxTasks: 1 })
+
+      const id = await limited.add({ cronExpr: '0 9 * * *', message: 'task1', chatId: '123' })
+      await limited.remove(id)
+
+      const id2 = await limited.add({ cronExpr: '0 10 * * *', message: 'task2', chatId: '123' })
+      expect(id2).toBeDefined()
+
+      limited.stop()
+    })
+
     it('should set createdAt timestamp', async () => {
       const before = Date.now()
       await scheduler.add({

@@ -14,11 +14,14 @@ import logger from '../logger.js'
  * Persistence: tasks stored in data/scheduler/tasks.json.
  * Loaded on startup, survive restarts.
  */
+const DEFAULT_MAX_TASKS = 50
+
 export default class Scheduler {
-  constructor(bus, dataDir) {
+  constructor(bus, dataDir, { maxTasks = DEFAULT_MAX_TASKS } = {}) {
     this.bus = bus
     this.tasksFile = join(dataDir, 'scheduler', 'tasks.json')
     this.tasks = new Map()
+    this.maxTasks = maxTasks
   }
 
   /**
@@ -54,6 +57,10 @@ export default class Scheduler {
   async add({ cronExpr, message, description, chatId, userId, channel }) {
     if (!cron.validate(cronExpr)) {
       throw new Error(`Invalid cron expression: ${cronExpr}`)
+    }
+
+    if (this.tasks.size >= this.maxTasks) {
+      throw new Error(`Task limit reached (max ${this.maxTasks})`)
     }
 
     const task = {
