@@ -1,9 +1,6 @@
 import logger from '../logger.js'
-import { MESSAGE_IN, MESSAGE_OUT, THINKING_START, CONFIG_CHANGED } from '../events.js'
-import { extractMemories } from './memory-extractor.js'
-import { extractChatMemories } from './chat-memory-extractor.js'
-import { extractUserUpdates } from './user-extractor.js'
-import { extractBootstrapComplete } from './bootstrap-extractor.js'
+import { MESSAGE_IN, MESSAGE_OUT, THINKING_START } from '../events.js'
+import { runPostProcessors } from './post-processors.js'
 
 /**
  * AgentLoop - Core message handler with session persistence
@@ -192,57 +189,25 @@ export default class AgentLoop {
 
       const durationMs = Date.now() - start
 
-      // Extract memory tags from response
-      const { cleanText: afterMemory, memories } = extractMemories(response.content)
-
-      // Extract chat-memory tags (per-chat)
-      const { cleanText: afterChatMemory, chatMemories } = extractChatMemories(afterMemory)
-
-      // Extract user preference tags
-      const { cleanText: afterUser, updates: userUpdates } = extractUserUpdates(afterChatMemory)
-
-      // Detect bootstrap completion
-      const { cleanText, isComplete: bootstrapComplete } = extractBootstrapComplete(afterUser)
+      // Run post-processor pipeline: extract tags, persist, clean text
+      const { cleanText, stats } = await runPostProcessors(response.content, {
+        memory: this.memory,
+        identityLoader: this.contextBuilder.identityLoader,
+        bus: this.bus,
+        sessionId
+      })
 
       logger.info('agent', 'response_generated', {
         sessionId,
         durationMs,
         contentLength: cleanText.length,
-        memoriesExtracted: memories.length,
-        chatMemoriesExtracted: chatMemories.length,
-        userUpdates: userUpdates.length,
+        memoriesExtracted: stats.memory?.memories?.length || 0,
+        chatMemoriesExtracted: stats['chat-memory']?.chatMemories?.length || 0,
+        userUpdates: stats.user?.updates?.length || 0,
         toolIterations: iterations,
         activeSkill: activeSkill || null,
-        bootstrapComplete: bootstrapComplete || undefined
+        bootstrapComplete: stats.bootstrap?.isComplete || undefined
       })
-
-      // Save memories to global daily log
-      if (this.memory && memories.length > 0) {
-        for (const entry of memories) {
-          await this.memory.appendDaily(entry)
-        }
-        this.bus.emit(CONFIG_CHANGED, { reason: 'memory update' })
-      }
-
-      // Save chat-specific memories to per-chat daily log
-      if (this.memory && chatMemories.length > 0) {
-        for (const entry of chatMemories) {
-          await this.memory.appendChatDaily(sessionId, entry)
-        }
-        this.bus.emit(CONFIG_CHANGED, { reason: 'chat memory update' })
-      }
-
-      // Save user preferences to USER.md
-      if (userUpdates.length > 0 && this.contextBuilder.identityLoader) {
-        await this.contextBuilder.identityLoader.appendUser(userUpdates)
-        this.bus.emit(CONFIG_CHANGED, { reason: 'user preferences update' })
-      }
-
-      // Delete BOOTSTRAP.md when bootstrap conversation is complete
-      if (bootstrapComplete && this.contextBuilder.identityLoader) {
-        await this.contextBuilder.identityLoader.deleteBootstrap()
-        this.bus.emit(CONFIG_CHANGED, { reason: 'bootstrap complete' })
-      }
 
       // Save both messages to session history (clean text without tags)
       const now = Date.now()
