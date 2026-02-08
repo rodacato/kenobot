@@ -1,6 +1,7 @@
 import logger from '../logger.js'
 import { MESSAGE_IN, MESSAGE_OUT, THINKING_START } from '../events.js'
 import { runPostProcessors } from './post-processors.js'
+import ToolOrchestrator from './tool-orchestrator.js'
 
 /**
  * AgentLoop - Core message handler with session persistence
@@ -18,8 +19,18 @@ export default class AgentLoop {
     this.storage = storage
     this.memory = memoryManager || null
     this.toolRegistry = toolRegistry || null
-    this.maxToolIterations = 20
+    this._toolOrchestrator = toolRegistry
+      ? new ToolOrchestrator(toolRegistry, provider)
+      : null
     this._handler = null
+  }
+
+  get maxToolIterations() {
+    return this._toolOrchestrator?.maxIterations ?? 20
+  }
+
+  set maxToolIterations(value) {
+    if (this._toolOrchestrator) this._toolOrchestrator.maxIterations = value
   }
 
   /**
@@ -149,40 +160,17 @@ export default class AgentLoop {
       // Call provider
       let response = await this.provider.chatWithRetry(context.messages, chatOptions)
 
-      // Tool execution loop (max iterations as safety valve)
+      // Tool execution loop (delegated to ToolOrchestrator)
       let iterations = 0
-      while (response.toolCalls && this.toolRegistry && iterations < this.maxToolIterations) {
-        iterations++
-        logger.info('agent', 'tool_calls', {
-          sessionId,
-          iteration: iterations,
-          tools: response.toolCalls.map(tc => tc.name)
-        })
-
-        // Execute all tool calls in parallel
-        const results = await Promise.all(
-          response.toolCalls.map(async (tc) => {
-            try {
-              const result = await this.toolRegistry.execute(tc.name, tc.input, messageContext)
-              return { id: tc.id, result: String(result), isError: false }
-            } catch (error) {
-              return { id: tc.id, result: `Error: ${error.message}`, isError: true }
-            }
-          })
+      if (response.toolCalls && this._toolOrchestrator) {
+        const result = await this._toolOrchestrator.executeLoop(
+          response, context.messages, chatOptions, messageContext, sessionId
         )
-
-        // Build tool result messages in provider-specific format
-        const toolMessages = this.provider.buildToolResultMessages(response.rawContent, results)
-        context.messages.push(...toolMessages)
-
-        response = await this.provider.chatWithRetry(context.messages, chatOptions)
-      }
-
-      // Safety valve: if still requesting tools after max iterations
-      if (response.toolCalls) {
-        const pendingTools = response.toolCalls.map(tc => tc.name)
-        logger.warn('agent', 'max_iterations_exceeded', { sessionId, iterations, pendingTools })
-        response.content = "I'm having trouble completing this task. Let me try a different approach."
+        response = result.response
+        iterations = result.iterations
+      } else if (response.toolCalls) {
+        // No tool registry — fallback message
+        response = { ...response, content: "I'm having trouble completing this task. Let me try a different approach." }
       }
 
       clearInterval(typingInterval)
