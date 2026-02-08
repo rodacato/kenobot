@@ -1,4 +1,4 @@
-import { readFile, writeFile, appendFile, readdir, mkdir, unlink } from 'node:fs/promises'
+import { readFile, writeFile, appendFile, readdir, mkdir, unlink, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import BaseMemory from './base-memory.js'
 import defaultLogger from '../logger.js'
@@ -6,14 +6,16 @@ import defaultLogger from '../logger.js'
 /**
  * FileMemory - Filesystem-backed daily logs + long-term MEMORY.md
  *
- * Manages two tiers of memory:
+ * Manages three tiers of memory:
  * - Global: MEMORY.md + YYYY-MM-DD.md in data/memory/
  * - Per-chat: MEMORY.md + YYYY-MM-DD.md in data/memory/chats/{sessionId}/
+ * - Working: volatile per-session scratchpad in data/memory/working/{sessionId}.md
  *
  * Data structure:
  *   data/memory/MEMORY.md
  *   data/memory/2026-02-07.md
  *   data/memory/chats/telegram-63059997/2026-02-07.md
+ *   data/memory/working/telegram-63059997.md
  */
 export default class FileMemory extends BaseMemory {
   constructor(dataDir, { logger = defaultLogger } = {}) {
@@ -85,6 +87,37 @@ export default class FileMemory extends BaseMemory {
    */
   async getChatLongTermMemory(sessionId) {
     return this._getLongTermFromDir(join(this.memoryDir, 'chats', sessionId))
+  }
+
+  // --- Working memory (per-session, volatile) ---
+
+  /**
+   * Write (replace) working memory for a session.
+   * @param {string} sessionId - e.g. "telegram-63059997"
+   * @param {string} content - Full working memory content
+   */
+  async writeWorkingMemory(sessionId, content) {
+    const dir = join(this.memoryDir, 'working')
+    await mkdir(dir, { recursive: true })
+    const filepath = join(dir, `${sessionId}.md`)
+    await writeFile(filepath, content, 'utf8')
+    this.logger.info('memory', 'working_memory_written', { sessionId, sizeBytes: content.length })
+  }
+
+  /**
+   * Get working memory for a session with its last-updated timestamp.
+   * @param {string} sessionId
+   * @returns {Promise<{ content: string, updatedAt: number }|null>} null if not found
+   */
+  async getWorkingMemory(sessionId) {
+    try {
+      const filepath = join(this.memoryDir, 'working', `${sessionId}.md`)
+      const content = await readFile(filepath, 'utf8')
+      const fileStat = await stat(filepath)
+      return { content, updatedAt: fileStat.mtimeMs }
+    } catch {
+      return null
+    }
   }
 
   // --- Compaction support ---

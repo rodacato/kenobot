@@ -4,7 +4,8 @@
  * Consistent with BaseProvider, BaseChannel, BaseTool, BaseStorage.
  * All memory implementations must extend this class.
  *
- * Two tiers: global (shared across all chats) and per-chat (scoped by sessionId).
+ * Three tiers: global (shared across all chats), per-chat (scoped by sessionId),
+ * and working memory (volatile per-session scratchpad).
  * Compaction methods enable decorators to read, merge, and clean old daily logs.
  */
 export default class BaseMemory {
@@ -35,6 +36,16 @@ export default class BaseMemory {
 
   async getChatLongTermMemory(sessionId) {
     throw new Error('getChatLongTermMemory() must be implemented by subclass')
+  }
+
+  // --- Working memory (per-session, volatile) ---
+
+  async writeWorkingMemory(sessionId, content) {
+    throw new Error('writeWorkingMemory() must be implemented by subclass')
+  }
+
+  async getWorkingMemory(sessionId) {
+    throw new Error('getWorkingMemory() must be implemented by subclass')
   }
 
   // --- Compaction support ---

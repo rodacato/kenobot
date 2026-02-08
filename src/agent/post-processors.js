@@ -1,5 +1,6 @@
 import { extractMemories } from './memory-extractor.js'
 import { extractChatMemories } from './chat-memory-extractor.js'
+import { extractWorkingMemory } from './working-memory-extractor.js'
 import { extractUserUpdates } from './user-extractor.js'
 import { extractBootstrapComplete } from './bootstrap-extractor.js'
 import { CONFIG_CHANGED } from '../events.js'
@@ -38,6 +39,17 @@ export const defaultPostProcessors = [
       if (!memory || chatMemories.length === 0) return
       for (const entry of chatMemories) await memory.appendChatDaily(sessionId, entry)
       bus.emit(CONFIG_CHANGED, { reason: 'chat memory update' })
+    }
+  },
+  {
+    name: 'working-memory',
+    extract(text) {
+      const { cleanText, workingMemory } = extractWorkingMemory(text)
+      return { cleanText, data: { workingMemory } }
+    },
+    async apply({ workingMemory }, { memory, sessionId }) {
+      if (!memory || !workingMemory || !sessionId) return
+      await memory.writeWorkingMemory(sessionId, workingMemory)
     }
   },
   {

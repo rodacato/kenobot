@@ -50,6 +50,16 @@ export default class CompactingMemory extends BaseMemory {
     return this.inner.getChatLongTermMemory(sessionId)
   }
 
+  // --- Working memory (delegate) ---
+
+  async writeWorkingMemory(sessionId, content) {
+    return this.inner.writeWorkingMemory(sessionId, content)
+  }
+
+  async getWorkingMemory(sessionId) {
+    return this.inner.getWorkingMemory(sessionId)
+  }
+
   // --- Compaction support (delegate) ---
 
   async listDailyLogs() {

@@ -56,6 +56,7 @@ export function createConfig(env = process.env) {
     dataDir: env.DATA_DIR || './data',
     memoryDays: int('MEMORY_DAYS', 3, { min: 0, max: 30 }),
     memoryRetentionDays: int('MEMORY_RETENTION_DAYS', 30, { min: 1, max: 365 }),
+    workingMemoryStaleThreshold: int('WORKING_MEMORY_STALE_DAYS', 7, { min: 1, max: 30 }),
     skillsDir: env.SKILLS_DIR || './skills',
     sessionHistoryLimit: int('SESSION_HISTORY_LIMIT', 20, { min: 1 }),
     maxToolIterations: int('MAX_TOOL_ITERATIONS', 20, { min: 1, max: 100 }),

@@ -176,11 +176,16 @@ export default class ContextBuilder {
     if (sessionId) {
       promises.push(this.memory.getChatLongTermMemory(sessionId))
       promises.push(this.memory.getChatRecentDays(sessionId, memoryDays))
+      promises.push(this.memory.getWorkingMemory(sessionId))
     }
 
-    const [longTerm, recentNotes, chatLongTerm, chatRecent] = await Promise.all(promises)
+    const [longTerm, recentNotes, chatLongTerm, chatRecent, workingMemoryResult] = await Promise.all(promises)
 
-    if (!longTerm && !recentNotes && !chatLongTerm && !chatRecent) return null
+    // Filter stale working memory (>7 days by default)
+    const staleDays = this.config.workingMemoryStaleThreshold ?? 7
+    const workingMemory = this._filterWorkingMemory(workingMemoryResult, staleDays)
+
+    if (!longTerm && !recentNotes && !chatLongTerm && !chatRecent && !workingMemory) return null
 
     const lines = [
       'You have persistent memory across conversations. Use it wisely.\n',
@@ -194,7 +199,19 @@ export default class ContextBuilder {
       '- Be concise: one line per memory',
       '- Don\'t save things already in your long-term memory',
       '- You can include multiple <memory> and <chat-memory> tags in one response',
-      '- Use <memory> for global facts, <chat-memory> for chat-specific context\n'
+      '- Use <memory> for global facts, <chat-memory> for chat-specific context\n',
+      '### How to maintain working memory',
+      'For maintaining context across long conversations, use:\n',
+      '<working-memory>',
+      '- Current topic/task being discussed',
+      '- Key decisions or facts from this conversation',
+      '- What\'s pending or next',
+      '</working-memory>\n',
+      'Rules:',
+      '- Each update replaces the previous one entirely — include everything relevant',
+      '- Keep it concise: bullet points, not paragraphs',
+      '- Update when the topic shifts or significant progress is made',
+      '- This is your scratchpad for the current conversation, not for long-term facts\n'
     ]
 
     if (longTerm) {
@@ -211,9 +228,45 @@ export default class ContextBuilder {
     }
     if (chatRecent) {
       lines.push('### Chat-specific notes')
-      lines.push(chatRecent)
+      lines.push(chatRecent + '\n')
+    }
+    if (workingMemory) {
+      const ageLabel = this._formatAge(workingMemory.updatedAt)
+      lines.push(`### Working memory (updated ${ageLabel})`)
+      lines.push(workingMemory.content)
     }
 
     return { label: 'Memory', content: lines.join('\n') }
+  }
+
+  /**
+   * Filter working memory by staleness threshold.
+   * @private
+   * @param {{ content: string, updatedAt: number }|null} result
+   * @param {number} staleDays - Max age in days before excluding
+   * @returns {{ content: string, updatedAt: number }|null}
+   */
+  _filterWorkingMemory(result, staleDays) {
+    if (!result) return null
+    const ageDays = (Date.now() - result.updatedAt) / 86400000
+    if (ageDays > staleDays) return null
+    return result
+  }
+
+  /**
+   * Format a timestamp as a human-readable relative age.
+   * @private
+   * @param {number} timestampMs
+   * @returns {string} e.g. "2 hours ago", "3 days ago"
+   */
+  _formatAge(timestampMs) {
+    const diffMs = Date.now() - timestampMs
+    const minutes = Math.floor(diffMs / 60000)
+    if (minutes < 1) return 'just now'
+    if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`
+    const hours = Math.floor(minutes / 60)
+    if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`
+    const days = Math.floor(hours / 24)
+    return `${days} day${days === 1 ? '' : 's'} ago`
   }
 }
