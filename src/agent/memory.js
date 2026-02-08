@@ -86,6 +86,60 @@ export default class MemoryManager extends BaseMemory {
     return this._getLongTermFromDir(join(this.memoryDir, 'chats', sessionId))
   }
 
+  /**
+   * Prompt section for ContextBuilder.
+   * @param {{ sessionId?: string, memoryDays?: number }} context
+   * @returns {{ label: string, content: string }|null}
+   */
+  async getPromptSection({ sessionId = null, memoryDays = 3 } = {}) {
+    const promises = [
+      this.getLongTermMemory(),
+      this.getRecentDays(memoryDays)
+    ]
+    if (sessionId) {
+      promises.push(this.getChatLongTermMemory(sessionId))
+      promises.push(this.getChatRecentDays(sessionId, memoryDays))
+    }
+
+    const [longTerm, recentNotes, chatLongTerm, chatRecent] = await Promise.all(promises)
+
+    if (!longTerm && !recentNotes && !chatLongTerm && !chatRecent) return null
+
+    const lines = [
+      'You have persistent memory across conversations. Use it wisely.\n',
+      '### How to remember things',
+      'When you learn something worth remembering (important facts, project context, decisions made), include it in your response:\n',
+      '<memory>Short title: fact to remember</memory>\n',
+      'For facts specific to THIS conversation or chat context, use:\n',
+      '<chat-memory>Short title: chat-specific fact</chat-memory>\n',
+      'Rules:',
+      '- Only save things that matter across conversations',
+      '- Be concise: one line per memory',
+      '- Don\'t save things already in your long-term memory',
+      '- You can include multiple <memory> and <chat-memory> tags in one response',
+      '- Use <memory> for global facts, <chat-memory> for chat-specific context\n'
+    ]
+
+    if (longTerm) {
+      lines.push('### Long-term memory')
+      lines.push(longTerm + '\n')
+    }
+    if (recentNotes) {
+      lines.push('### Recent notes')
+      lines.push(recentNotes + '\n')
+    }
+    if (chatLongTerm) {
+      lines.push('### Chat-specific memory')
+      lines.push(chatLongTerm + '\n')
+    }
+    if (chatRecent) {
+      lines.push('### Chat-specific notes')
+      lines.push(chatRecent)
+    }
+
+    return { label: 'Memory', content: lines.join('\n') }
+  }
+
   // --- Private helpers ---
 
   async _appendDailyToDir(dir, entry, scope = 'global') {

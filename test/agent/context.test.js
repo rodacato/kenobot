@@ -159,10 +159,7 @@ describe('ContextBuilder', () => {
 
     beforeEach(() => {
       mockMemory = {
-        getLongTermMemory: vi.fn().mockResolvedValue(''),
-        getRecentDays: vi.fn().mockResolvedValue(''),
-        getChatLongTermMemory: vi.fn().mockResolvedValue(''),
-        getChatRecentDays: vi.fn().mockResolvedValue(''),
+        getPromptSection: vi.fn().mockResolvedValue(null),
       }
 
       context = new ContextBuilder(
@@ -174,7 +171,12 @@ describe('ContextBuilder', () => {
       vi.clearAllMocks()
     })
 
-    it('should include memory instructions in system prompt', async () => {
+    it('should include memory section when getPromptSection returns content', async () => {
+      mockMemory.getPromptSection.mockResolvedValue({
+        label: 'Memory',
+        content: 'How to remember things\n<memory>fact</memory>'
+      })
+
       const result = await context.build('telegram-123', { text: 'hello' })
 
       expect(result.system).toContain('## Memory')
@@ -182,8 +184,11 @@ describe('ContextBuilder', () => {
       expect(result.system).toContain('How to remember things')
     })
 
-    it('should include long-term memory when available', async () => {
-      mockMemory.getLongTermMemory.mockResolvedValue('# Facts\n- User likes Star Wars')
+    it('should include long-term memory content from section', async () => {
+      mockMemory.getPromptSection.mockResolvedValue({
+        label: 'Memory',
+        content: '### Long-term memory\nUser likes Star Wars'
+      })
 
       const result = await context.build('telegram-123', { text: 'hello' })
 
@@ -191,32 +196,15 @@ describe('ContextBuilder', () => {
       expect(result.system).toContain('User likes Star Wars')
     })
 
-    it('should include recent daily notes when available', async () => {
-      mockMemory.getRecentDays.mockResolvedValue('### 2026-02-07\n## 10:30 — User prefers Spanish')
+    it('should skip memory section when getPromptSection returns null', async () => {
+      mockMemory.getPromptSection.mockResolvedValue(null)
 
       const result = await context.build('telegram-123', { text: 'hello' })
 
-      expect(result.system).toContain('### Recent notes')
-      expect(result.system).toContain('User prefers Spanish')
+      expect(result.system).not.toContain('## Memory')
     })
 
-    it('should skip long-term memory section when empty', async () => {
-      mockMemory.getLongTermMemory.mockResolvedValue('')
-
-      const result = await context.build('telegram-123', { text: 'hello' })
-
-      expect(result.system).not.toContain('### Long-term memory')
-    })
-
-    it('should skip recent notes section when empty', async () => {
-      mockMemory.getRecentDays.mockResolvedValue('')
-
-      const result = await context.build('telegram-123', { text: 'hello' })
-
-      expect(result.system).not.toContain('### Recent notes')
-    })
-
-    it('should use memoryDays from config', async () => {
+    it('should pass memoryDays from config to getPromptSection', async () => {
       const ctx = new ContextBuilder(
         { identityFile: 'identities/kenobot.md', memoryDays: 7 },
         mockStorage,
@@ -225,7 +213,9 @@ describe('ContextBuilder', () => {
 
       await ctx.build('telegram-123', { text: 'hello' })
 
-      expect(mockMemory.getRecentDays).toHaveBeenCalledWith(7)
+      expect(mockMemory.getPromptSection).toHaveBeenCalledWith(
+        expect.objectContaining({ memoryDays: 7 })
+      )
     })
 
     it('should default to 3 days when memoryDays not configured', async () => {
@@ -237,11 +227,24 @@ describe('ContextBuilder', () => {
 
       await ctx.build('telegram-123', { text: 'hello' })
 
-      expect(mockMemory.getRecentDays).toHaveBeenCalledWith(3)
+      expect(mockMemory.getPromptSection).toHaveBeenCalledWith(
+        expect.objectContaining({ memoryDays: 3 })
+      )
+    })
+
+    it('should pass sessionId to getPromptSection', async () => {
+      await context.build('telegram-123', { text: 'hello' })
+
+      expect(mockMemory.getPromptSection).toHaveBeenCalledWith(
+        expect.objectContaining({ sessionId: 'telegram-123' })
+      )
     })
 
     it('should still include identity at the start of system prompt', async () => {
-      mockMemory.getLongTermMemory.mockResolvedValue('some memory')
+      mockMemory.getPromptSection.mockResolvedValue({
+        label: 'Memory',
+        content: 'some memory'
+      })
 
       const result = await context.build('telegram-123', { text: 'hello' })
 
@@ -254,11 +257,10 @@ describe('ContextBuilder', () => {
 
     beforeEach(() => {
       mockToolRegistry = {
-        size: 2,
-        getDefinitions: vi.fn().mockReturnValue([
-          { name: 'web_fetch', description: 'Fetch a URL' },
-          { name: 'n8n_trigger', description: 'Trigger workflow' }
-        ])
+        getPromptSection: vi.fn().mockReturnValue({
+          label: 'Available tools',
+          content: '- web_fetch: Fetch a URL\n- n8n_trigger: Trigger workflow'
+        })
       }
 
       context = new ContextBuilder(
@@ -279,9 +281,8 @@ describe('ContextBuilder', () => {
       expect(result.system).toContain('- n8n_trigger: Trigger workflow')
     })
 
-    it('should not include tool section when registry is empty', async () => {
-      mockToolRegistry.size = 0
-      mockToolRegistry.getDefinitions.mockReturnValue([])
+    it('should not include tool section when getPromptSection returns null', async () => {
+      mockToolRegistry.getPromptSection.mockReturnValue(null)
 
       const result = await context.build('telegram-123', { text: 'hello' })
 
@@ -305,13 +306,10 @@ describe('ContextBuilder', () => {
 
     beforeEach(() => {
       mockSkillLoader = {
-        size: 2,
-        getAll: vi.fn().mockReturnValue([
-          { name: 'weather', description: 'Get weather forecasts' },
-          { name: 'summary', description: 'Summarize your day' }
-        ]),
-        match: vi.fn().mockReturnValue(null),
-        getPrompt: vi.fn().mockResolvedValue(null)
+        getPromptSection: vi.fn().mockResolvedValue({
+          label: 'Available skills',
+          content: '- weather: Get weather forecasts\n- summary: Summarize your day'
+        })
       }
 
       context = new ContextBuilder(
@@ -333,9 +331,8 @@ describe('ContextBuilder', () => {
       expect(result.system).toContain('- summary: Summarize your day')
     })
 
-    it('should not include skill section when loader is empty', async () => {
-      mockSkillLoader.size = 0
-      mockSkillLoader.getAll.mockReturnValue([])
+    it('should not include skill section when getPromptSection returns null', async () => {
+      mockSkillLoader.getPromptSection.mockResolvedValue(null)
 
       const result = await context.build('telegram-123', { text: 'hello' })
 
@@ -353,45 +350,41 @@ describe('ContextBuilder', () => {
       expect(result.system).not.toContain('## Available skills')
     })
 
-    it('should inject active skill prompt when trigger matches', async () => {
-      mockSkillLoader.match.mockReturnValue({ name: 'weather', description: 'Get weather forecasts' })
-      mockSkillLoader.getPrompt.mockResolvedValue('## Weather\nFetch from wttr.in')
+    it('should set activeSkill from skill section metadata', async () => {
+      mockSkillLoader.getPromptSection.mockResolvedValue({
+        label: 'Available skills',
+        content: '- weather: Get weather forecasts\n\n---\n\n## Active skill: weather\nFetch from wttr.in',
+        metadata: { activeSkill: 'weather' }
+      })
 
       const result = await context.build('telegram-123', { text: 'what is the weather?' })
 
       expect(result.system).toContain('## Active skill: weather')
       expect(result.system).toContain('Fetch from wttr.in')
       expect(result.activeSkill).toBe('weather')
-      expect(mockSkillLoader.match).toHaveBeenCalledWith('what is the weather?')
-      expect(mockSkillLoader.getPrompt).toHaveBeenCalledWith('weather')
     })
 
-    it('should not inject active skill when no trigger matches', async () => {
-      mockSkillLoader.match.mockReturnValue(null)
-
+    it('should not set activeSkill when no metadata', async () => {
       const result = await context.build('telegram-123', { text: 'hello' })
 
       expect(result.system).not.toContain('## Active skill')
       expect(result.activeSkill).toBeNull()
-      expect(mockSkillLoader.getPrompt).not.toHaveBeenCalled()
     })
 
-    it('should not inject active skill when prompt load fails', async () => {
-      mockSkillLoader.match.mockReturnValue({ name: 'weather', description: 'Get weather' })
-      mockSkillLoader.getPrompt.mockResolvedValue(null)
+    it('should pass messageText to getPromptSection', async () => {
+      await context.build('telegram-123', { text: 'what is the weather?' })
 
-      const result = await context.build('telegram-123', { text: 'weather?' })
-
-      expect(result.system).not.toContain('## Active skill')
-      expect(result.activeSkill).toBeNull()
+      expect(mockSkillLoader.getPromptSection).toHaveBeenCalledWith(
+        expect.objectContaining({ messageText: 'what is the weather?' })
+      )
     })
 
     it('should place skills section after tools section', async () => {
       const mockToolRegistry = {
-        size: 1,
-        getDefinitions: vi.fn().mockReturnValue([
-          { name: 'web_fetch', description: 'Fetch a URL' }
-        ])
+        getPromptSection: vi.fn().mockReturnValue({
+          label: 'Available tools',
+          content: '- web_fetch: Fetch a URL'
+        })
       }
 
       const ctx = new ContextBuilder(
@@ -498,10 +491,10 @@ describe('ContextBuilder', () => {
 
     it('should place bootstrap section after user profile and before tools', async () => {
       const mockToolRegistry = {
-        size: 1,
-        getDefinitions: vi.fn().mockReturnValue([
-          { name: 'web_fetch', description: 'Fetch a URL' }
-        ])
+        getPromptSection: vi.fn().mockReturnValue({
+          label: 'Available tools',
+          content: '- web_fetch: Fetch a URL'
+        })
       }
       mockIdentityLoader.getUser.mockResolvedValue('# User\n- Name: Carlos')
       mockIdentityLoader.getBootstrap = vi.fn().mockResolvedValue('# Bootstrap content')
@@ -527,10 +520,10 @@ describe('ContextBuilder', () => {
 
     it('should place user profile before tools and skills', async () => {
       const mockToolRegistry = {
-        size: 1,
-        getDefinitions: vi.fn().mockReturnValue([
-          { name: 'web_fetch', description: 'Fetch a URL' }
-        ])
+        getPromptSection: vi.fn().mockReturnValue({
+          label: 'Available tools',
+          content: '- web_fetch: Fetch a URL'
+        })
       }
       mockIdentityLoader.getUser.mockResolvedValue('# User\n- Name: Carlos')
 

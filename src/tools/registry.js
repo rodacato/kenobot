@@ -40,6 +40,18 @@ export default class ToolRegistry {
     return null
   }
 
+  /**
+   * Prompt section for ContextBuilder.
+   * @returns {{ label: string, content: string }|null}
+   */
+  getPromptSection() {
+    if (this.size === 0) return null
+    const toolList = this.getDefinitions()
+      .map(t => `- ${t.name}: ${t.description}`)
+      .join('\n')
+    return { label: 'Available tools', content: toolList }
+  }
+
   has(name) {
     return this.tools.has(name)
   }

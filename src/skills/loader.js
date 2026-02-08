@@ -148,6 +148,32 @@ export default class SkillLoader {
     }
   }
 
+  /**
+   * Prompt section for ContextBuilder.
+   * Returns skill list + active skill prompt if message matches a trigger.
+   * @param {{ messageText?: string }} context
+   * @returns {{ label: string, content: string, metadata?: { activeSkill: string } }|null}
+   */
+  async getPromptSection({ messageText = '' } = {}) {
+    if (this.size === 0) return null
+
+    const skills = this.getAll()
+    const skillList = skills.map(s => `- ${s.name}: ${s.description}`).join('\n')
+    let content = skillList
+
+    let metadata
+    const matched = this.match(messageText)
+    if (matched) {
+      const prompt = await this.getPrompt(matched.name)
+      if (prompt) {
+        content += `\n\n---\n\n## Active skill: ${matched.name}\n${prompt}`
+        metadata = { activeSkill: matched.name }
+      }
+    }
+
+    return { label: 'Available skills', content, metadata }
+  }
+
   get size() {
     return this.skills.size
   }

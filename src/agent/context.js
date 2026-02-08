@@ -72,7 +72,7 @@ export default class ContextBuilder {
   }
 
   /**
-   * Assemble system prompt from identity + memory context.
+   * Assemble system prompt from identity + pluggable prompt sections.
    * @private
    */
   async _buildSystemPrompt(messageText = '', sessionId = null) {
@@ -104,96 +104,33 @@ export default class ContextBuilder {
         ]
         parts.push(userSection.join('\n'))
       }
-    } else {
-      parts.push(this._identity)
-    }
 
-    // Inject bootstrap prompt for first-conversation onboarding
-    if (this.identityLoader) {
+      // Bootstrap prompt for first-conversation onboarding
       const bootstrap = await this.identityLoader.getBootstrap()
       if (bootstrap) {
         logger.info('context', 'bootstrap_injected', { length: bootstrap.length })
         parts.push('\n---\n\n## First Conversation — Bootstrap\n' + bootstrap)
       }
+    } else {
+      parts.push(this._identity)
     }
 
-    // Inject available tool names so the agent knows what it can do
-    if (this.toolRegistry?.size > 0) {
-      const toolList = this.toolRegistry.getDefinitions()
-        .map(t => `- ${t.name}: ${t.description}`)
-        .join('\n')
-      parts.push(`\n---\n\n## Available tools\n${toolList}\n`)
+    // Collect prompt sections from pluggable sources
+    const sectionContext = {
+      messageText,
+      sessionId,
+      memoryDays: this.config.memoryDays ?? 3
     }
 
-    // Inject skill list + active skill prompt (on-demand)
-    if (this.skillLoader?.size > 0) {
-      const skills = this.skillLoader.getAll()
-      const skillList = skills.map(s => `- ${s.name}: ${s.description}`).join('\n')
-      parts.push(`\n---\n\n## Available skills\n${skillList}\n`)
+    const sources = [this.toolRegistry, this.skillLoader, this.memory].filter(Boolean)
+    const sections = await Promise.all(
+      sources.map(s => s.getPromptSection(sectionContext))
+    )
 
-      const matched = this.skillLoader.match(messageText)
-      if (matched) {
-        const prompt = await this.skillLoader.getPrompt(matched.name)
-        if (prompt) {
-          activeSkill = matched.name
-          parts.push(`\n---\n\n## Active skill: ${matched.name}\n${prompt}\n`)
-        }
-      }
-    }
-
-    if (this.memory) {
-      const memoryDays = this.config.memoryDays ?? 3
-
-      // Load global + chat memory in parallel
-      const promises = [
-        this.memory.getLongTermMemory(),
-        this.memory.getRecentDays(memoryDays)
-      ]
-      if (sessionId) {
-        promises.push(this.memory.getChatLongTermMemory(sessionId))
-        promises.push(this.memory.getChatRecentDays(sessionId, memoryDays))
-      }
-
-      const [longTerm, recentNotes, chatLongTerm, chatRecent] = await Promise.all(promises)
-
-      const memorySection = [
-        '\n---\n',
-        '## Memory\n',
-        'You have persistent memory across conversations. Use it wisely.\n',
-        '### How to remember things',
-        'When you learn something worth remembering (important facts, project context, decisions made), include it in your response:\n',
-        '<memory>Short title: fact to remember</memory>\n',
-        'For facts specific to THIS conversation or chat context, use:\n',
-        '<chat-memory>Short title: chat-specific fact</chat-memory>\n',
-        'Rules:',
-        '- Only save things that matter across conversations',
-        '- Be concise: one line per memory',
-        '- Don\'t save things already in your long-term memory',
-        '- You can include multiple <memory> and <chat-memory> tags in one response',
-        '- Use <memory> for global facts, <chat-memory> for chat-specific context\n'
-      ]
-
-      if (longTerm) {
-        memorySection.push('### Long-term memory')
-        memorySection.push(longTerm + '\n')
-      }
-
-      if (recentNotes) {
-        memorySection.push('### Recent notes')
-        memorySection.push(recentNotes + '\n')
-      }
-
-      if (chatLongTerm) {
-        memorySection.push('### Chat-specific memory')
-        memorySection.push(chatLongTerm + '\n')
-      }
-
-      if (chatRecent) {
-        memorySection.push('### Chat-specific notes')
-        memorySection.push(chatRecent)
-      }
-
-      parts.push(memorySection.join('\n'))
+    for (const section of sections) {
+      if (!section) continue
+      parts.push(`\n---\n\n## ${section.label}\n${section.content}\n`)
+      if (section.metadata?.activeSkill) activeSkill = section.metadata.activeSkill
     }
 
     return { system: parts.join('\n'), activeSkill }
