@@ -2,6 +2,37 @@ import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import logger from '../logger.js'
 
+const MAX_TRIGGERS = 20
+const MAX_TRIGGER_LENGTH = 100
+const MAX_NAME_LENGTH = 64
+const MAX_DESCRIPTION_LENGTH = 256
+
+/**
+ * Validate manifest schema beyond basic truthy checks.
+ * @param {Object} meta - Parsed manifest
+ * @returns {string|null} Error reason or null if valid
+ */
+function validateManifest(meta) {
+  if (typeof meta.name !== 'string' || meta.name.length > MAX_NAME_LENGTH) {
+    return `name must be a string (max ${MAX_NAME_LENGTH} chars)`
+  }
+  if (typeof meta.description !== 'string' || meta.description.length > MAX_DESCRIPTION_LENGTH) {
+    return `description must be a string (max ${MAX_DESCRIPTION_LENGTH} chars)`
+  }
+  if (!Array.isArray(meta.triggers) || meta.triggers.length === 0) {
+    return 'triggers must be a non-empty array'
+  }
+  if (meta.triggers.length > MAX_TRIGGERS) {
+    return `too many triggers (max ${MAX_TRIGGERS})`
+  }
+  for (const t of meta.triggers) {
+    if (typeof t !== 'string' || t.length === 0 || t.length > MAX_TRIGGER_LENGTH) {
+      return `each trigger must be a non-empty string (max ${MAX_TRIGGER_LENGTH} chars)`
+    }
+  }
+  return null
+}
+
 /**
  * SkillLoader - Discovers, loads, and matches skills from a directory
  *
@@ -42,11 +73,9 @@ export default class SkillLoader {
         const raw = await readFile(metaPath, 'utf8')
         const meta = JSON.parse(raw)
 
-        if (!meta.name || !meta.description || !Array.isArray(meta.triggers)) {
-          logger.warn('skills', 'invalid_skill', {
-            dir: entry.name,
-            reason: 'missing name, description, or triggers'
-          })
+        const invalid = validateManifest(meta)
+        if (invalid) {
+          logger.warn('skills', 'invalid_skill', { dir: entry.name, reason: invalid })
           continue
         }
 
@@ -85,8 +114,9 @@ export default class SkillLoader {
     const raw = await readFile(metaPath, 'utf8')
     const meta = JSON.parse(raw)
 
-    if (!meta.name || !meta.description || !Array.isArray(meta.triggers)) {
-      throw new Error(`Invalid skill manifest: missing name, description, or triggers`)
+    const invalid = validateManifest(meta)
+    if (invalid) {
+      throw new Error(`Invalid skill manifest: ${invalid}`)
     }
 
     const escaped = meta.triggers.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))

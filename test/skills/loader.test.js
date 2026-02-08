@@ -100,10 +100,9 @@ describe('SkillLoader', () => {
       await loader.loadAll()
 
       expect(loader.size).toBe(0)
-      expect(logger.warn).toHaveBeenCalledWith('skills', 'invalid_skill', {
-        dir: 'bad',
-        reason: 'missing name, description, or triggers'
-      })
+      expect(logger.warn).toHaveBeenCalledWith('skills', 'invalid_skill', expect.objectContaining({
+        dir: 'bad'
+      }))
     })
 
     it('should skip skills with invalid manifest (missing triggers)', async () => {
@@ -122,6 +121,46 @@ describe('SkillLoader', () => {
         name: 'bad',
         description: 'Bad triggers',
         triggers: 'not-an-array'
+      })
+
+      await loader.loadAll()
+
+      expect(loader.size).toBe(0)
+    })
+
+    it('should skip skills with too many triggers', async () => {
+      await createSkill('flood', {
+        name: 'flood',
+        description: 'Too many triggers',
+        triggers: Array.from({ length: 25 }, (_, i) => `trigger${i}`)
+      })
+
+      await loader.loadAll()
+
+      expect(loader.size).toBe(0)
+      expect(logger.warn).toHaveBeenCalledWith('skills', 'invalid_skill', expect.objectContaining({
+        dir: 'flood',
+        reason: expect.stringContaining('too many triggers')
+      }))
+    })
+
+    it('should skip skills with non-string name', async () => {
+      await createSkill('bad-name', {
+        name: 123,
+        description: 'Numeric name',
+        triggers: ['test']
+      })
+
+      await loader.loadAll()
+
+      expect(loader.size).toBe(0)
+    })
+
+    it('should skip skills with oversized trigger', async () => {
+      await createSkill('long-trigger', {
+        name: 'long-trigger',
+        description: 'Oversized trigger',
+        triggers: ['x'.repeat(200)]
       })
 
       await loader.loadAll()
@@ -356,7 +395,7 @@ describe('SkillLoader', () => {
         description: 'Missing triggers'
       }))
 
-      await expect(loader.loadOne('bad', tmpDir)).rejects.toThrow('Invalid skill manifest')
+      await expect(loader.loadOne('bad', tmpDir)).rejects.toThrow('Invalid skill manifest: triggers must be a non-empty array')
     })
 
     it('should throw on missing manifest', async () => {
