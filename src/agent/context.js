@@ -56,7 +56,7 @@ export default class ContextBuilder {
     }
 
     // Build system prompt: identity + tools + skills + memory
-    const { system, activeSkill } = await this._buildSystemPrompt(message.text)
+    const { system, activeSkill } = await this._buildSystemPrompt(message.text, sessionId)
 
     // Load session history
     const historyLimit = this.config.sessionHistoryLimit ?? 20
@@ -75,7 +75,7 @@ export default class ContextBuilder {
    * Assemble system prompt from identity + memory context.
    * @private
    */
-  async _buildSystemPrompt(messageText = '') {
+  async _buildSystemPrompt(messageText = '', sessionId = null) {
     const parts = []
     let activeSkill = null
 
@@ -143,10 +143,18 @@ export default class ContextBuilder {
 
     if (this.memory) {
       const memoryDays = this.config.memoryDays ?? 3
-      const [longTerm, recentNotes] = await Promise.all([
+
+      // Load global + chat memory in parallel
+      const promises = [
         this.memory.getLongTermMemory(),
         this.memory.getRecentDays(memoryDays)
-      ])
+      ]
+      if (sessionId) {
+        promises.push(this.memory.getChatLongTermMemory(sessionId))
+        promises.push(this.memory.getChatRecentDays(sessionId, memoryDays))
+      }
+
+      const [longTerm, recentNotes, chatLongTerm, chatRecent] = await Promise.all(promises)
 
       const memorySection = [
         '\n---\n',
@@ -155,11 +163,14 @@ export default class ContextBuilder {
         '### How to remember things',
         'When you learn something worth remembering (important facts, project context, decisions made), include it in your response:\n',
         '<memory>Short title: fact to remember</memory>\n',
+        'For facts specific to THIS conversation or chat context, use:\n',
+        '<chat-memory>Short title: chat-specific fact</chat-memory>\n',
         'Rules:',
         '- Only save things that matter across conversations',
         '- Be concise: one line per memory',
         '- Don\'t save things already in your long-term memory',
-        '- You can include multiple <memory> tags in one response\n'
+        '- You can include multiple <memory> and <chat-memory> tags in one response',
+        '- Use <memory> for global facts, <chat-memory> for chat-specific context\n'
       ]
 
       if (longTerm) {
@@ -169,7 +180,17 @@ export default class ContextBuilder {
 
       if (recentNotes) {
         memorySection.push('### Recent notes')
-        memorySection.push(recentNotes)
+        memorySection.push(recentNotes + '\n')
+      }
+
+      if (chatLongTerm) {
+        memorySection.push('### Chat-specific memory')
+        memorySection.push(chatLongTerm + '\n')
+      }
+
+      if (chatRecent) {
+        memorySection.push('### Chat-specific notes')
+        memorySection.push(chatRecent)
       }
 
       parts.push(memorySection.join('\n'))

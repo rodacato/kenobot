@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { join } from 'node:path'
-import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, writeFile, readFile, rm, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 
 // Suppress logger console output during tests
@@ -202,6 +202,138 @@ describe('MemoryManager', () => {
       expect(result).toContain('User prefers Spanish')
       expect(result).toContain('User likes Star Wars')
       expect(result).toContain('### 2026-02-07')
+    })
+  })
+
+  describe('appendChatDaily', () => {
+    it('should write to chat-scoped directory', async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-02-07T10:30:00Z'))
+
+      await manager.appendChatDaily('telegram-123', 'Chat-specific fact')
+
+      const content = await readFile(
+        join(tmpDir, 'memory', 'chats', 'telegram-123', '2026-02-07.md'), 'utf8'
+      )
+      expect(content).toBe('## 10:30 — Chat-specific fact\n\n')
+    })
+
+    it('should auto-create chat directory', async () => {
+      await manager.appendChatDaily('telegram-999', 'test')
+
+      const content = await readFile(
+        join(tmpDir, 'memory', 'chats', 'telegram-999',
+          new Date().toISOString().slice(0, 10) + '.md'), 'utf8'
+      )
+      expect(content).toContain('test')
+    })
+
+    it('should handle negative chat IDs (groups)', async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-02-07T12:00:00Z'))
+
+      await manager.appendChatDaily('telegram--1001234567890', 'Group fact')
+
+      const content = await readFile(
+        join(tmpDir, 'memory', 'chats', 'telegram--1001234567890', '2026-02-07.md'), 'utf8'
+      )
+      expect(content).toContain('Group fact')
+    })
+
+    it('should not affect global daily logs', async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-02-07T10:30:00Z'))
+
+      await manager.appendChatDaily('telegram-123', 'chat-only fact')
+
+      const globalResult = await manager.getRecentDays(1)
+      expect(globalResult).toBe('')
+    })
+  })
+
+  describe('getChatRecentDays', () => {
+    it('should return empty string when chat directory does not exist', async () => {
+      const result = await manager.getChatRecentDays('telegram-nonexistent', 3)
+      expect(result).toBe('')
+    })
+
+    it('should read from chat-scoped directory', async () => {
+      const chatDir = join(tmpDir, 'memory', 'chats', 'telegram-123')
+      await mkdir(chatDir, { recursive: true })
+      await writeFile(join(chatDir, '2026-02-07.md'), '## 10:30 — chat fact\n')
+
+      const result = await manager.getChatRecentDays('telegram-123', 3)
+
+      expect(result).toContain('### 2026-02-07')
+      expect(result).toContain('chat fact')
+    })
+
+    it('should not include global daily logs', async () => {
+      // Write global log
+      await manager._ensureDir()
+      await writeFile(join(tmpDir, 'memory', '2026-02-07.md'), '## 10:00 — global fact\n')
+
+      // Write chat log
+      const chatDir = join(tmpDir, 'memory', 'chats', 'telegram-123')
+      await mkdir(chatDir, { recursive: true })
+      await writeFile(join(chatDir, '2026-02-07.md'), '## 11:00 — chat fact\n')
+
+      const chatResult = await manager.getChatRecentDays('telegram-123', 3)
+      const globalResult = await manager.getRecentDays(3)
+
+      expect(chatResult).toContain('chat fact')
+      expect(chatResult).not.toContain('global fact')
+      expect(globalResult).toContain('global fact')
+      expect(globalResult).not.toContain('chat fact')
+    })
+  })
+
+  describe('getChatLongTermMemory', () => {
+    it('should return empty string when chat MEMORY.md does not exist', async () => {
+      const result = await manager.getChatLongTermMemory('telegram-123')
+      expect(result).toBe('')
+    })
+
+    it('should read chat-specific MEMORY.md', async () => {
+      const chatDir = join(tmpDir, 'memory', 'chats', 'telegram-123')
+      await mkdir(chatDir, { recursive: true })
+      await writeFile(join(chatDir, 'MEMORY.md'), '# Chat Memory\n- Family in Madrid')
+
+      const result = await manager.getChatLongTermMemory('telegram-123')
+
+      expect(result).toBe('# Chat Memory\n- Family in Madrid')
+    })
+  })
+
+  describe('chat memory round-trip', () => {
+    it('should write chat entries that getChatRecentDays can read back', async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-02-07T10:30:00Z'))
+
+      await manager.appendChatDaily('telegram-123', 'Chat fact one')
+      await manager.appendChatDaily('telegram-123', 'Chat fact two')
+
+      const result = await manager.getChatRecentDays('telegram-123', 1)
+
+      expect(result).toContain('Chat fact one')
+      expect(result).toContain('Chat fact two')
+      expect(result).toContain('### 2026-02-07')
+    })
+
+    it('should isolate memory between different chats', async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-02-07T10:30:00Z'))
+
+      await manager.appendChatDaily('telegram-123', 'DM fact')
+      await manager.appendChatDaily('telegram--100999', 'Group fact')
+
+      const dmResult = await manager.getChatRecentDays('telegram-123', 1)
+      const groupResult = await manager.getChatRecentDays('telegram--100999', 1)
+
+      expect(dmResult).toContain('DM fact')
+      expect(dmResult).not.toContain('Group fact')
+      expect(groupResult).toContain('Group fact')
+      expect(groupResult).not.toContain('DM fact')
     })
   })
 })

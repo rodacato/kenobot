@@ -160,7 +160,9 @@ describe('ContextBuilder', () => {
     beforeEach(() => {
       mockMemory = {
         getLongTermMemory: vi.fn().mockResolvedValue(''),
-        getRecentDays: vi.fn().mockResolvedValue('')
+        getRecentDays: vi.fn().mockResolvedValue(''),
+        getChatLongTermMemory: vi.fn().mockResolvedValue(''),
+        getChatRecentDays: vi.fn().mockResolvedValue(''),
       }
 
       context = new ContextBuilder(

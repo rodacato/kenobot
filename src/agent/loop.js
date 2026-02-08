@@ -1,5 +1,6 @@
 import logger from '../logger.js'
 import { extractMemories } from './memory-extractor.js'
+import { extractChatMemories } from './chat-memory-extractor.js'
 import { extractUserUpdates } from './user-extractor.js'
 import { extractBootstrapComplete } from './bootstrap-extractor.js'
 
@@ -191,8 +192,11 @@ export default class AgentLoop {
       // Extract memory tags from response
       const { cleanText: afterMemory, memories } = extractMemories(response.content)
 
+      // Extract chat-memory tags (per-chat)
+      const { cleanText: afterChatMemory, chatMemories } = extractChatMemories(afterMemory)
+
       // Extract user preference tags
-      const { cleanText: afterUser, updates: userUpdates } = extractUserUpdates(afterMemory)
+      const { cleanText: afterUser, updates: userUpdates } = extractUserUpdates(afterChatMemory)
 
       // Detect bootstrap completion
       const { cleanText, isComplete: bootstrapComplete } = extractBootstrapComplete(afterUser)
@@ -202,18 +206,27 @@ export default class AgentLoop {
         durationMs,
         contentLength: cleanText.length,
         memoriesExtracted: memories.length,
+        chatMemoriesExtracted: chatMemories.length,
         userUpdates: userUpdates.length,
         toolIterations: iterations,
         activeSkill: activeSkill || null,
         bootstrapComplete: bootstrapComplete || undefined
       })
 
-      // Save memories to daily log
+      // Save memories to global daily log
       if (this.memory && memories.length > 0) {
         for (const entry of memories) {
           await this.memory.appendDaily(entry)
         }
         this.bus.emit('config:changed', { reason: 'memory update' })
+      }
+
+      // Save chat-specific memories to per-chat daily log
+      if (this.memory && chatMemories.length > 0) {
+        for (const entry of chatMemories) {
+          await this.memory.appendChatDaily(sessionId, entry)
+        }
+        this.bus.emit('config:changed', { reason: 'chat memory update' })
       }
 
       // Save user preferences to USER.md

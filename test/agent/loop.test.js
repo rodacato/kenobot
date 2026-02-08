@@ -290,6 +290,61 @@ describe('AgentLoop', () => {
         channel: 'telegram'
       })
     })
+
+    it('should extract chat-memory tags and save to chat-scoped daily log', async () => {
+      memoryManager.appendChatDaily = vi.fn().mockResolvedValue(undefined)
+      provider.chatWithRetry.mockResolvedValue({
+        content: 'Got it!\n<chat-memory>Family lives in Madrid</chat-memory>'
+      })
+
+      await agent._handleMessage(message)
+
+      expect(memoryManager.appendChatDaily).toHaveBeenCalledWith(
+        'telegram-123',
+        'Family lives in Madrid'
+      )
+    })
+
+    it('should send clean text without chat-memory tags to user', async () => {
+      memoryManager.appendChatDaily = vi.fn().mockResolvedValue(undefined)
+      provider.chatWithRetry.mockResolvedValue({
+        content: 'Noted!\n<chat-memory>Chat uses Python</chat-memory>'
+      })
+
+      await agent._handleMessage(message)
+
+      expect(bus.emit).toHaveBeenCalledWith('message:out', {
+        chatId: '123',
+        text: 'Noted!',
+        channel: 'telegram'
+      })
+    })
+
+    it('should handle mixed memory and chat-memory tags', async () => {
+      memoryManager.appendChatDaily = vi.fn().mockResolvedValue(undefined)
+      provider.chatWithRetry.mockResolvedValue({
+        content: 'OK!\n<memory>global fact</memory>\n<chat-memory>chat fact</chat-memory>'
+      })
+
+      await agent._handleMessage(message)
+
+      expect(memoryManager.appendDaily).toHaveBeenCalledWith('global fact')
+      expect(memoryManager.appendChatDaily).toHaveBeenCalledWith('telegram-123', 'chat fact')
+      expect(bus.emit).toHaveBeenCalledWith('message:out', {
+        chatId: '123',
+        text: 'OK!',
+        channel: 'telegram'
+      })
+    })
+
+    it('should not call appendChatDaily when no chat-memory tags present', async () => {
+      memoryManager.appendChatDaily = vi.fn().mockResolvedValue(undefined)
+      provider.chatWithRetry.mockResolvedValue({ content: 'plain response' })
+
+      await agent._handleMessage(message)
+
+      expect(memoryManager.appendChatDaily).not.toHaveBeenCalled()
+    })
   })
 
   describe('tool execution loop', () => {
