@@ -14,6 +14,7 @@ Telegram bot with memory, tools, skills, scheduling, and n8n integration — all
   - `web_fetch` — fetch and extract text from URLs (`/fetch <url>`)
   - `n8n_trigger` — trigger n8n workflows via webhook (`/n8n <workflow>`)
   - `schedule` — cron-based task scheduling (`/schedule add|list|remove`)
+  - `dev` — run Claude Code in project directories (`/dev <project> <task>`)
 - **Skill plugins**: drop-in directories with `manifest.json` + `SKILL.md`, loaded on-demand
 - **n8n integration**: bidirectional webhooks (bot triggers workflows, workflows call bot)
 - **Cron scheduler**: persistent tasks that survive restarts
@@ -105,6 +106,7 @@ Use `kenobot config edit` to open it, or pass `--config path/to/file.env` when r
 | `HTTP_HOST` | `127.0.0.1` | HTTP server bind address |
 | `WEBHOOK_SECRET` | — | HMAC secret for webhook validation |
 | `HTTP_TIMEOUT` | `60000` | Webhook response timeout (ms) |
+| `PROJECTS_DIR` | — | Parent dir for `/dev` mode (enables workspace dev tool) |
 
 See [Configuration Reference](docs/configuration.md) for details.
 
@@ -186,6 +188,7 @@ kenobot/                       # Engine (framework code, updatable)
       web-fetch.js             # Fetch URLs, extract text (10KB limit)
       n8n.js                   # Trigger n8n workflows via webhook
       schedule.js              # Cron task management (add/list/remove)
+      dev.js                   # Workspace development mode (/dev)
     skills/
       loader.js                # Discover skills from directory, on-demand prompt loading
     scheduler/
@@ -195,6 +198,7 @@ kenobot/                       # Engine (framework code, updatable)
   templates/                   # Default files copied by kenobot init
     env.example                # Config template
     identities/kenobot/        # Default bot identity (SOUL.md, IDENTITY.md, USER.md, BOOTSTRAP.md)
+    HEARTBEAT.md               # Dev session continuity template
     skills/weather/            # Example skill
     skills/daily-summary/      # Example skill
     memory/MEMORY.md           # Starter memory file

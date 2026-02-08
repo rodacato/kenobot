@@ -42,8 +42,8 @@ KenoBot follows an **event-driven architecture** where all components communicat
 │    Tools    │   │   Skills    │   │ Scheduler  │
 ├─────────────┤   ├─────────────┤   ├────────────┤
 │ web_fetch   │   │ weather/    │   │ node-cron  │
-│ n8n_trigger │   │ daily-      │   │ tasks.json │
-│ schedule    │   │  summary/   │   │ → bus emit │
+│ schedule    │   │ daily-      │   │ tasks.json │
+│ dev + more  │   │  summary/   │   │ → bus emit │
 └─────────────┘   └─────────────┘   └────────────┘
 ```
 
@@ -154,7 +154,7 @@ class BaseProvider {
 }
 ```
 
-Three implementations: `claude-api` (Anthropic SDK), `claude-cli` (subprocess), `mock` (testing).
+Three implementations: `claude-api` (Anthropic SDK), `claude-cli` (subprocess with dynamic CWD), `mock` (testing).
 
 ### BaseChannel (`src/channels/base.js`)
 
@@ -198,7 +198,7 @@ class BaseTool {
 }
 ```
 
-Three built-in tools: `web_fetch`, `n8n_trigger`, `schedule`.
+Built-in tools include `web_fetch`, `schedule`, `diagnostics`, `workspace`, `github`, `n8n_trigger`, `n8n_manage`, `approval`, and `dev`. All use auto-discovery via `register()`.
 
 ## Design Patterns
 

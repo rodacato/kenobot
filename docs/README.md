@@ -4,7 +4,7 @@
 
 | Document | Description |
 |----------|-------------|
-| [Getting Started](getting-started.md) | Step-by-step first-time setup (Spanish) |
+| [Getting Started](getting-started.md) | Step-by-step first-time setup |
 | [Architecture](architecture.md) | How the system works internally — components, message flow, design patterns |
 | [Configuration](configuration.md) | Complete environment variable reference |
 | [Deployment](deployment.md) | VPS setup, systemd, auto-recovery, backups |
@@ -13,6 +13,7 @@
 
 | Document | Description |
 |----------|-------------|
+| [Identity](features/identity.md) | Modular identity files, bootstrap onboarding, user preferences |
 | [Providers](features/providers.md) | LLM providers — Claude API, Claude CLI, Mock |
 | [Channels](features/channels.md) | Telegram and HTTP webhook channels |
 | [Memory](features/memory.md) | Daily logs, MEMORY.md, auto-extraction |

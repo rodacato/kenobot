@@ -130,6 +130,21 @@ Manage n8n workflows via the REST API: list, get, create, activate, deactivate.
 - **Requires**: `N8N_API_URL` and `N8N_API_KEY` configured
 - Full CRUD access to n8n workflows
 
+### dev
+
+Run development tasks in workspace projects. Switches `claude-cli` to run from a project directory with full repo context (reads that project's `CLAUDE.md`).
+
+```
+/dev                          → list available projects
+/dev kenobot fix memory bug   → run Claude Code from ~/Workspaces/kenobot
+/dev myapp add auth           → run Claude Code from ~/Workspaces/myapp
+```
+
+- **Requires**: `PROJECTS_DIR` configured (parent directory containing project folders)
+- Each subdirectory in `PROJECTS_DIR` is treated as a project
+- Path traversal (`../`, `/`) is blocked
+- Returns a `devMode` signal that `AgentLoop` uses to override the provider CWD
+
 ### approval
 
 Propose changes for owner approval. Supports new skills, workflows, soul, and identity changes.
@@ -234,4 +249,5 @@ The `register()` function receives the full `deps` object with access to `config
 - [src/tools/n8n.js](../../src/tools/n8n.js) — n8n webhook trigger
 - [src/tools/n8n-manage.js](../../src/tools/n8n-manage.js) — n8n REST API management
 - [src/tools/approval.js](../../src/tools/approval.js) — Self-improvement proposals
+- [src/tools/dev.js](../../src/tools/dev.js) — Workspace development mode
 - [test/tools/](../../test/tools/) — Tests

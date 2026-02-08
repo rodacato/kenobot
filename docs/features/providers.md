@@ -41,6 +41,7 @@ Wraps the official [Claude Code CLI](https://claude.ai/download) as a subprocess
 - Slower (~20s per response with sonnet)
 - No native tool_use support — tools work via slash command triggers instead
 - Uses `spawn()` with `stdio: ['ignore', 'pipe', 'pipe']` to avoid stdin hanging
+- **CWD**: Defaults to `$HOME` (assistant mode). The `/dev` tool overrides CWD to run from a project directory
 
 **Required CLI flags** (set automatically by the provider):
 ```

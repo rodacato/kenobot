@@ -78,7 +78,7 @@ docs(research): add openclaw analysis
 
 ### Changelog Section
 
-Commits can include a `[changelog]` section to track notable changes. This is **optional** — not every commit needs one (e.g. refactors, typos).
+Every commit must include either `[changelog]` (with release-note entries) or `[no-changelog]` (for changes that don't need release notes, e.g. refactors, typos). Enforced by the `commit-msg` hook.
 
 ```
 feat(memory): add daily markdown notes
@@ -100,7 +100,15 @@ added: Voice message support via Telegram
 fixed: Message deduplication on reconnect
 ```
 
-The `commit-msg` hook validates the format if the section is present.
+For commits without user-facing changes:
+
+```
+refactor(agent): simplify context assembly
+
+[no-changelog]
+```
+
+The `commit-msg` hook validates the format and rejects commits missing both markers.
 
 ### Rules
 
@@ -108,7 +116,7 @@ The `commit-msg` hook validates the format if the section is present.
 - Imperative mood: "add" not "added" or "adds"
 - No period at the end
 - Body (optional): explain *why*, not *what*
-- `[changelog]` section (optional): track user-facing changes
+- `[changelog]` or `[no-changelog]` section (required by hook)
 
 ## Versioning
 

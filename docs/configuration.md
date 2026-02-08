@@ -56,6 +56,12 @@ Get your chat ID from [@userinfobot](https://t.me/userinfobot). For group chats,
 |----------|------|---------|----------|-------------|
 | `MAX_TOOL_ITERATIONS` | integer | `20` | No | Maximum tool execution rounds per message (safety valve) |
 
+## Dev Mode
+
+| Variable | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `PROJECTS_DIR` | string | — | No | Parent directory containing project folders. When set, enables the `/dev` tool for running Claude Code in project directories with full repo context. See [Tools](features/tools.md#dev). |
+
 ## n8n Integration
 
 | Variable | Type | Default | Required | Description |
