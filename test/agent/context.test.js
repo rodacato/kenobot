@@ -12,6 +12,7 @@ vi.mock('../../src/logger.js', () => ({
   }
 }))
 
+import logger from '../../src/logger.js'
 import ContextBuilder from '../../src/agent/context.js'
 import FilesystemStorage from '../../src/storage/filesystem.js'
 import MemoryManager from '../../src/agent/memory.js'
@@ -401,6 +402,83 @@ describe('ContextBuilder', () => {
       const skillsIdx = result.system.indexOf('## Available skills')
       expect(toolsIdx).toBeGreaterThan(-1)
       expect(skillsIdx).toBeGreaterThan(toolsIdx)
+    })
+  })
+
+  describe('error boundaries in prompt sources', () => {
+    it('should continue building context when one source fails', async () => {
+      const failingMemory = {
+        getPromptSection: vi.fn().mockRejectedValue(new Error('disk full'))
+      }
+      const workingToolRegistry = {
+        getPromptSection: vi.fn().mockReturnValue({
+          label: 'Available tools',
+          content: '- web_fetch: Fetch a URL'
+        })
+      }
+
+      const ctx = new ContextBuilder(
+        { identityFile: 'identities/kenobot.md' },
+        mockStorage,
+        failingMemory,
+        workingToolRegistry
+      )
+
+      const result = await ctx.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).toContain('## Available tools')
+      expect(result.system).toContain('web_fetch')
+      expect(result.system).not.toContain('## Memory')
+    })
+
+    it('should log warning when a source fails', async () => {
+      const failingMemory = {
+        getPromptSection: vi.fn().mockRejectedValue(new Error('disk full'))
+      }
+
+      const ctx = new ContextBuilder(
+        { identityFile: 'identities/kenobot.md' },
+        mockStorage,
+        failingMemory
+      )
+
+      await ctx.build('telegram-123', { text: 'hello' })
+
+      expect(logger.warn).toHaveBeenCalledWith('context', 'source_failed', expect.objectContaining({
+        error: 'disk full'
+      }))
+    })
+
+    it('should still include sections from sources that succeed', async () => {
+      const failingSkillLoader = {
+        getPromptSection: vi.fn().mockRejectedValue(new Error('manifest corrupt'))
+      }
+      const workingToolRegistry = {
+        getPromptSection: vi.fn().mockReturnValue({
+          label: 'Available tools',
+          content: '- echo: Echo input'
+        })
+      }
+      const workingMemory = {
+        getPromptSection: vi.fn().mockResolvedValue({
+          label: 'Memory',
+          content: 'User likes Star Wars'
+        })
+      }
+
+      const ctx = new ContextBuilder(
+        { identityFile: 'identities/kenobot.md' },
+        mockStorage,
+        workingMemory,
+        workingToolRegistry,
+        failingSkillLoader
+      )
+
+      const result = await ctx.build('telegram-123', { text: 'hello' })
+
+      expect(result.system).toContain('## Available tools')
+      expect(result.system).toContain('## Memory')
+      expect(result.system).not.toContain('## Available skills')
     })
   })
 

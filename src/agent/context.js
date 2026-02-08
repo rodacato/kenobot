@@ -123,11 +123,20 @@ export default class ContextBuilder {
     }
 
     const sources = [this.toolRegistry, this.skillLoader, this.memory].filter(Boolean)
-    const sections = await Promise.all(
+    const results = await Promise.allSettled(
       sources.map(s => s.getPromptSection(sectionContext))
     )
 
-    for (const section of sections) {
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i]
+      if (result.status === 'rejected') {
+        logger.warn('context', 'source_failed', {
+          source: sources[i].constructor?.name || 'unknown',
+          error: result.reason?.message || String(result.reason)
+        })
+        continue
+      }
+      const section = result.value
       if (!section) continue
       parts.push(`\n---\n\n## ${section.label}\n${section.content}\n`)
       if (section.metadata?.activeSkill) activeSkill = section.metadata.activeSkill
