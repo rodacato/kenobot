@@ -1,7 +1,8 @@
 import logger from '../logger.js'
-import { MESSAGE_IN, MESSAGE_OUT, THINKING_START } from '../events.js'
+import { MESSAGE_IN, MESSAGE_OUT } from '../events.js'
 import { runPostProcessors } from './post-processors.js'
 import ToolOrchestrator from './tool-orchestrator.js'
+import { withTypingIndicator } from './typing-indicator.js'
 
 /**
  * AgentLoop - Core message handler with session persistence
@@ -109,117 +110,112 @@ export default class AgentLoop {
       length: message.text.length
     })
 
-    // Typing indicator
     const typingPayload = { chatId: message.chatId, channel: message.channel }
-    this.bus.emit(THINKING_START, typingPayload)
-    const typingInterval = setInterval(() => this.bus.emit(THINKING_START, typingPayload), 4000)
 
     try {
-      const start = Date.now()
+      await withTypingIndicator(this.bus, typingPayload, async () => {
+        const start = Date.now()
 
-      // Message context for tools that need chatId/userId (e.g. schedule)
-      const messageContext = { chatId: message.chatId, userId: message.userId, channel: message.channel }
+        // Message context for tools that need chatId/userId (e.g. schedule)
+        const messageContext = { chatId: message.chatId, userId: message.userId, channel: message.channel }
 
-      // Check for slash command triggers (e.g. /fetch, /n8n, /schedule)
-      const triggerResult = await this._executeTrigger(sessionId, message.text, messageContext)
+        // Check for slash command triggers (e.g. /fetch, /n8n, /schedule)
+        const triggerResult = await this._executeTrigger(sessionId, message.text, messageContext)
 
-      // Build context with identity + history
-      const context = await this.contextBuilder.build(sessionId, message)
-      const { activeSkill } = context
+        // Build context with identity + history
+        const context = await this.contextBuilder.build(sessionId, message)
+        const { activeSkill } = context
 
-      if (activeSkill) {
-        logger.info('agent', 'skill_activated', { sessionId, skill: activeSkill })
-      }
+        if (activeSkill) {
+          logger.info('agent', 'skill_activated', { sessionId, skill: activeSkill })
+        }
 
-      // Dev mode: detect devMode signal from /dev tool
-      let devMode = null
-      if (triggerResult) {
-        try {
-          const parsed = JSON.parse(triggerResult.result)
-          if (parsed.devMode) {
-            devMode = parsed
-            logger.info('agent', 'dev_mode', { sessionId, project: parsed.project, cwd: parsed.cwd })
-          }
-        } catch { /* not JSON — normal tool result */ }
-      }
+        // Dev mode: detect devMode signal from /dev tool
+        let devMode = null
+        if (triggerResult) {
+          try {
+            const parsed = JSON.parse(triggerResult.result)
+            if (parsed.devMode) {
+              devMode = parsed
+              logger.info('agent', 'dev_mode', { sessionId, project: parsed.project, cwd: parsed.cwd })
+            }
+          } catch { /* not JSON — normal tool result */ }
+        }
 
-      // If trigger matched, enrich the last user message with tool result
-      // (skip enrichment for devMode — we replace the message with just the task)
-      if (triggerResult && !devMode) {
-        const lastMsg = context.messages[context.messages.length - 1]
-        lastMsg.content = triggerResult.enrichedPrompt
-      }
+        // If trigger matched, enrich the last user message with tool result
+        // (skip enrichment for devMode — we replace the message with just the task)
+        if (triggerResult && !devMode) {
+          const lastMsg = context.messages[context.messages.length - 1]
+          lastMsg.content = triggerResult.enrichedPrompt
+        }
 
-      // Build chat options with tool definitions
-      const chatOptions = { system: context.system }
+        // Build chat options with tool definitions
+        const chatOptions = { system: context.system }
 
-      // Dev mode: set CWD for provider and replace message with task
-      if (devMode) {
-        chatOptions.cwd = devMode.cwd
-        const lastMsg = context.messages[context.messages.length - 1]
-        lastMsg.content = devMode.task
-      }
-      const rawToolDefs = this.toolRegistry?.getDefinitions() || []
-      if (rawToolDefs.length > 0) {
-        chatOptions.tools = this.provider.adaptToolDefinitions(rawToolDefs)
-      }
+        // Dev mode: set CWD for provider and replace message with task
+        if (devMode) {
+          chatOptions.cwd = devMode.cwd
+          const lastMsg = context.messages[context.messages.length - 1]
+          lastMsg.content = devMode.task
+        }
+        const rawToolDefs = this.toolRegistry?.getDefinitions() || []
+        if (rawToolDefs.length > 0) {
+          chatOptions.tools = this.provider.adaptToolDefinitions(rawToolDefs)
+        }
 
-      // Call provider
-      let response = await this.provider.chatWithRetry(context.messages, chatOptions)
+        // Call provider
+        let response = await this.provider.chatWithRetry(context.messages, chatOptions)
 
-      // Tool execution loop (delegated to ToolOrchestrator)
-      let iterations = 0
-      if (response.toolCalls && this._toolOrchestrator) {
-        const result = await this._toolOrchestrator.executeLoop(
-          response, context.messages, chatOptions, messageContext, sessionId
-        )
-        response = result.response
-        iterations = result.iterations
-      } else if (response.toolCalls) {
-        // No tool registry — fallback message
-        response = { ...response, content: "I'm having trouble completing this task. Let me try a different approach." }
-      }
+        // Tool execution loop (delegated to ToolOrchestrator)
+        let iterations = 0
+        if (response.toolCalls && this._toolOrchestrator) {
+          const result = await this._toolOrchestrator.executeLoop(
+            response, context.messages, chatOptions, messageContext, sessionId
+          )
+          response = result.response
+          iterations = result.iterations
+        } else if (response.toolCalls) {
+          // No tool registry — fallback message
+          response = { ...response, content: "I'm having trouble completing this task. Let me try a different approach." }
+        }
 
-      clearInterval(typingInterval)
+        const durationMs = Date.now() - start
 
-      const durationMs = Date.now() - start
+        // Run post-processor pipeline: extract tags, persist, clean text
+        const { cleanText, stats } = await runPostProcessors(response.content, {
+          memory: this.memory,
+          identityLoader: this.contextBuilder.identityLoader,
+          bus: this.bus,
+          sessionId
+        })
 
-      // Run post-processor pipeline: extract tags, persist, clean text
-      const { cleanText, stats } = await runPostProcessors(response.content, {
-        memory: this.memory,
-        identityLoader: this.contextBuilder.identityLoader,
-        bus: this.bus,
-        sessionId
-      })
+        logger.info('agent', 'response_generated', {
+          sessionId,
+          durationMs,
+          contentLength: cleanText.length,
+          memoriesExtracted: stats.memory?.memories?.length || 0,
+          chatMemoriesExtracted: stats['chat-memory']?.chatMemories?.length || 0,
+          userUpdates: stats.user?.updates?.length || 0,
+          toolIterations: iterations,
+          activeSkill: activeSkill || null,
+          bootstrapComplete: stats.bootstrap?.isComplete || undefined
+        })
 
-      logger.info('agent', 'response_generated', {
-        sessionId,
-        durationMs,
-        contentLength: cleanText.length,
-        memoriesExtracted: stats.memory?.memories?.length || 0,
-        chatMemoriesExtracted: stats['chat-memory']?.chatMemories?.length || 0,
-        userUpdates: stats.user?.updates?.length || 0,
-        toolIterations: iterations,
-        activeSkill: activeSkill || null,
-        bootstrapComplete: stats.bootstrap?.isComplete || undefined
-      })
+        // Save both messages to session history (clean text without tags)
+        const now = Date.now()
+        await this.storage.saveSession(sessionId, [
+          { role: 'user', content: message.text, timestamp: now - 1 },
+          { role: 'assistant', content: cleanText, timestamp: now }
+        ])
 
-      // Save both messages to session history (clean text without tags)
-      const now = Date.now()
-      await this.storage.saveSession(sessionId, [
-        { role: 'user', content: message.text, timestamp: now - 1 },
-        { role: 'assistant', content: cleanText, timestamp: now }
-      ])
-
-      // Emit response (clean text without memory tags)
-      this.bus.emit(MESSAGE_OUT, {
-        chatId: message.chatId,
-        text: cleanText,
-        channel: message.channel
+        // Emit response (clean text without memory tags)
+        this.bus.emit(MESSAGE_OUT, {
+          chatId: message.chatId,
+          text: cleanText,
+          channel: message.channel
+        })
       })
     } catch (error) {
-      clearInterval(typingInterval)
-
       logger.error('agent', 'message_failed', {
         sessionId,
         error: error.message
