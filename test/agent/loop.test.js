@@ -37,6 +37,7 @@ describe('AgentLoop', () => {
       name: 'mock',
       chat: vi.fn().mockResolvedValue({ content: 'bot response' }),
       chatWithRetry: vi.fn().mockResolvedValue({ content: 'bot response' }),
+      adaptToolDefinitions: vi.fn((defs) => defs),
       buildToolResultMessages(rawContent, results) {
         return [
           { role: 'assistant', content: rawContent },
@@ -673,6 +674,7 @@ describe('AgentLoop', () => {
         name: 'mock',
         chat: vi.fn().mockResolvedValue({ content: 'bot reply' }),
         chatWithRetry: vi.fn().mockResolvedValue({ content: 'bot reply' }),
+        adaptToolDefinitions: vi.fn((defs) => defs),
         buildToolResultMessages(rawContent, results) {
           return [
             { role: 'assistant', content: rawContent },

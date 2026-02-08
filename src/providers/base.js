@@ -57,6 +57,16 @@ export default class BaseProvider {
   }
 
   /**
+   * Adapt tool definitions to provider-specific format.
+   * Default returns Anthropic format (input_schema). Override for other providers.
+   * @param {Array} definitions - Tool definitions in Anthropic format
+   * @returns {Array} Adapted tool definitions
+   */
+  adaptToolDefinitions(definitions) {
+    return definitions
+  }
+
+  /**
    * Build messages to append after tool execution results.
    * Override in subclass if provider uses a different format.
    * @param {Array} rawContent - Raw assistant response content (for tool_use blocks)

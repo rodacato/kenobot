@@ -143,8 +143,10 @@ export default class AgentLoop {
         const lastMsg = context.messages[context.messages.length - 1]
         lastMsg.content = devMode.task
       }
-      const toolDefs = this.toolRegistry?.getDefinitions() || []
-      if (toolDefs.length > 0) chatOptions.tools = toolDefs
+      const rawToolDefs = this.toolRegistry?.getDefinitions() || []
+      if (rawToolDefs.length > 0) {
+        chatOptions.tools = this.provider.adaptToolDefinitions(rawToolDefs)
+      }
 
       // Call provider
       let response = await this.provider.chatWithRetry(context.messages, chatOptions)
