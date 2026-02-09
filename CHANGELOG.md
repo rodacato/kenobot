@@ -7,6 +7,71 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-02-09
+
+### Added
+- Root user detection in kenobot init (hard fail) and kenobot doctor (warning)
+- n8n reachability check in kenobot doctor when N8N_API_URL or N8N_WEBHOOK_BASE configured
+- Quick-start guides in docs/guides/ for VPS setup, n8n integration, and cloudflared tunnels
+- TELEGRAM_ALLOWED_USERS env var for user-based authorization
+- Group mention filter — bot only responds to @mentions and replies in groups
+- Per-chat memory via <chat-memory> tag for chat-specific facts
+- Chat-scoped daily logs in data/memory/chats/{sessionId}/
+- Chat MEMORY.md support for long-term per-chat knowledge
+- Provider-side tool definition adaptation via adaptToolDefinitions()
+- BaseMemory interface class for memory subsystem consistency
+- Central bus event constants in src/events.js
+- createApp() factory in src/app.js for programmatic boot
+- Provider interface validation warns on missing methods at startup
+- supportsTools getter for providers (claude-api and mock return true)
+- Per-user rate limiting in BaseChannel (configurable maxPerMinute/maxPerHour)
+- E2E test harness and 9 smoke tests for full pipeline verification
+- Memory compaction merges old daily logs (>30 days) into MEMORY.md at startup
+- MEMORY_RETENTION_DAYS config variable (default 30, range 1-365)
+- Working memory (<working-memory> tag) for per-session context
+- Working memory test coverage (34 new tests)
+- Scriptable MockProvider with setNextResponse() and lastCall for E2E tests
+- E2E feature verification tests for memory, chat-memory, user prefs, bootstrap, skills, sessions, health
+- Deep E2E tests for memory, identity, skills, sessions, tools, health
+- npm run test:e2e, test:smoke, test:features scripts
+- Gemini CLI provider (PROVIDER=gemini-cli) for using Google Gemini models
+- Gemini API provider (PROVIDER=gemini-api) with native tool use support
+
+### Changed
+- TELEGRAM_ALLOWED_CHAT_IDS now authorizes by chat ID (was user ID)
+- Config module now exports createConfig() factory and validateConfig() for testability
+- Providers now use a registry pattern with self-registration
+- Notifications are now channel-agnostic via dedicated bus event
+- MessageBus class now available as named export from bus.js
+- ContextBuilder now uses pluggable prompt sections from tools, skills, and memory
+- Agent response post-processing extracted into pluggable pipeline
+- index.js slimmed to thin entry point with side effects only
+- Extracted tool execution loop into ToolOrchestrator for better separation of concerns
+- Typing indicator extracted to reusable middleware with guaranteed cleanup
+- Logger is now per-instance, each createApp() gets its own Logger for multi-instance isolation
+- Memory system now uses expanded BaseMemory interface with per-chat and compaction-support methods
+- ContextBuilder owns memory prompt formatting via _buildMemorySection
+- Updated documentation to reflect memory compaction feature
+- Memory docs updated to cover working memory tier
+- E2E harness accepts setup callback for pre-start file creation
+
+### Removed
+- Shallow single-file feature tests replaced by structured suite
+
+### Fixed
+- Telegram channel bus listener leak on stop/start cycles
+- Context builder no longer crashes when a single prompt source fails
+- Post-processor pipeline continues when individual processors fail
+- HTTP_PORT=0 now accepted for ephemeral port binding in tests
+
+### Security
+- Dual-layer auth supports both private and group chat scenarios
+- Block SSRF attacks in web_fetch tool (private IPs, cloud metadata, redirect validation)
+- Prevent symlink escape in dev tool project resolution
+- Validate sessionId format in filesystem storage to prevent path traversal
+- Validate skill manifest schema to prevent resource abuse (ReDoS, memory)
+- Add task limit to scheduler to prevent resource exhaustion
+
 ## [0.2.0] - 2026-02-08
 
 ### Added
