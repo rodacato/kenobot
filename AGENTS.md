@@ -150,6 +150,7 @@ Each test file should have:
 - The `claude` CLI hangs when stdin is a pipe. The `claude-cli` provider uses `spawn()` with `stdio: ['ignore', 'pipe', 'pipe']` to avoid this.
 - `claude-cli` provider needs ~20s response time with sonnet model. Use `claude-api` for faster responses.
 - The `gemini-cli` provider wraps the Google Gemini CLI (`@google/gemini-cli`). Uses `--approval-mode yolo` and `--output-format text` for headless operation. Requires `gemini` to be installed globally.
+- The `gemini-api` provider uses `@google/genai` SDK directly. Supports native tool use (function calling). Gemini uses `model` instead of `assistant` as the role, and function calls have no `id` field — synthetic IDs are generated.
 - Non-root devcontainer: running as `node` user (uid=1000).
 - Skills use `manifest.json` + `SKILL.md` (not `skill.json` + `prompt.md` as originally planned).
 - Identity uses directory mode by default (`identities/kenobot/` with SOUL.md, IDENTITY.md, USER.md). Legacy single-file mode (`kenobot.md`) still works via auto-detection.

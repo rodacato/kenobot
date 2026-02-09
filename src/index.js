@@ -8,6 +8,7 @@ import './providers/mock.js'
 import './providers/claude-cli.js'
 import './providers/claude-api.js'
 import './providers/gemini-cli.js'
+import './providers/gemini-api.js'
 import { createProvider } from './providers/registry.js'
 import { createApp } from './app.js'
 

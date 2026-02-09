@@ -12,7 +12,7 @@ kenobot start --config config/main.env     # Use alternate config file
 
 | Variable | Type | Default | Required | Description |
 |----------|------|---------|----------|-------------|
-| `PROVIDER` | string | `claude-cli` | No | LLM provider: `claude-api`, `claude-cli`, `gemini-cli`, or `mock` |
+| `PROVIDER` | string | `claude-cli` | No | LLM provider: `claude-api`, `claude-cli`, `gemini-api`, `gemini-cli`, or `mock` |
 | `MODEL` | string | `sonnet` | No | Model name passed to provider: `sonnet`, `opus`, `haiku` |
 | `IDENTITY_FILE` | string | `identities/kenobot` | No | Path to bot identity directory or file (relative to config dir or absolute). Directory mode loads SOUL.md + IDENTITY.md + USER.md separately. See [Identity](features/identity.md). |
 | `DATA_DIR` | string | `~/.kenobot/data` | No | Base directory for sessions, memory, logs, and scheduler data |
@@ -36,6 +36,14 @@ Get your user ID from [@userinfobot](https://t.me/userinfobot). For group chat I
 | Variable | Type | Default | Required | Description |
 |----------|------|---------|----------|-------------|
 | `ANTHROPIC_API_KEY` | string | — | When `PROVIDER=claude-api` | Anthropic API key from [console.anthropic.com](https://console.anthropic.com/settings/keys) |
+
+## Gemini API Provider
+
+| Variable | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `GEMINI_API_KEY` | string | — | When `PROVIDER=gemini-api` | Google AI API key from [AI Studio](https://aistudio.google.com/) |
+
+Supports native tool use (function calling). Model aliases: `flash` (gemini-2.5-flash), `pro` (gemini-2.5-pro), `flash-lite` (gemini-2.5-flash-lite). You can also pass full model IDs directly (e.g. `gemini-3-pro-preview`).
 
 ## Gemini CLI Provider
 
