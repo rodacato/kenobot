@@ -88,7 +88,7 @@ export function createConfig(env = process.env) {
 
     http: {
       enabled: env.HTTP_ENABLED === 'true',
-      port: int('HTTP_PORT', 3000, { min: 1, max: 65535 }),
+      port: int('HTTP_PORT', 3000, { min: 0, max: 65535 }),
       host: env.HTTP_HOST || '127.0.0.1',
       webhookSecret: env.WEBHOOK_SECRET || '',
       timeout: int('HTTP_TIMEOUT', 60000, { min: 1000 })
