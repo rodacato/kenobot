@@ -18,7 +18,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "vitest run test/e2e/ --fileParallelism=false",
+    "test:smoke": "vitest run test/e2e/smoke.test.js",
+    "test:features": "vitest run test/e2e/features/"
   },
   "keywords": [
     "ai",
