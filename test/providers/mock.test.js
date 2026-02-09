@@ -61,8 +61,8 @@ describe('MockProvider', () => {
       await provider.chat([{ role: 'user', content: 'test' }])
       const duration = Date.now() - start
 
-      // Should take at least 400ms (allowing for some timing variance)
-      expect(duration).toBeGreaterThanOrEqual(400)
+      // Should take at least 30ms (allowing for some timing variance)
+      expect(duration).toBeGreaterThanOrEqual(30)
     })
   })
 

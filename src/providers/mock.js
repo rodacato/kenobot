@@ -11,14 +11,49 @@ export default class MockProvider extends BaseProvider {
   constructor(config) {
     super()
     this.config = config
+    this._nextResponse = null
+    this._lastCall = null
+  }
+
+  /**
+   * Set the response for the next chat() call.
+   * After one call consumes it, reverts to default behavior.
+   * @param {string} response - Text to return as content
+   */
+  setNextResponse(response) {
+    this._nextResponse = response
+  }
+
+  /**
+   * Get the messages and options from the last chat() call.
+   * Useful for verifying what context was passed to the provider.
+   * @returns {{ messages: Array, options: Object }|null}
+   */
+  get lastCall() {
+    return this._lastCall
   }
 
   async chat(messages, options = {}) {
+    this._lastCall = { messages, options }
+
     const lastMessage = messages[messages.length - 1]
     const userText = typeof lastMessage?.content === 'string' ? lastMessage.content : ''
 
     // Simulate a small delay like a real LLM
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    // Scriptable response: consume queued response if set
+    if (this._nextResponse !== null) {
+      const content = this._nextResponse
+      this._nextResponse = null
+      return {
+        content,
+        toolCalls: null,
+        stopReason: 'end_turn',
+        rawContent: null,
+        usage: { mock: true }
+      }
+    }
 
     // Simulate tool_use when message contains "fetch http"
     if (userText.match(/fetch https?:\/\//i)) {

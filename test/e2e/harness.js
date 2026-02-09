@@ -60,7 +60,7 @@ function httpRequest(port, { method = 'POST', path = '/webhook', body, headers =
  *   - dataDir — temp data directory
  *   - cleanup() — stop app + remove temp dir
  */
-export async function createTestApp(overrides = {}) {
+export async function createTestApp(overrides = {}, { setup } = {}) {
   // Create temp directories
   const dataDir = await mkdtemp(join(tmpdir(), 'kenobot-e2e-'))
   const identityDir = join(dataDir, 'identities', 'test')
@@ -74,6 +74,11 @@ export async function createTestApp(overrides = {}) {
   // Write minimal identity file
   await writeFile(join(identityDir, 'SOUL.md'), '# Test Bot\nYou are a test bot.')
   await writeFile(join(identityDir, 'IDENTITY.md'), '# Identity\nTest identity.')
+
+  // Optional pre-start setup (e.g. create skill dirs, BOOTSTRAP.md)
+  if (setup) {
+    await setup({ dataDir, identityDir, skillsDir, sessionsDir })
+  }
 
   // Build config
   const { config } = createConfig({
