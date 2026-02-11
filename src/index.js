@@ -1,5 +1,15 @@
 #!/usr/bin/env node
 
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
+import { homedir } from 'node:os'
+
+// Ensure npm-global binaries are in PATH (daemon/systemd don't source .bashrc)
+const npmGlobalBin = join(homedir(), '.npm-global', 'bin')
+if (existsSync(npmGlobalBin) && !process.env.PATH?.includes(npmGlobalBin)) {
+  process.env.PATH = `${npmGlobalBin}:${process.env.PATH}`
+}
+
 import config from './config.js'
 import logger from './logger.js'
 import paths from './paths.js'
