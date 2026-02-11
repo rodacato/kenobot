@@ -112,7 +112,9 @@ phase2_main() {
     kenobot_tag=$(git -C "$kenobot_dir" tag -l "v*" --sort=-v:refname | head -1)
   fi
 
-  if [ -z "$kenobot_tag" ]; then
+  if [ "${KENOBOT_CHANNEL:-stable}" = "dev" ]; then
+    log_info "Dev channel: staying on master"
+  elif [ -z "$kenobot_tag" ]; then
     log_warn "No release tags found, using HEAD"
   else
     git -C "$kenobot_dir" checkout "$kenobot_tag" 2>&1 | tail -1
@@ -635,6 +637,19 @@ case "$INSTALL_N8N" in
   *)     INSTALL_N8N="true" ;;
 esac
 
+# Update channel
+echo ""
+echo -e "    ${BOLD}Update Channel${NC}"
+echo "      1) stable  (recommended — follows release tags)"
+echo "      2) dev     (follows master branch, for contributors)"
+echo ""
+CHANNEL_CHOICE=""
+prompt_value "Choose channel" "1" CHANNEL_CHOICE
+case "$CHANNEL_CHOICE" in
+  2|dev) KENOBOT_CHANNEL="dev" ;;
+  *)     KENOBOT_CHANNEL="stable" ;;
+esac
+
 # Cloudflare domain (optional)
 echo ""
 echo -e "    ${BOLD}Cloudflare Tunnel${NC} ${DIM}(optional, for webhooks and external access)${NC}"
@@ -658,6 +673,7 @@ echo -e "    Allowed users:   ${TELEGRAM_ALLOWED_USERS}"
 echo -e "    Provider:        ${PROVIDER}"
 echo -e "    Claude CLI:      ${INSTALL_CLAUDE_CLI}"
 echo -e "    Gemini CLI:      ${INSTALL_GEMINI_CLI}"
+echo -e "    Channel:         ${KENOBOT_CHANNEL}"
 echo -e "    n8n:             ${INSTALL_N8N}"
 if [ -n "$ANTHROPIC_API_KEY" ]; then
   echo -e "    API key:         ${DIM}${ANTHROPIC_API_KEY:0:12}...${NC}"
@@ -690,6 +706,7 @@ N8N_DOMAIN='${N8N_DOMAIN}'
 WEBHOOK_SECRET='${WEBHOOK_SECRET}'
 KENOBOT_GIT_URL='${KENOBOT_GIT_URL}'
 KENOBOT_VERSION='${KENOBOT_VERSION:-}'
+KENOBOT_CHANNEL='${KENOBOT_CHANNEL}'
 EOF
 chown "${KENOBOT_USER}:${KENOBOT_USER}" "$CONFIG_TMPFILE"
 

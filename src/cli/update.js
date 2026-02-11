@@ -20,6 +20,18 @@ function getCurrentTag(cwd) {
   }
 }
 
+function getCurrentBranch(cwd) {
+  try {
+    return exec('git symbolic-ref --short HEAD', { cwd })
+  } catch {
+    return null // detached HEAD = stable (tag) mode
+  }
+}
+
+function getCurrentCommit(cwd) {
+  return exec('git rev-parse HEAD', { cwd })
+}
+
 export default async function update(args, paths) {
   const { values } = parseArgs({
     args,
@@ -35,10 +47,66 @@ export default async function update(args, paths) {
     process.exit(0)
   }
 
+  const branch = getCurrentBranch(engineDir)
+
+  if (branch) {
+    await updateDev(engineDir, branch, values.check)
+  } else {
+    await updateStable(engineDir, values.check)
+  }
+}
+
+async function updateDev(engineDir, branch, checkOnly) {
+  const currentCommit = getCurrentCommit(engineDir)
+  const shortCommit = currentCommit.slice(0, 7)
+  console.log(`Channel: dev (${branch})`)
+  console.log(`Current: ${shortCommit}`)
+
+  console.log('Checking for updates...')
+  execSync(`git fetch origin ${branch}`, { cwd: engineDir, stdio: 'pipe' })
+
+  const remoteCommit = exec(`git rev-parse origin/${branch}`, { cwd: engineDir })
+
+  if (remoteCommit === currentCommit) {
+    console.log('Already up to date.')
+    return
+  }
+
+  const ahead = exec(`git rev-list --count origin/${branch}..HEAD`, { cwd: engineDir })
+  const behind = exec(`git rev-list --count HEAD..origin/${branch}`, { cwd: engineDir })
+  console.log(`Behind: ${behind} commit(s), ahead: ${ahead} commit(s)`)
+
+  if (checkOnly) {
+    return
+  }
+
+  console.log(`\nPulling latest ${branch}...`)
+
+  try {
+    execSync(`git pull origin ${branch}`, { cwd: engineDir, stdio: 'pipe' })
+    execSync('npm install --omit=dev', { cwd: engineDir, stdio: 'pipe' })
+
+    const newVersion = exec('node src/cli.js version', { cwd: engineDir })
+    console.log(`Updated successfully: ${newVersion} (${getCurrentCommit(engineDir).slice(0, 7)})`)
+  } catch (err) {
+    console.error(`Update failed: ${err.message}`)
+    console.log(`Rolling back to ${shortCommit}...`)
+    try {
+      execSync(`git reset --hard ${currentCommit}`, { cwd: engineDir, stdio: 'pipe' })
+      execSync('npm install --omit=dev', { cwd: engineDir, stdio: 'pipe' })
+      console.log('Rollback successful.')
+    } catch {
+      console.error('Rollback also failed. Manual intervention needed.')
+    }
+    process.exit(1)
+  }
+}
+
+async function updateStable(engineDir, checkOnly) {
   const currentTag = getCurrentTag(engineDir)
+  console.log(`Channel: stable`)
   console.log(`Current version: ${currentTag}`)
 
-  // Fetch latest tags
   console.log('Checking for updates...')
   execSync('git fetch --tags', { cwd: engineDir, stdio: 'pipe' })
 
@@ -55,18 +123,16 @@ export default async function update(args, paths) {
 
   console.log(`Available: ${latestTag}`)
 
-  if (values.check) {
+  if (checkOnly) {
     return
   }
 
-  // Update
   console.log(`\nUpdating ${currentTag} → ${latestTag}...`)
 
   try {
     execSync(`git checkout ${latestTag}`, { cwd: engineDir, stdio: 'pipe' })
     execSync('npm install --omit=dev', { cwd: engineDir, stdio: 'pipe' })
 
-    // Verify
     const newVersion = exec('node src/cli.js version', { cwd: engineDir })
     console.log(`Updated successfully: ${newVersion}`)
   } catch (err) {

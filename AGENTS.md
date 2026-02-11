@@ -9,7 +9,7 @@
 ## Commands
 
 ```bash
-# CLI (after npm install -g or npm link)
+# CLI (after install.sh or npm link)
 kenobot init           # Scaffold ~/.kenobot/ directories
 kenobot start          # Start bot (foreground)
 kenobot start -d       # Start bot (daemon)
@@ -144,6 +144,21 @@ Each test file should have:
 | On-demand skill loading | OpenClaw | Compact skill list in system prompt, full prompt only when triggered |
 | Tool trigger regex | Custom | Slash commands work with any provider, even claude-cli |
 | Max iterations safety valve | Nanobot | Prevents infinite tool loops (default: 20) |
+
+## Deployment Channels
+
+KenoBot supports two deployment modes. Code changes must work in both:
+
+| | Stable | Dev |
+|---|---|---|
+| **Audience** | End users, forks | Maintainer + bot on VPS |
+| **Tracks** | Latest release tag | master branch |
+| **Update method** | `kenobot update` (tag checkout + rollback) | `kenobot update` (git pull + rollback) |
+| **Git remote** | HTTPS (read-only) or SSH | SSH (read+write) |
+| **Bot can push** | No | Yes (PRs, self-improvement) |
+| **Detection** | Detached HEAD (tag) | On a branch (`git symbolic-ref`) |
+
+When modifying `update.js` or `install.sh`, test both paths.
 
 ## Known Gotchas
 

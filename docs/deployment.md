@@ -32,27 +32,53 @@ See the [install.sh source](../install.sh) for details.
 
 ## Installation
 
-### Quick Install (recommended)
+KenoBot has two deployment channels:
+
+| | Stable | Dev |
+|---|---|---|
+| **Audience** | End users, forks | Maintainer + bot on VPS |
+| **Tracks** | Latest release tag | master branch |
+| **Updates** | `kenobot update` (tag checkout + rollback) | `kenobot update` (git pull + rollback) |
+| **Git remote** | HTTPS (read-only) or SSH | SSH (read+write for PRs) |
+
+### Stable (recommended)
+
+The install script clones the repo and checks out the latest release tag:
 
 ```bash
-npm install -g github:rodacato/kenobot
-kenobot init
+curl -sSL https://raw.githubusercontent.com/rodacato/kenobot/master/install.sh | sudo bash
+# Choose "stable" when prompted for update channel
 ```
 
-This installs the `kenobot` CLI globally and scaffolds user directories at `~/.kenobot/`.
-
-### Pin a Specific Version
-
+Or pin a specific version:
 ```bash
-npm install -g github:rodacato/kenobot#v0.2.0
+KENOBOT_VERSION=v0.3.0 sudo bash install.sh
 ```
 
-### Development Install
+### Dev (contributors / self-hosted bot)
 
-For development or contributing:
+For development, or when the bot should track master and be able to push changes:
 
 ```bash
-git clone https://github.com/rodacato/kenobot.git
+# 1. Set up SSH key for the kenobot user (required for push access)
+sudo -iu kenobot
+ssh-keygen -t ed25519 -C "kenobot@vps"
+cat ~/.ssh/id_ed25519.pub
+# → Add to GitHub: Settings → SSH keys (or as deploy key with write access)
+exit
+
+# 2. Run installer, choose "dev" channel
+sudo bash install.sh
+```
+
+The dev channel stays on master. The bot can create branches and PRs if the SSH key has write access.
+
+### Development Install (local)
+
+For local development:
+
+```bash
+git clone git@github.com:rodacato/kenobot.git
 cd kenobot
 npm install
 npm link           # Makes 'kenobot' command available globally
@@ -122,17 +148,20 @@ loginctl enable-linger $USER
 
 > **Important**: Do not run KenoBot as root. The `claude-cli` provider depends on `claude` (Claude Code CLI), which does not work as the root user. KenoBot will warn you if it detects root.
 
-Create a dedicated user for the bot process:
+Create a dedicated user for the bot process. The `install.sh` script handles this automatically. For manual setup:
 
 ```bash
 # Create user
 sudo useradd -r -m -s /bin/bash kenobot
 
-# Switch to kenobot user and install
-sudo -u kenobot bash
-npm install -g github:rodacato/kenobot
+# Clone and install as kenobot user
+sudo -iu kenobot
+git clone git@github.com:rodacato/kenobot.git ~/.kenobot/engine
+cd ~/.kenobot/engine && npm install --omit=dev
+ln -sf ~/.kenobot/engine/src/cli.js ~/.npm-global/bin/kenobot
 
 # Configure
+kenobot init
 kenobot config edit
 
 # Install systemd service
@@ -198,20 +227,20 @@ curl http://localhost:3000/health
 
 ## Updating
 
-### npm install
-
-```bash
-npm update -g kenobot
-```
-
-### Development install (git)
-
 ```bash
 kenobot update --check     # Check for new version without updating
-kenobot update             # Update to latest release tag
+kenobot update             # Update to latest version
 ```
 
-The git update command fetches latest tags, checks out the new version, runs `npm install`, and rolls back on failure.
+The update command auto-detects the channel:
+
+- **Stable** (on a tag): fetches tags, checks out the latest release, runs `npm install`, rolls back on failure.
+- **Dev** (on a branch): pulls latest from origin, runs `npm install`, rolls back on failure.
+
+After updating, restart the bot:
+```bash
+kenobot stop && kenobot start -d
+```
 
 ## Security Audit
 
