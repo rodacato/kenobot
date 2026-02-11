@@ -171,10 +171,35 @@ async function checkProvider(paths) {
     }
   }
 
+  if (provider === 'gemini-api') {
+    const key = env.GOOGLE_API_KEY || ''
+    if (!key) {
+      return {
+        status: 'fail',
+        label: 'Provider: gemini-api — GOOGLE_API_KEY not set',
+        fix: "Run 'kenobot config edit' and set GOOGLE_API_KEY",
+      }
+    }
+    return { status: 'ok', label: 'Provider: gemini-api' }
+  }
+
+  if (provider === 'gemini-cli') {
+    try {
+      await execFileAsync('which', ['gemini'])
+      return { status: 'ok', label: 'Provider: gemini-cli (binary found)' }
+    } catch {
+      return {
+        status: 'fail',
+        label: 'Provider: gemini-cli — gemini binary not found in PATH',
+        fix: 'Install Gemini CLI: npm install -g @google/gemini-cli',
+      }
+    }
+  }
+
   return {
     status: 'warn',
     label: `Provider: ${provider} — unknown provider`,
-    fix: "Valid providers: claude-api, claude-cli, mock",
+    fix: "Valid providers: claude-api, claude-cli, gemini-api, gemini-cli, mock",
   }
 }
 

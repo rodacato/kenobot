@@ -102,6 +102,27 @@ phase2_main() {
   npm install -g "$KENOBOT_REPO" 2>&1 | tail -1
   log_info "kenobot $(kenobot version 2>/dev/null || echo 'installed')"
 
+  # Install CLI tools
+  if [ "${INSTALL_CLAUDE_CLI:-false}" = "true" ]; then
+    log_step "Installing Claude Code CLI"
+    if command -v claude &>/dev/null; then
+      log_info "claude already installed"
+    else
+      npm install -g @anthropic-ai/claude-code 2>&1 | tail -1
+      log_info "Claude Code CLI installed"
+    fi
+  fi
+
+  if [ "${INSTALL_GEMINI_CLI:-false}" = "true" ]; then
+    log_step "Installing Gemini CLI"
+    if command -v gemini &>/dev/null; then
+      log_info "gemini already installed"
+    else
+      npm install -g @google/gemini-cli 2>&1 | tail -1
+      log_info "Gemini CLI installed"
+    fi
+  fi
+
   if [ "${INSTALL_N8N:-true}" = "true" ]; then
     log_step "Installing n8n"
     if command -v n8n &>/dev/null; then
@@ -188,6 +209,12 @@ EOF
   if [ "$PROVIDER" = "claude-api" ] && [ -n "${ANTHROPIC_API_KEY:-}" ]; then
     cat >> "$env_file" <<EOF
 ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+EOF
+  fi
+
+  if [ "$PROVIDER" = "gemini-api" ] && [ -n "${GOOGLE_API_KEY:-}" ]; then
+    cat >> "$env_file" <<EOF
+GOOGLE_API_KEY=${GOOGLE_API_KEY}
 EOF
   fi
 
@@ -517,14 +544,18 @@ echo ""
 echo -e "    ${BOLD}AI Provider:${NC}"
 echo "      1) claude-api  (recommended, requires Anthropic API key)"
 echo "      2) claude-cli  (uses Claude Code CLI subscription)"
-echo "      3) mock        (testing only, no AI)"
+echo "      3) gemini-api  (requires Google AI API key)"
+echo "      4) gemini-cli  (uses Gemini CLI)"
+echo "      5) mock        (testing only, no AI)"
 echo ""
 PROVIDER_CHOICE=""
 prompt_value "Choose provider" "1" PROVIDER_CHOICE
 case "$PROVIDER_CHOICE" in
   1|claude-api) PROVIDER="claude-api" ;;
   2|claude-cli) PROVIDER="claude-cli" ;;
-  3|mock)       PROVIDER="mock" ;;
+  3|gemini-api) PROVIDER="gemini-api" ;;
+  4|gemini-cli) PROVIDER="gemini-cli" ;;
+  5|mock)       PROVIDER="mock" ;;
   *)            PROVIDER="claude-api" ;;
 esac
 
@@ -536,6 +567,37 @@ if [ "$PROVIDER" = "claude-api" ]; then
     [ -z "$ANTHROPIC_API_KEY" ] && log_warn "API key is required for claude-api provider."
   done
 fi
+
+GOOGLE_API_KEY=""
+if [ "$PROVIDER" = "gemini-api" ]; then
+  while [ -z "$GOOGLE_API_KEY" ]; do
+    prompt_secret "Google AI API Key" GOOGLE_API_KEY
+    [ -z "$GOOGLE_API_KEY" ] && log_warn "API key is required for gemini-api provider."
+  done
+fi
+
+# CLI tools (optional, smart defaults based on provider)
+echo ""
+echo -e "    ${BOLD}CLI Tools${NC} ${DIM}(install now so you can switch providers later)${NC}"
+
+# Default: Y if provider uses that CLI, N otherwise
+claude_default="N"; gemini_default="N"
+[ "$PROVIDER" = "claude-cli" ] && claude_default="Y"
+[ "$PROVIDER" = "gemini-cli" ] && gemini_default="Y"
+
+INSTALL_CLAUDE_CLI=""
+prompt_value "Install Claude Code CLI? (y/N)" "$claude_default" INSTALL_CLAUDE_CLI
+case "$INSTALL_CLAUDE_CLI" in
+  [Yy]*) INSTALL_CLAUDE_CLI="true" ;;
+  *)     INSTALL_CLAUDE_CLI="false" ;;
+esac
+
+INSTALL_GEMINI_CLI=""
+prompt_value "Install Gemini CLI? (y/N)" "$gemini_default" INSTALL_GEMINI_CLI
+case "$INSTALL_GEMINI_CLI" in
+  [Yy]*) INSTALL_GEMINI_CLI="true" ;;
+  *)     INSTALL_GEMINI_CLI="false" ;;
+esac
 
 # n8n (optional, recommended)
 echo ""
@@ -568,9 +630,14 @@ echo ""
 echo -e "    Telegram token:  ${DIM}${TELEGRAM_BOT_TOKEN:0:10}...${NC}"
 echo -e "    Allowed users:   ${TELEGRAM_ALLOWED_USERS}"
 echo -e "    Provider:        ${PROVIDER}"
+echo -e "    Claude CLI:      ${INSTALL_CLAUDE_CLI}"
+echo -e "    Gemini CLI:      ${INSTALL_GEMINI_CLI}"
 echo -e "    n8n:             ${INSTALL_N8N}"
 if [ -n "$ANTHROPIC_API_KEY" ]; then
   echo -e "    API key:         ${DIM}${ANTHROPIC_API_KEY:0:12}...${NC}"
+fi
+if [ -n "$GOOGLE_API_KEY" ]; then
+  echo -e "    API key:         ${DIM}${GOOGLE_API_KEY:0:12}...${NC}"
 fi
 if [ -n "$CF_DOMAIN" ]; then
   echo -e "    KenoBot domain:  ${CF_DOMAIN}"
@@ -588,6 +655,9 @@ TELEGRAM_BOT_TOKEN='${TELEGRAM_BOT_TOKEN}'
 TELEGRAM_ALLOWED_USERS='${TELEGRAM_ALLOWED_USERS}'
 PROVIDER='${PROVIDER}'
 ANTHROPIC_API_KEY='${ANTHROPIC_API_KEY}'
+GOOGLE_API_KEY='${GOOGLE_API_KEY}'
+INSTALL_CLAUDE_CLI='${INSTALL_CLAUDE_CLI}'
+INSTALL_GEMINI_CLI='${INSTALL_GEMINI_CLI}'
 INSTALL_N8N='${INSTALL_N8N}'
 CF_DOMAIN='${CF_DOMAIN}'
 N8N_DOMAIN='${N8N_DOMAIN}'
