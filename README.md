@@ -26,13 +26,17 @@ Telegram bot with memory, tools, skills, scheduling, and n8n integration — all
 
 ## Quick Start
 
-### Prerequisites
+### Fresh VPS (one-liner)
 
-- Node.js 22+
-- Telegram bot token from [@BotFather](https://t.me/botfather)
-- Your chat ID from [@userinfobot](https://t.me/userinfobot)
+For a new Ubuntu/Debian server — installs kenobot, n8n, and Cloudflare tunnel:
 
-### Install & Run
+```bash
+curl -sSL https://raw.githubusercontent.com/rodacato/kenobot/master/install.sh | sudo bash
+```
+
+### Manual Install
+
+Prerequisites: Node.js 22+, a [Telegram bot token](https://t.me/botfather), your [chat ID](https://t.me/userinfobot).
 
 ```bash
 npm install -g github:rodacato/kenobot

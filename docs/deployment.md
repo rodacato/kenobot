@@ -2,6 +2,27 @@
 
 > Running KenoBot on a VPS with systemd and backups. Designed for a $4/month Hetzner server (2vCPU, 4GB RAM, 40GB disk).
 
+## One-Liner VPS Setup
+
+For a fresh Ubuntu/Debian VPS, install everything in one command:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/rodacato/kenobot/master/install.sh | sudo bash
+```
+
+This automatically:
+- Creates a `kenobot` system user (non-root)
+- Installs Node.js 22, kenobot, n8n, cloudflared
+- Prompts for Telegram token, API key, and Cloudflare domain
+- Configures systemd user services for all three
+- Sets up UFW firewall (SSH only)
+
+After the script finishes, follow the printed checklist to create your n8n admin account and verify the bot.
+
+See the [install.sh source](../install.sh) for details.
+
+---
+
 ## Requirements
 
 - Node.js 22+ (LTS recommended)
