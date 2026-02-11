@@ -15,6 +15,9 @@ Telegram bot with memory, tools, skills, scheduling, and n8n integration — all
   - `n8n_trigger` — trigger n8n workflows via webhook (`/n8n <workflow>`)
   - `schedule` — cron-based task scheduling (`/schedule add|list|remove`)
   - `dev` — run Claude Code in project directories (`/dev <project> <task>`)
+  - `github` — git operations (`/git status|commit|push|pull|log`)
+  - `pr` — GitHub Pull Requests (`/pr create|list|view|merge`)
+  - `approval` — propose skills, workflows, identity changes (`/pending|approve|reject`)
 - **Skill plugins**: drop-in directories with `manifest.json` + `SKILL.md`, loaded on-demand
 - **n8n integration**: bidirectional webhooks (bot triggers workflows, workflows call bot)
 - **Cron scheduler**: persistent tasks that survive restarts
@@ -247,6 +250,7 @@ kenobot/                       # Engine (framework code, updatable)
 - [Multi-Instance](docs/features/multi-instance.md) — Running multiple bots
 - [Logging](docs/features/logging.md) — Structured JSONL logging
 - [Health & Recovery](docs/features/health.md) — Health checks, auto-recovery, backups
+- [Self-Improvement](docs/features/self-improvement.md) — How the bot improves itself over time
 
 ## Tech Stack
 

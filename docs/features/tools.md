@@ -103,6 +103,22 @@ Git operations in the workspace: status, commit, push, pull, log.
 - Uses `SSH_KEY_PATH` for authenticated push/pull (if set)
 - Commits are made with bot identity
 
+### pr
+
+Create and manage GitHub Pull Requests using the GitHub CLI.
+
+```
+/pr list                              → list open PRs
+/pr create "Fix the bug"              → create PR from current branch
+/pr view 42                           → view PR #42
+/pr merge 42                          → merge PR #42
+```
+
+- **Requires**: `WORKSPACE_DIR` configured + GitHub CLI (`gh`) installed and authenticated
+- Creates PRs from current branch to main/master by default
+- Supports draft PRs via `draft: true` parameter
+- Essential for self-improvement: bot can propose code changes via PRs
+
 ### n8n_trigger
 
 Trigger an n8n workflow via webhook.
@@ -246,6 +262,7 @@ The `register()` function receives the full `deps` object with access to `config
 - [src/tools/diagnostics.js](../../src/tools/diagnostics.js) — Health diagnostics
 - [src/tools/workspace.js](../../src/tools/workspace.js) — File operations
 - [src/tools/github.js](../../src/tools/github.js) — Git operations
+- [src/tools/pr.js](../../src/tools/pr.js) — GitHub Pull Requests
 - [src/tools/n8n.js](../../src/tools/n8n.js) — n8n webhook trigger
 - [src/tools/n8n-manage.js](../../src/tools/n8n-manage.js) — n8n REST API management
 - [src/tools/approval.js](../../src/tools/approval.js) — Self-improvement proposals
