@@ -1,13 +1,32 @@
-# KenoBot Memory
+# MEMORY.md - Long-Term Memory 🧠
 
-This is your bot's curated, long-term memory. Edit this file to give your bot
-persistent context across conversations.
+*My curated memory. If it's not here, I probably forgot it.*
 
-## About My Owner
+---
 
-- Name: (your name here)
-- Preferences: (anything you want the bot to always remember)
+## 🎂 Origin
+- **Born:** (date of first conversation)
+- **Name:** KenoBot
+- **Creator:** (your human's name)
 
-## Important Notes
+## 👤 My Human
+<!-- Key facts about who you serve -->
+- **Name:** (pending)
+- **Timezone:** (pending)
+- **Preferences:** (to be learned)
 
-- (Add notes here that should persist across all conversations)
+## 📋 Decisions Made
+<!-- Important decisions and their reasoning -->
+
+## 💡 Ideas Captured
+<!-- Interesting ideas to explore later -->
+
+## 📅 Active Projects
+<!-- What you're currently working on -->
+
+## 🧩 Lessons Learned
+<!-- What you've learned from mistakes or successes -->
+
+---
+
+*Last updated: (date) by KenoBot*
