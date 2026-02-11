@@ -1,9 +1,15 @@
 import { createServer } from 'node:http'
+import { readFile } from 'node:fs/promises'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import crypto from 'node:crypto'
 import BaseChannel from './base.js'
 import { MESSAGE_IN, MESSAGE_OUT } from '../events.js'
 // logger inherited from BaseChannel via this.logger
 import { getStatus } from '../health.js'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const pkg = JSON.parse(await readFile(join(__dirname, '..', '..', 'package.json'), 'utf8'))
 
 /**
  * HTTPChannel - Webhook endpoint for external integrations (n8n, curl, etc.)
@@ -71,6 +77,9 @@ export default class HTTPChannel extends BaseChannel {
    * @private
    */
   _route(req, res) {
+    if (req.method === 'GET' && req.url === '/') {
+      return this._handleIndex(res)
+    }
     if (req.method === 'GET' && req.url === '/health') {
       return this._handleHealth(res)
     }
@@ -189,6 +198,89 @@ export default class HTTPChannel extends BaseChannel {
     } catch {
       return false
     }
+  }
+
+  /**
+   * GET / — public welcome page.
+   * @private
+   */
+  _handleIndex(res) {
+    const uptime = Math.floor(process.uptime())
+    const days = Math.floor(uptime / 86400)
+    const hours = Math.floor((uptime % 86400) / 3600)
+    const mins = Math.floor((uptime % 3600) / 60)
+    const uptimeStr = days > 0 ? `${days}d ${hours}h` : hours > 0 ? `${hours}h ${mins}m` : `${mins}m`
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KenoBot</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: #0a0a0a;
+    color: #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  .card {
+    text-align: center;
+    padding: 3rem 2.5rem;
+    border: 1px solid #222;
+    border-radius: 12px;
+    background: #111;
+    max-width: 360px;
+    width: 90%;
+  }
+  .logo { font-size: 2.5rem; margin-bottom: 0.5rem; }
+  h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem; }
+  .tagline { color: #888; font-size: 0.85rem; margin-bottom: 1.5rem; }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #0d1f0d;
+    border: 1px solid #1a3a1a;
+    padding: 0.4rem 1rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    color: #4ade80;
+  }
+  .dot {
+    width: 8px; height: 8px;
+    background: #4ade80;
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .meta {
+    margin-top: 1.5rem;
+    font-size: 0.75rem;
+    color: #555;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">&#129302;</div>
+  <h1>KenoBot</h1>
+  <p class="tagline">AI Assistant</p>
+  <div class="status"><span class="dot"></span> Online &middot; ${uptimeStr}</div>
+  <p class="meta">v${pkg.version}</p>
+</div>
+</body>
+</html>`
+
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+    res.end(html)
   }
 
   /**
