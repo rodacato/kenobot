@@ -24,7 +24,7 @@ set -euo pipefail
 
 KENOBOT_USER="kenobot"
 NODE_MAJOR=22
-KENOBOT_REPO="github:rodacato/kenobot"
+KENOBOT_GIT_URL="git@github.com:rodacato/kenobot.git"
 CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"
 SCRIPT_PATH="/tmp/kenobot-install.sh"
 CURRENT_STEP=""
@@ -96,10 +96,35 @@ phase2_main() {
   fi
 
   log_step "Installing KenoBot"
-  if command -v kenobot &>/dev/null; then
-    log_info "kenobot already installed, updating..."
+  local kenobot_dir="$HOME/.kenobot/engine"
+
+  if [ -d "$kenobot_dir/.git" ]; then
+    log_info "Existing install found, fetching updates..."
+    git -C "$kenobot_dir" fetch --tags 2>&1 | tail -1
+  else
+    log_info "Cloning kenobot..."
+    git clone "$KENOBOT_GIT_URL" "$kenobot_dir" 2>&1 | tail -1
   fi
-  npm install -g "$KENOBOT_REPO" 2>&1 | tail -1
+
+  # Determine version: explicit override or latest tag
+  local kenobot_tag="${KENOBOT_VERSION:-}"
+  if [ -z "$kenobot_tag" ]; then
+    kenobot_tag=$(git -C "$kenobot_dir" tag -l "v*" --sort=-v:refname | head -1)
+  fi
+
+  if [ -z "$kenobot_tag" ]; then
+    log_warn "No release tags found, using HEAD"
+  else
+    git -C "$kenobot_dir" checkout "$kenobot_tag" 2>&1 | tail -1
+    log_info "Checked out $kenobot_tag"
+  fi
+
+  # Install dependencies
+  (cd "$kenobot_dir" && npm install --omit=dev 2>&1 | tail -1)
+
+  # Symlink binary into PATH
+  chmod +x "$kenobot_dir/src/cli.js"
+  ln -sf "$kenobot_dir/src/cli.js" "$HOME/.npm-global/bin/kenobot"
   log_info "kenobot $(kenobot version 2>/dev/null || echo 'installed')"
 
   # Install CLI tools
@@ -163,7 +188,8 @@ phase2_main() {
   log_step "Starting services"
   systemctl --user daemon-reload
 
-  systemctl --user enable --now kenobot 2>/dev/null || true
+  systemctl --user enable kenobot 2>/dev/null || true
+  systemctl --user restart kenobot 2>/dev/null || true
   log_info "kenobot service started"
 
   if [ "${INSTALL_N8N:-true}" = "true" ]; then
@@ -662,7 +688,8 @@ INSTALL_N8N='${INSTALL_N8N}'
 CF_DOMAIN='${CF_DOMAIN}'
 N8N_DOMAIN='${N8N_DOMAIN}'
 WEBHOOK_SECRET='${WEBHOOK_SECRET}'
-KENOBOT_REPO='${KENOBOT_REPO}'
+KENOBOT_GIT_URL='${KENOBOT_GIT_URL}'
+KENOBOT_VERSION='${KENOBOT_VERSION:-}'
 EOF
 chown "${KENOBOT_USER}:${KENOBOT_USER}" "$CONFIG_TMPFILE"
 
