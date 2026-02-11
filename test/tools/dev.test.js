@@ -99,6 +99,25 @@ describe('DevTool', () => {
 
         await rm(emptyDir, { recursive: true })
       })
+
+      it('should list symlinks pointing to directories', async () => {
+        // Create a target directory and a symlink to it
+        const targetDir = await mkdtemp(join(tmpdir(), 'kenobot-dev-target-'))
+        await symlink(targetDir, join(projectsDir, 'linked-project'))
+
+        const result = await tool.execute({ text: '' })
+        expect(result).toContain('linked-project')
+
+        await rm(targetDir, { recursive: true })
+      })
+
+      it('should ignore broken symlinks', async () => {
+        // Create a symlink to a non-existent target
+        await symlink('/nonexistent/path', join(projectsDir, 'broken-link'))
+
+        const result = await tool.execute({ text: '' })
+        expect(result).not.toContain('broken-link')
+      })
     })
 
     describe('dev mode activation', () => {

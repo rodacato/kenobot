@@ -1,4 +1,4 @@
-import { readdir, lstat, realpath } from 'node:fs/promises'
+import { readdir, lstat, stat, realpath } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import BaseTool from './base.js'
 import defaultLogger from '../logger.js'
@@ -94,15 +94,34 @@ class DevTool extends BaseTool {
 
   /**
    * List subdirectories in PROJECTS_DIR.
+   * Supports both real directories and symlinks pointing to directories.
    * @private
    */
   async _listProjects() {
     try {
       const entries = await readdir(this.projectsDir, { withFileTypes: true })
-      return entries
-        .filter(e => e.isDirectory() && !e.name.startsWith('.'))
-        .map(e => e.name)
-        .sort()
+      const projects = []
+
+      for (const entry of entries) {
+        if (entry.name.startsWith('.')) continue
+
+        // Check if it's a directory or a symlink pointing to a directory
+        if (entry.isDirectory()) {
+          projects.push(entry.name)
+        } else if (entry.isSymbolicLink()) {
+          try {
+            // Follow the symlink and check if target is a directory
+            const targetStat = await stat(join(this.projectsDir, entry.name))
+            if (targetStat.isDirectory()) {
+              projects.push(entry.name)
+            }
+          } catch {
+            // Broken symlink, skip it
+          }
+        }
+      }
+
+      return projects.sort()
     } catch {
       return []
     }
