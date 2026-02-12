@@ -168,6 +168,11 @@ Triggers: `summary`, `daily`, `recap`, `resumen`
 
 Generates a summary of recent activity using memory and conversation context.
 
+## See Also
+
+- [Extending KenoBot](extending.md) — When to create a skill vs a tool, decision guide, comparison table
+- [Tools](tools.md) — For capabilities that require JavaScript code execution
+
 ## Source
 
 - [src/skills/loader.js](../../src/skills/loader.js) — Discovery, loading, and matching

@@ -252,6 +252,11 @@ export function register(registry, deps) {
 
 The `register()` function receives the full `deps` object with access to `config`, `scheduler`, `watchdog`, `circuitBreaker`, `bus`, `skillLoader`, and `identityLoader`. Use only what your tool needs.
 
+## See Also
+
+- [Extending KenoBot](extending.md) — When to create a tool vs a skill, decision guide, comparison table
+- [Skills](skills.md) — The no-code alternative: markdown-based capabilities
+
 ## Source
 
 - [src/tools/base.js](../../src/tools/base.js) — Base class and lifecycle interface
