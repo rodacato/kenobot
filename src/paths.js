@@ -20,6 +20,7 @@ const paths = {
   envFile: join(home, 'config', '.env'),
   identities: join(home, 'config', 'identities'),
   skills: join(home, 'config', 'skills'),
+  tools: join(home, 'config', 'tools'),
 
   // Runtime data
   data: join(home, 'data'),

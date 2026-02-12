@@ -15,16 +15,18 @@ Tools work in two ways:
 
 ## Architecture
 
-Tools use **auto-discovery with self-registration**. At startup, `ToolLoader` scans `src/tools/*.js`, imports each file, and calls its exported `register(registry, deps)` function. Each tool decides internally whether to register based on the deps it receives (config, services, etc.).
+Tools use **auto-discovery with self-registration**. At startup, `ToolLoader` scans two directories for `.js` files and calls each file's exported `register(registry, deps)` function. Each tool decides internally whether to register based on the deps it receives (config, services, etc.).
 
 ```
 ToolLoader.loadAll()
-  → readdir(src/tools/)
-  → import each *.js (skip base.js, registry.js, loader.js)
-  → call register(registry, deps) if exported
+  → scan src/tools/*.js (built-in, skip base.js/registry.js/loader.js)
+  → scan TOOLS_DIR/*.js (external, if configured)
+  → call register(registry, deps) on each
   → call tool.init() lifecycle hook
   → log loaded tools
 ```
+
+Built-in tools ship with the engine. External tools live in a separate directory configured via `TOOLS_DIR` — useful for tools from independent repos or user-created plugins.
 
 **Lifecycle hooks**: Tools can optionally implement `init()` (async setup after registration) and `stop()` (cleanup during shutdown).
 
@@ -196,7 +198,14 @@ If the agent is still requesting tools after 20 iterations, it stops with: "I'm 
 
 ## Creating a Custom Tool
 
-1. Create `src/tools/my-tool.js`:
+Tools can be added in two locations:
+
+- **Built-in** (`src/tools/my-tool.js`): For tools that ship with the engine. Requires modifying the source.
+- **External** (`$TOOLS_DIR/my-tool.js`): For user-created or third-party tools. Drop-in, no engine changes needed. Set `TOOLS_DIR` in `.env` (e.g., `TOOLS_DIR=~/.kenobot/config/tools`).
+
+Both use the exact same format. The only difference is where the file lives.
+
+1. Create `src/tools/my-tool.js` (or `$TOOLS_DIR/my-tool.js` for external):
 
 ```javascript
 import BaseTool from './base.js'

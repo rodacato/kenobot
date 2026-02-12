@@ -14,6 +14,7 @@ function makePaths(home) {
     envFile: join(home, 'config', '.env'),
     identities: join(home, 'config', 'identities'),
     skills: join(home, 'config', 'skills'),
+    tools: join(home, 'config', 'tools'),
     data: join(home, 'data'),
     backups: join(home, 'backups'),
     pidFile: join(home, 'data', 'kenobot.pid'),

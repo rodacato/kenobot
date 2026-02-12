@@ -82,6 +82,7 @@ Per-chat memory is zero-config — directories are auto-created when the bot fir
 
 | Variable | Type | Default | Required | Description |
 |----------|------|---------|----------|-------------|
+| `TOOLS_DIR` | string | — | No | Directory for external tool plugins. When set, `.js` files in this directory are loaded alongside built-in tools. See [Extending](features/extending.md). |
 | `MAX_TOOL_ITERATIONS` | integer | `20` | No | Maximum tool execution rounds per message (safety valve) |
 
 ## Dev Mode

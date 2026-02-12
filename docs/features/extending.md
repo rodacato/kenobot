@@ -11,15 +11,15 @@ KenoBot has two extension mechanisms: **skills** and **tools**. They serve diffe
 | **What they are** | Instructions (markdown) that tell the LLM *how* to do something | Code (JavaScript) that *does* something |
 | **Analogy** | A recipe card | A kitchen appliance |
 | **Language** | Markdown (no coding) | JavaScript (requires coding) |
-| **Where they live** | `~/.kenobot/config/skills/<name>/` | `src/tools/<name>.js` (engine source) |
-| **Installation** | Drop a folder — no restart needed | Add a file — requires restart |
+| **Where they live** | `~/.kenobot/config/skills/<name>/` | `src/tools/` (built-in) or `$TOOLS_DIR/` (external) |
+| **Installation** | Drop a folder — no restart needed | Drop a `.js` file in `$TOOLS_DIR` — requires restart |
 | **Hot-loadable** | Yes (via approval or restart) | No (requires restart) |
-| **Who creates them** | Anyone, including the bot itself | Developers |
+| **Who creates them** | Anyone, including the bot itself | Anyone with JavaScript knowledge |
 | **Invocation** | Automatic (keyword match in user message) | LLM decision (tool_use) or user (slash command) |
 | **Runs code** | No — guides the LLM to use existing tools | Yes — executes JavaScript with full Node.js access |
 | **Context cost** | ~50 bytes at rest, full prompt only when triggered | Always present in tool definitions (~200 bytes each) |
 | **Can call tools** | Yes, by instructing the LLM to use them | N/A — they *are* the tools |
-| **Self-improvable** | Yes (`SELF_IMPROVEMENT=true`) | No |
+| **Self-improvable** | Yes (`SELF_IMPROVEMENT=true`) | Not yet (planned) |
 
 ## Decision Guide
 
@@ -171,25 +171,50 @@ Tools require writing JavaScript. Create a tool when the bot needs a new capabil
 
 ### File Structure
 
-A tool is a single `.js` file in the engine's `src/tools/` directory:
+A tool is a single `.js` file. It can live in two places:
 
 ```
+# Option A: External (recommended for custom tools)
+~/.kenobot/config/tools/
+  my-tool.js         # Requires TOOLS_DIR=~/.kenobot/config/tools in .env
+
+# Option B: Built-in (for engine contributors)
 src/tools/
-  my-tool.js         # Tool class + register() export
+  my-tool.js         # Part of the engine source
 ```
 
-### Step 1: Create the File
+Both locations use the exact same file format. External tools (`TOOLS_DIR`) are the recommended approach — they don't require modifying the engine and survive updates.
 
-Create `src/tools/my-tool.js` with two exports:
-1. A class extending `BaseTool` (default export)
-2. A `register()` function (named export)
+### Step 1: Configure TOOLS_DIR (once)
 
-### Step 2: Implement the Tool
+Add to your `.env`:
+```bash
+TOOLS_DIR=~/.kenobot/config/tools
+```
+
+The directory is created automatically by `kenobot init`.
+
+### Step 2: Create the Tool File
+
+Create `~/.kenobot/config/tools/my-tool.js` with two exports:
+1. A tool class (default export) — implements the tool interface
+2. A `register()` function (named export) — self-registration
+
+### Step 3: Implement the Tool
+
+External tools are self-contained — no imports from the engine needed. The registry uses duck typing, so just implement the required methods:
 
 ```javascript
-import BaseTool from './base.js'
-
-export default class MyTool extends BaseTool {
+/**
+ * Tool interface:
+ *   get definition()    → { name, description, input_schema } (required)
+ *   async execute(input) → string result (required)
+ *   get trigger()       → RegExp or null (optional, for slash commands)
+ *   parseTrigger(match) → object input (optional, for slash commands)
+ *   async init()        → void (optional, async setup after registration)
+ *   async stop()        → void (optional, cleanup during shutdown)
+ */
+export default class MyTool {
   // Required: Tool definition for the LLM (Anthropic tool format)
   get definition() {
     return {
@@ -242,7 +267,9 @@ export function register(registry, deps) {
 }
 ```
 
-### Step 3: Understand Available Dependencies
+> **Note**: Built-in tools (`src/tools/`) extend `BaseTool` from `./base.js`, but external tools don't need to — just implement the same methods. No imports from the engine required.
+
+### Step 4: Understand Available Dependencies
 
 The `register()` function receives a `deps` object with:
 
@@ -258,7 +285,7 @@ The `register()` function receives a `deps` object with:
 
 Use only what your tool needs. Most tools only need `deps.config`.
 
-### Step 4: Verify
+### Step 5: Verify
 
 Restart the bot. Check logs for:
 
@@ -293,9 +320,9 @@ Before deploying a custom tool:
 ### Complete Example: Dictionary Lookup Tool
 
 ```javascript
-import BaseTool from './base.js'
+// No imports needed — self-contained external tool
 
-export default class DictionaryTool extends BaseTool {
+export default class DictionaryTool {
   get definition() {
     return {
       name: 'dictionary',

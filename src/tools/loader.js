@@ -12,6 +12,9 @@ const SKIP_FILES = new Set(['base.js', 'registry.js', 'loader.js'])
  * function. Each tool decides internally whether to register based on
  * the deps (config, services, etc.) it receives.
  *
+ * Also scans an optional external directory (TOOLS_DIR) for user-provided
+ * tool plugins, loaded after built-in tools.
+ *
  * Lifecycle:
  *   loadAll()  — discover, import, register, init
  *   stop()     — call stop() on all registered tools
@@ -25,25 +28,18 @@ export default class ToolLoader {
   }
 
   /**
-   * Auto-discover and register all tools from the tools directory.
+   * Auto-discover and register all tools.
+   * Loads built-in tools first, then external tools (if TOOLS_DIR is set).
    * After registration, calls init() on tools that define it.
    */
   async loadAll() {
-    const entries = await readdir(this.toolsDir)
-    const toolFiles = entries
-      .filter(f => f.endsWith('.js') && !SKIP_FILES.has(f))
-      .sort()
+    // 1. Built-in tools (always)
+    await this._loadFromDir(this.toolsDir, { skipFiles: SKIP_FILES })
 
-    for (const file of toolFiles) {
-      try {
-        const moduleUrl = pathToFileURL(join(this.toolsDir, file)).href
-        const mod = await import(moduleUrl)
-        if (typeof mod.register === 'function') {
-          mod.register(this.registry, this.deps)
-        }
-      } catch (error) {
-        this.logger.error('tools', 'tool_load_failed', { file, error: error.message })
-      }
+    // 2. External tools (if configured)
+    const externalDir = this.deps.config?.toolsDir
+    if (externalDir) {
+      await this._loadFromDir(externalDir)
     }
 
     // Run optional init() lifecycle hook
@@ -67,6 +63,37 @@ export default class ToolLoader {
       this.logger.info('system', 'tool_loaded', { name: def.name, trigger })
     }
     this.logger.info('system', 'tools_registered', { count: this.registry.size })
+  }
+
+  /**
+   * Scan a directory for tool modules and register them.
+   * @param {string} dir - Directory to scan
+   * @param {Object} [opts]
+   * @param {Set<string>} [opts.skipFiles] - Filenames to skip
+   */
+  async _loadFromDir(dir, { skipFiles = new Set() } = {}) {
+    let entries
+    try {
+      entries = await readdir(dir)
+    } catch {
+      return // directory doesn't exist — skip silently
+    }
+
+    const toolFiles = entries
+      .filter(f => f.endsWith('.js') && !skipFiles.has(f))
+      .sort()
+
+    for (const file of toolFiles) {
+      try {
+        const moduleUrl = pathToFileURL(join(dir, file)).href
+        const mod = await import(moduleUrl)
+        if (typeof mod.register === 'function') {
+          mod.register(this.registry, this.deps)
+        }
+      } catch (error) {
+        this.logger.error('tools', 'tool_load_failed', { file, error: error.message })
+      }
+    }
   }
 
   /**

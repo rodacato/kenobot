@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mkdtemp, writeFile, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -292,6 +292,116 @@ describe('ToolLoader', () => {
       const loader2 = await createToolLoader(tmpDir, registry2, { config: { enabled: true } })
       await loader2.loadAll()
       expect(registry2.size).toBe(1)
+    })
+  })
+
+  describe('external tools directory', () => {
+    let builtinDir
+    let externalDir
+
+    beforeEach(async () => {
+      builtinDir = await mkdtemp(join(tmpdir(), 'toolloader-builtin-'))
+      externalDir = await mkdtemp(join(tmpdir(), 'toolloader-external-'))
+    })
+
+    afterEach(async () => {
+      await rm(builtinDir, { recursive: true, force: true })
+      await rm(externalDir, { recursive: true, force: true })
+    })
+
+    const basePath = join(process.cwd(), 'src/tools/base.js')
+
+    function makeTool(name) {
+      return `
+        import BaseTool from '${basePath}'
+        class Tool extends BaseTool {
+          get definition() { return { name: '${name}', description: '${name}', input_schema: { type: 'object', properties: {} } } }
+          async execute() { return '${name}' }
+        }
+        export function register(registry) { registry.register(new Tool()) }
+      `
+    }
+
+    async function createLoader(registry, deps) {
+      const { default: ToolLoader } = await import('../../src/tools/loader.js')
+      const loader = new ToolLoader(registry, deps)
+      loader.toolsDir = builtinDir
+      return loader
+    }
+
+    it('should load tools from external dir alongside built-in', async () => {
+      const registry = new ToolRegistry()
+
+      await writeFile(join(builtinDir, 'builtin.js'), makeTool('builtin_tool'))
+      await writeFile(join(externalDir, 'external.js'), makeTool('external_tool'))
+
+      const loader = await createLoader(registry, { config: { toolsDir: externalDir } })
+      await loader.loadAll()
+
+      expect(registry.size).toBe(2)
+      expect(registry.tools.has('builtin_tool')).toBe(true)
+      expect(registry.tools.has('external_tool')).toBe(true)
+    })
+
+    it('should skip gracefully when external dir does not exist', async () => {
+      const registry = new ToolRegistry()
+
+      await writeFile(join(builtinDir, 'builtin.js'), makeTool('builtin_tool'))
+
+      const loader = await createLoader(registry, { config: { toolsDir: '/tmp/nonexistent-tools-dir' } })
+      await loader.loadAll()
+
+      expect(registry.size).toBe(1)
+      expect(registry.tools.has('builtin_tool')).toBe(true)
+    })
+
+    it('should skip external loading when toolsDir is empty string', async () => {
+      const registry = new ToolRegistry()
+
+      await writeFile(join(builtinDir, 'builtin.js'), makeTool('builtin_tool'))
+
+      const loader = await createLoader(registry, { config: { toolsDir: '' } })
+      await loader.loadAll()
+
+      expect(registry.size).toBe(1)
+    })
+
+    it('should pass deps to external tool register functions', async () => {
+      const registry = new ToolRegistry()
+
+      await writeFile(join(externalDir, 'conditional.js'), `
+        import BaseTool from '${basePath}'
+        class CondTool extends BaseTool {
+          get definition() { return { name: 'cond_tool', description: 'test', input_schema: { type: 'object', properties: {} } } }
+          async execute() { return 'ok' }
+        }
+        export function register(registry, deps) {
+          if (deps.config?.myFlag) registry.register(new CondTool())
+        }
+      `)
+
+      // Without flag — should not register
+      const loader1 = await createLoader(registry, { config: { toolsDir: externalDir, myFlag: false } })
+      await loader1.loadAll()
+      expect(registry.tools.has('cond_tool')).toBe(false)
+
+      // With flag — should register
+      const registry2 = new ToolRegistry()
+      const loader2 = await createLoader(registry2, { config: { toolsDir: externalDir, myFlag: true } })
+      await loader2.loadAll()
+      expect(registry2.tools.has('cond_tool')).toBe(true)
+    })
+
+    it('should not apply SKIP_FILES filter to external dir', async () => {
+      const registry = new ToolRegistry()
+
+      // base.js in external dir should NOT be skipped (SKIP_FILES only applies to built-in)
+      await writeFile(join(externalDir, 'base.js'), makeTool('external_base'))
+
+      const loader = await createLoader(registry, { config: { toolsDir: externalDir } })
+      await loader.loadAll()
+
+      expect(registry.tools.has('external_base')).toBe(true)
     })
   })
 })
