@@ -1,7 +1,7 @@
 /**
  * BaseMemory - Interface for memory subsystems
  *
- * Consistent with BaseProvider, BaseChannel, BaseTool, BaseStorage.
+ * Consistent with BaseProvider, BaseChannel, BaseStorage.
  * All memory implementations must extend this class.
  *
  * Three tiers: global (shared across all chats), per-chat (scoped by sessionId),

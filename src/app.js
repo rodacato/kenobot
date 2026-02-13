@@ -81,9 +81,9 @@ export function createApp(config, provider, options = {}) {
   const memory = cognitive.getMemorySystem()
   logger.info('system', 'cognitive_enabled', { phase: 1 })
 
-  // ContextBuilder: No tools/skills system
-  const contextBuilder = new ContextBuilder(config, storage, cognitive, null, null, { logger })
-  const agent = new AgentLoop(bus, circuitBreaker, contextBuilder, storage, memory, null, { logger })
+  // ContextBuilder: Uses cognitive system for identity and memory
+  const contextBuilder = new ContextBuilder(config, storage, cognitive, { logger })
+  const agent = new AgentLoop(bus, circuitBreaker, contextBuilder, storage, memory, { logger })
 
   // Channels
   const channels = []

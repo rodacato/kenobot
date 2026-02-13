@@ -1,5 +1,0 @@
-{
-  "name": "self-improvement",
-  "description": "Create new skills, workflows, and propose identity changes",
-  "triggers": ["create skill", "new skill", "improve", "crear skill", "create workflow", "new workflow", "crear workflow", "self-improve", "propose change"]
-}

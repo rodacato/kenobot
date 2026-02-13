@@ -1,5 +1,0 @@
-{
-  "name": "gmail",
-  "description": "Read, send, and manage emails via Gmail through n8n workflows",
-  "triggers": ["email", "mail", "inbox", "correo", "enviar email", "check email", "gmail", "revisar correo"]
-}

@@ -1,5 +1,0 @@
-{
-  "name": "daily-summary",
-  "description": "Summarize your day: recent conversations, memories, and scheduled items",
-  "triggers": ["summary", "daily", "recap", "resumen"]
-}

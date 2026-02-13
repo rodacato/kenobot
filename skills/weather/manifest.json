@@ -1,5 +1,0 @@
-{
-  "name": "weather",
-  "description": "Get weather forecasts and current conditions for any location",
-  "triggers": ["weather", "forecast", "temperature", "clima", "tiempo"]
-}

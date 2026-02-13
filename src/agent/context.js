@@ -10,18 +10,16 @@ import defaultLogger from '../logger.js'
  *   - mock: ignores system, pattern-matches last message
  *
  * System prompt structure:
- *   [Core Identity] + [Behavioral Rules] + [Preferences] + [Bootstrap] + [Tools] + [Skills] + [Memory]
+ *   [Core Identity] + [Behavioral Rules] + [Preferences] + [Bootstrap] + [Memory]
  *
  * Uses CognitiveSystem for all identity and memory operations.
  */
 export default class ContextBuilder {
-  constructor(config, storage, cognitive, toolRegistry, skillLoader, { logger = defaultLogger } = {}) {
+  constructor(config, storage, cognitive, { logger = defaultLogger } = {}) {
     this.config = config
     this.storage = storage
     this.cognitive = cognitive
     this.memory = cognitive ? cognitive.getMemorySystem() : null
-    this.toolRegistry = toolRegistry || null
-    this.skillLoader = skillLoader || null
     this.logger = logger
 
     if (cognitive) {
@@ -36,8 +34,8 @@ export default class ContextBuilder {
    * @returns {{ system: string, messages: Array<{role: string, content: string}> }}
    */
   async build(sessionId, message) {
-    // Build system prompt: identity + tools + skills + memory
-    const { system, activeSkill } = await this._buildSystemPrompt(message.text, sessionId)
+    // Build system prompt: identity + memory
+    const system = await this._buildSystemPrompt(message.text, sessionId)
 
     // Load session history
     const historyLimit = this.config.sessionHistoryLimit ?? 20
@@ -49,16 +47,15 @@ export default class ContextBuilder {
     // Append current user message
     messages.push({ role: 'user', content: message.text })
 
-    return { system, messages, activeSkill }
+    return { system, messages }
   }
 
   /**
-   * Assemble system prompt from identity + pluggable prompt sections.
+   * Assemble system prompt from identity + memory.
    * @private
    */
   async _buildSystemPrompt(messageText = '', sessionId = null) {
     const parts = []
-    let activeSkill = null
 
     // Identity: Load from CognitiveSystem IdentityManager (if available)
     let isBootstrapping = false
@@ -83,38 +80,12 @@ export default class ContextBuilder {
       }
     }
 
-    // Collect prompt sections from pluggable sources (tools, skills)
-    const sectionContext = {
-      messageText,
-      sessionId,
-      memoryDays: this.config.memoryDays ?? 3
-    }
-
-    const sources = [this.toolRegistry, this.skillLoader].filter(Boolean)
-    const results = await Promise.allSettled(
-      sources.map(s => s.getPromptSection(sectionContext))
-    )
-
-    for (let i = 0; i < results.length; i++) {
-      const result = results[i]
-      if (result.status === 'rejected') {
-        this.logger.warn('context', 'source_failed', {
-          source: sources[i].constructor?.name || 'unknown',
-          error: result.reason?.message || String(result.reason)
-        })
-        continue
-      }
-      const section = result.value
-      if (!section) continue
-      parts.push(`\n---\n\n## ${section.label}\n${section.content}\n`)
-      if (section.metadata?.activeSkill) activeSkill = section.metadata.activeSkill
-    }
-
     // Memory section (built inline from CRUD methods)
     // SKIP during bootstrap - identity must be established first
+    const memoryDays = this.config.memoryDays ?? 3
     if (this.memory && !isBootstrapping) {
       try {
-        const memorySection = await this._buildMemorySection(sessionId, sectionContext.memoryDays, messageText)
+        const memorySection = await this._buildMemorySection(sessionId, memoryDays, messageText)
         if (memorySection) {
           parts.push(`\n---\n\n## ${memorySection.label}\n${memorySection.content}\n`)
         }
@@ -130,7 +101,7 @@ export default class ContextBuilder {
       })
     }
 
-    return { system: parts.join('\n'), activeSkill }
+    return parts.join('\n')
   }
 
   /**
