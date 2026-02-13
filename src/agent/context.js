@@ -19,12 +19,14 @@ export default class ContextBuilder {
     this.config = config
     this.storage = storage
     this.cognitive = cognitive
-    this.memory = cognitive.getMemorySystem()
+    this.memory = cognitive ? cognitive.getMemorySystem() : null
     this.toolRegistry = toolRegistry || null
     this.skillLoader = skillLoader || null
     this.logger = logger
 
-    logger.info('context', 'cognitive_system_ready')
+    if (cognitive) {
+      logger.info('context', 'cognitive_system_ready')
+    }
   }
 
   /**
@@ -58,18 +60,20 @@ export default class ContextBuilder {
     const parts = []
     let activeSkill = null
 
-    // Identity: Load from CognitiveSystem IdentityManager
-    const identityManager = this.cognitive.getIdentityManager()
-    const { core, behavioralRules, preferences, bootstrap } = await identityManager.buildContext()
+    // Identity: Load from CognitiveSystem IdentityManager (if available)
+    if (this.cognitive) {
+      const identityManager = this.cognitive.getIdentityManager()
+      const { core, behavioralRules, preferences, bootstrap } = await identityManager.buildContext()
 
-    if (core) parts.push(core)
-    if (behavioralRules) parts.push('\n---\n\n' + behavioralRules)
-    if (preferences) parts.push('\n---\n\n## Preferences\n' + preferences)
+      if (core) parts.push(core)
+      if (behavioralRules) parts.push('\n---\n\n' + behavioralRules)
+      if (preferences) parts.push('\n---\n\n## Preferences\n' + preferences)
 
-    // Bootstrap if needed
-    if (bootstrap) {
-      this.logger.info('context', 'bootstrap_injected', { length: bootstrap.length })
-      parts.push('\n---\n\n## First Conversation — Bootstrap\n' + bootstrap)
+      // Bootstrap if needed
+      if (bootstrap) {
+        this.logger.info('context', 'bootstrap_injected', { length: bootstrap.length })
+        parts.push('\n---\n\n## First Conversation — Bootstrap\n' + bootstrap)
+      }
     }
 
     // Collect prompt sections from pluggable sources (tools, skills)
@@ -126,7 +130,9 @@ export default class ContextBuilder {
    * @returns {Promise<{ label: string, content: string }|null>}
    */
   async _buildMemorySection(sessionId, memoryDays = 3, messageText = '') {
-    // Use CognitiveSystem to build memory context
+    // Use CognitiveSystem to build memory context (if available)
+    if (!this.cognitive) return null
+
     const context = await this.cognitive.buildContext(sessionId, messageText)
     const longTerm = context.memory.longTerm
     const recentNotes = context.memory.recentNotes
