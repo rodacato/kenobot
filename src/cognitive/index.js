@@ -1,6 +1,9 @@
 import MemorySystem from './memory/memory-system.js'
 import RetrievalEngine from './retrieval/retrieval-engine.js'
+import IdentityManager from './identity/identity-manager.js'
 import defaultLogger from '../logger.js'
+import { join } from 'node:path'
+import { homedir } from 'node:os'
 
 /**
  * CognitiveSystem - Main facade for cognitive architecture
@@ -32,8 +35,10 @@ export default class CognitiveSystem {
     this.retrieval = new RetrievalEngine(this.memory, { logger })
     this.useRetrieval = config.useRetrieval !== false // Default: true
 
-    // Phase 5+: Will add
-    // this.identity = new IdentityManager(...)
+    // Phase 5: Initialize identity manager
+    const identityPath = join(homedir(), '.kenobot', 'memory', 'identity')
+    this.identity = new IdentityManager(identityPath, { logger })
+    this.useIdentity = config.useIdentity !== false // Default: true
   }
 
   /**
@@ -177,5 +182,13 @@ export default class CognitiveSystem {
    */
   getMemorySystem() {
     return this.memory
+  }
+
+  /**
+   * Get identity manager.
+   * @returns {IdentityManager}
+   */
+  getIdentityManager() {
+    return this.identity
   }
 }
