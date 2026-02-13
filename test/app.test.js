@@ -60,8 +60,6 @@ describe('createApp', () => {
     expect(app).toHaveProperty('channels')
     expect(app).toHaveProperty('watchdog')
     expect(app).toHaveProperty('scheduler')
-    expect(app).toHaveProperty('toolLoader')
-    expect(app).toHaveProperty('toolRegistry')
     expect(app).toHaveProperty('circuitBreaker')
     expect(app).toHaveProperty('storage')
     expect(app).toHaveProperty('memory')
@@ -114,12 +112,6 @@ describe('createApp', () => {
     expect(app.circuitBreaker).not.toBe(provider)
   })
 
-  it('should set maxToolIterations from config', () => {
-    config.maxToolIterations = 10
-    const app = createApp(config, provider)
-
-    expect(app.agent.maxToolIterations).toBe(10)
-  })
 
   it('should create isolated loggers per instance', () => {
     const app1 = createApp(config, provider)

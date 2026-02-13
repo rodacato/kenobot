@@ -10,13 +10,9 @@ import CognitiveSystem from './cognitive/index.js'
 import IdentityLoader from './agent/identity.js'
 import ContextBuilder from './agent/context.js'
 import AgentLoop from './agent/loop.js'
-import ToolRegistry from './tools/registry.js'
-import ToolLoader from './tools/loader.js'
-import SkillLoader from './skills/loader.js'
 import Scheduler from './scheduler/scheduler.js'
 import CircuitBreakerProvider from './providers/circuit-breaker.js'
 import Watchdog from './watchdog.js'
-import { initWorkspace } from './workspace.js'
 import { writePid, removePid } from './health.js'
 import { setupNotifications } from './notifications.js'
 import { CONFIG_CHANGED, APPROVAL_APPROVED, ERROR } from './events.js'
@@ -78,7 +74,6 @@ export function createApp(config, provider, options = {}) {
   const scheduler = new Scheduler(bus, config.dataDir, { logger })
   const storage = new FilesystemStorage(config, { logger })
   const identityLoader = new IdentityLoader(config.identityFile, { logger })
-  const skillLoader = new SkillLoader(config.skillsDir, { logger })
 
   // Memory system: Always use CognitiveSystem
   const memoryStore = new MemoryStore(config.dataDir, { logger })
@@ -86,15 +81,9 @@ export function createApp(config, provider, options = {}) {
   const memory = cognitive.getMemorySystem()
   logger.info('system', 'cognitive_enabled', { phase: 1 })
 
-  const toolRegistry = new ToolRegistry()
-  const toolLoader = new ToolLoader(toolRegistry, {
-    config, scheduler, watchdog, circuitBreaker, bus, skillLoader, identityLoader, logger
-  })
-
-  // ContextBuilder: Always use cognitive system (legacy removed)
-  const contextBuilder = new ContextBuilder(config, storage, cognitive, toolRegistry, skillLoader, { logger })
-  const agent = new AgentLoop(bus, circuitBreaker, contextBuilder, storage, memory, toolRegistry, { logger })
-  agent.maxToolIterations = config.maxToolIterations
+  // ContextBuilder: No tools/skills system
+  const contextBuilder = new ContextBuilder(config, storage, cognitive, null, null, { logger })
+  const agent = new AgentLoop(bus, circuitBreaker, contextBuilder, storage, memory, null, { logger })
 
   // Channels
   const channels = []
@@ -127,16 +116,6 @@ export function createApp(config, provider, options = {}) {
   async function start() {
     await writePid()
 
-    if (config.workspaceDir) {
-      await initWorkspace(config.workspaceDir, { sshKeyPath: config.sshKeyPath, logger })
-      logger.info('system', 'workspace_initialized', { dir: config.workspaceDir })
-    }
-
-    await toolLoader.loadAll()
-
-    await skillLoader.loadAll()
-    logger.info('system', 'skills_loaded', { count: skillLoader.size })
-
     await scheduler.loadTasks()
     logger.info('system', 'scheduler_loaded', { tasks: scheduler.size })
 
@@ -147,7 +126,6 @@ export function createApp(config, provider, options = {}) {
 
   async function stop() {
     await removePid()
-    await toolLoader.stop()
     watchdog.stop()
     scheduler.stop()
     agent.stop()
@@ -160,8 +138,6 @@ export function createApp(config, provider, options = {}) {
     channels,
     watchdog,
     scheduler,
-    toolLoader,
-    toolRegistry,
     circuitBreaker,
     storage,
     memory,
