@@ -34,7 +34,6 @@ describe('SleepCycle', () => {
     it('should initialize all consolidation components', () => {
       expect(sleepCycle.consolidator).toBeDefined()
       expect(sleepCycle.errorAnalyzer).toBeDefined()
-      expect(sleepCycle.selfImprover).toBeDefined()
       expect(sleepCycle.pruner).toBeDefined()
     })
   })
@@ -46,7 +45,6 @@ describe('SleepCycle', () => {
       expect(result.success).toBe(true)
       expect(result.phases).toHaveProperty('consolidation')
       expect(result.phases).toHaveProperty('errorAnalysis')
-      expect(result.phases).toHaveProperty('selfImprovement')
       expect(result.phases).toHaveProperty('pruning')
       expect(result.duration).toBeGreaterThanOrEqual(0)
     })

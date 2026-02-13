@@ -1,6 +1,5 @@
 import Consolidator from './consolidator.js'
 import ErrorAnalyzer from './error-analyzer.js'
-import SelfImprover from './self-improver.js'
 import MemoryPruner from './memory-pruner.js'
 import defaultLogger from '../../logger.js'
 
@@ -10,8 +9,7 @@ import defaultLogger from '../../logger.js'
  * Runs at 4am (or manually via `kenobot sleep`) to:
  * 1. Consolidate episodic → semantic/procedural
  * 2. Analyze errors and extract lessons
- * 3. Generate self-improvement proposals
- * 4. Prune stale/redundant memory
+ * 3. Prune stale/redundant memory
  *
  * Phase 4: Basic orchestration with resilience
  * Phase 6: ML-based consolidation (embeddings, clustering)
@@ -24,7 +22,6 @@ export default class SleepCycle {
     // Initialize consolidation components
     this.consolidator = new Consolidator(memorySystem, { logger })
     this.errorAnalyzer = new ErrorAnalyzer(memorySystem, { logger })
-    this.selfImprover = new SelfImprover(memorySystem, { logger })
     this.pruner = new MemoryPruner(memorySystem, { logger })
 
     this.state = {
@@ -49,7 +46,6 @@ export default class SleepCycle {
     const results = {
       consolidation: null,
       errorAnalysis: null,
-      selfImprovement: null,
       pruning: null
     }
 
@@ -64,12 +60,7 @@ export default class SleepCycle {
       this.logger.info('sleep-cycle', 'phase_start', { phase: 'error-analysis' })
       results.errorAnalysis = await this.errorAnalyzer.run()
 
-      // Phase 3: Self-Improvement
-      this.state.currentPhase = 'self-improvement'
-      this.logger.info('sleep-cycle', 'phase_start', { phase: 'self-improvement' })
-      results.selfImprovement = await this.selfImprover.run()
-
-      // Phase 4: Memory Pruning
+      // Phase 3: Memory Pruning
       this.state.currentPhase = 'pruning'
       this.logger.info('sleep-cycle', 'phase_start', { phase: 'pruning' })
       results.pruning = await this.pruner.run()
