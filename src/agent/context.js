@@ -95,8 +95,25 @@ export default class ContextBuilder {
     const parts = []
     let activeSkill = null
 
-    // Identity: IdentityLoader (modular) or legacy single file
-    if (this.identityLoader) {
+    // Identity: Use CognitiveSystem IdentityManager if available, otherwise IdentityLoader
+    if (this._useCognitive && this.cognitive) {
+      const identityManager = this.cognitive.getIdentityManager()
+
+      // Load identity components via buildContext()
+      const { core, behavioralRules, preferences, bootstrap } = await identityManager.buildContext()
+
+      if (core) parts.push(core)
+      if (behavioralRules) parts.push('\n---\n\n' + behavioralRules)
+      if (preferences) parts.push('\n---\n\n## Preferences\n' + preferences)
+
+      // Bootstrap if needed
+      if (bootstrap) {
+        this.logger.info('context', 'bootstrap_injected', { length: bootstrap.length })
+        parts.push('\n---\n\n## First Conversation — Bootstrap\n' + bootstrap)
+      }
+      this.logger.info('context', 'identity_loaded', { source: 'cognitive' })
+    } else if (this.identityLoader) {
+      // Legacy: Use IdentityLoader
       const soul = this.identityLoader.getSoul()
       if (soul) parts.push(soul)
 
@@ -120,8 +137,10 @@ export default class ContextBuilder {
         this.logger.info('context', 'bootstrap_injected', { length: bootstrap.length })
         parts.push('\n---\n\n## First Conversation — Bootstrap\n' + bootstrap)
       }
+      this.logger.info('context', 'identity_loaded', { source: 'legacy' })
     } else {
       parts.push(this._identity)
+      this.logger.info('context', 'identity_loaded', { source: 'file' })
     }
 
     // Collect prompt sections from pluggable sources (tools, skills)
@@ -154,7 +173,7 @@ export default class ContextBuilder {
     // Memory section (built inline from CRUD methods)
     if (this.memory) {
       try {
-        const memorySection = await this._buildMemorySection(sessionId, sectionContext.memoryDays)
+        const memorySection = await this._buildMemorySection(sessionId, sectionContext.memoryDays, messageText)
         if (memorySection) {
           parts.push(`\n---\n\n## ${memorySection.label}\n${memorySection.content}\n`)
         }
@@ -174,14 +193,15 @@ export default class ContextBuilder {
    * @private
    * @param {string|null} sessionId
    * @param {number} memoryDays
+   * @param {string} messageText - User message for retrieval
    * @returns {Promise<{ label: string, content: string }|null>}
    */
-  async _buildMemorySection(sessionId, memoryDays = 3) {
+  async _buildMemorySection(sessionId, memoryDays = 3, messageText = '') {
     let longTerm, recentNotes, chatLongTerm, chatRecent, workingMemoryResult
 
     // Phase 1: Use CognitiveSystem if available (new path)
     if (this._useCognitive && this.cognitive) {
-      const context = await this.cognitive.buildContext(sessionId, '')
+      const context = await this.cognitive.buildContext(sessionId, messageText)
       longTerm = context.memory.longTerm
       recentNotes = context.memory.recentNotes
       chatLongTerm = context.memory.chatLongTerm
