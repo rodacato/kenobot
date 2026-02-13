@@ -129,50 +129,16 @@ phase2_main() {
   ln -sf "$kenobot_dir/src/cli.js" "$HOME/.npm-global/bin/kenobot"
   log_info "kenobot $(kenobot version 2>/dev/null || echo 'installed')"
 
-  # Install CLI tools
-  if [ "${INSTALL_CLAUDE_CLI:-false}" = "true" ]; then
-    log_step "Installing Claude Code CLI"
-    if command -v claude &>/dev/null; then
-      log_info "claude already installed"
-    else
-      curl -fsSL https://claude.ai/install.sh | bash 2>&1 | tail -1
-
-      # Add ~/.local/bin to PATH if not already there
-      if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-        export PATH="$HOME/.local/bin:$PATH"
-        log_info "Added ~/.local/bin to PATH in ~/.bashrc"
-      fi
-
-      log_info "Claude Code CLI installed"
-    fi
-  fi
-
-  if [ "${INSTALL_GEMINI_CLI:-false}" = "true" ]; then
-    log_step "Installing Gemini CLI"
-    if command -v gemini &>/dev/null; then
-      log_info "gemini already installed"
-    else
-      npm install -g @google/gemini-cli 2>&1 | tail -1
-      log_info "Gemini CLI installed"
-    fi
-  fi
-
-  if [ "${INSTALL_N8N:-true}" = "true" ]; then
-    log_step "Installing n8n"
-    if command -v n8n &>/dev/null; then
-      log_info "n8n already installed"
-    else
-      npm install -g n8n 2>&1 | tail -1
-      log_info "n8n installed"
-    fi
-  else
-    log_info "n8n skipped"
-  fi
-
+  # Build init command with appropriate flags
   log_step "Initializing KenoBot"
-  kenobot init 2>&1 || true
-  log_info "~/.kenobot/ scaffolded"
+  INIT_FLAGS=""
+  [ "${INSTALL_CLAUDE_CLI:-false}" = "true" ] && INIT_FLAGS="$INIT_FLAGS --install-claude"
+  [ "${INSTALL_GEMINI_CLI:-false}" = "true" ] && INIT_FLAGS="$INIT_FLAGS --install-gemini"
+  [ "${INSTALL_N8N:-true}" = "true" ] && INIT_FLAGS="$INIT_FLAGS --install-n8n"
+
+  # shellcheck disable=SC2086
+  kenobot setup $INIT_FLAGS 2>&1 || true
+  log_info "KenoBot initialized"
 
   # Write .env with collected configuration
   phase2_write_env

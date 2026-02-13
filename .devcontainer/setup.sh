@@ -18,10 +18,10 @@ echo "--- Dependencies ---"
 npm install
 npm link 2>/dev/null || true
 
-# 3. Scaffold ~/.kenobot/ (skips existing files)
+# 3. Initialize KenoBot (creates directories + installs CLI tools)
 echo ""
 echo "--- Init ~/.kenobot/ ---"
-kenobot init
+kenobot setup --install-claude
 
 # 4. Patch ~/.kenobot/config/.env with forwarded host env vars
 ENV_FILE="$HOME/.kenobot/config/.env"
