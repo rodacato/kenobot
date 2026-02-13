@@ -16,7 +16,6 @@ import SkillLoader from './skills/loader.js'
 import Scheduler from './scheduler/scheduler.js'
 import CircuitBreakerProvider from './providers/circuit-breaker.js'
 import Watchdog from './watchdog.js'
-import ConfigSync from './config-sync.js'
 import { initWorkspace } from './workspace.js'
 import { writePid, removePid } from './health.js'
 import { setupNotifications } from './notifications.js'
@@ -31,7 +30,6 @@ import { CONFIG_CHANGED, APPROVAL_APPROVED, ERROR } from './events.js'
  * @param {Object} config - Config object (from createConfig or config singleton)
  * @param {Object} provider - Provider instance (already created, e.g. from registry)
  * @param {Object} [options]
- * @param {string} [options.homePath] - KenoBot home dir for ConfigSync
  * @param {Object} [options.logger] - Logger instance (default: new Logger per instance)
  */
 export function createApp(config, provider, options = {}) {
@@ -75,17 +73,6 @@ export function createApp(config, provider, options = {}) {
 
   // Notifications
   setupNotifications(bus, config)
-
-  // Config sync
-  const homePath = options.homePath || join(homedir(), '.kenobot')
-  const configSync = new ConfigSync(homePath, {
-    repoUrl: config.configRepo,
-    sshKeyPath: config.sshKeyPath,
-    logger
-  })
-
-  bus.on(CONFIG_CHANGED, ({ reason }) => configSync.schedule(reason))
-  bus.on(APPROVAL_APPROVED, () => configSync.schedule('approval activated'))
 
   // Core components
   const scheduler = new Scheduler(bus, config.dataDir, { logger })
@@ -153,8 +140,6 @@ export function createApp(config, provider, options = {}) {
     await scheduler.loadTasks()
     logger.info('system', 'scheduler_loaded', { tasks: scheduler.size })
 
-    await configSync.init()
-
     await agent.start()
     await Promise.all(channels.map(ch => ch.start()))
     watchdog.start()
@@ -166,8 +151,6 @@ export function createApp(config, provider, options = {}) {
     watchdog.stop()
     scheduler.stop()
     agent.stop()
-    await configSync.flush()
-    configSync.stop()
     await Promise.all(channels.map(ch => ch.stop()))
   }
 
@@ -177,7 +160,6 @@ export function createApp(config, provider, options = {}) {
     channels,
     watchdog,
     scheduler,
-    configSync,
     toolLoader,
     toolRegistry,
     circuitBreaker,

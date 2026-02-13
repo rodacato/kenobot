@@ -60,7 +60,6 @@ describe('createApp', () => {
     expect(app).toHaveProperty('channels')
     expect(app).toHaveProperty('watchdog')
     expect(app).toHaveProperty('scheduler')
-    expect(app).toHaveProperty('configSync')
     expect(app).toHaveProperty('toolLoader')
     expect(app).toHaveProperty('toolRegistry')
     expect(app).toHaveProperty('circuitBreaker')
