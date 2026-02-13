@@ -10,51 +10,21 @@ import defaultLogger from '../logger.js'
  *   - mock: ignores system, pattern-matches last message
  *
  * System prompt structure:
- *   [SOUL.md] + [IDENTITY.md] + [User Profile] + [Available tools] + [Available skills] + [Memory]
+ *   [Core Identity] + [Behavioral Rules] + [Preferences] + [Bootstrap] + [Tools] + [Skills] + [Memory]
  *
- * Phase 1: Accepts CognitiveSystem OR FileMemory (backward compatible)
- * Phase 2+: Will only use CognitiveSystem
+ * Uses CognitiveSystem for all identity and memory operations.
  */
 export default class ContextBuilder {
-  constructor(config, storage, memoryManager, toolRegistry, skillLoader, identityLoader, { logger = defaultLogger } = {}) {
+  constructor(config, storage, cognitive, toolRegistry, skillLoader, { logger = defaultLogger } = {}) {
     this.config = config
     this.storage = storage
-
-    // Support both CognitiveSystem (new) and FileMemory (legacy)
-    // Detect by checking for getMemorySystem() method
-    if (memoryManager && typeof memoryManager.getMemorySystem === 'function') {
-      this.cognitive = memoryManager
-      this.memory = memoryManager.getMemorySystem()
-      this._useCognitive = true
-      logger.info('context', 'cognitive_system_detected', { useCognitive: true })
-    } else {
-      this.cognitive = null
-      this.memory = memoryManager || null
-      this._useCognitive = false
-      logger.info('context', 'legacy_memory_detected', { useCognitive: false })
-    }
-
+    this.cognitive = cognitive
+    this.memory = cognitive.getMemorySystem()
     this.toolRegistry = toolRegistry || null
     this.skillLoader = skillLoader || null
-    this.identityLoader = identityLoader || null
     this.logger = logger
-    this._identity = null
-  }
 
-  /**
-   * Load identity files and cache them.
-   * Called once at startup by AgentLoop.
-   */
-  async loadIdentity() {
-    if (this.identityLoader) {
-      await this.identityLoader.load()
-      this.logger.info('context', 'identity_loaded', { loader: true })
-    } else {
-      // Legacy path: no IdentityLoader, read single file via storage
-      const identityFile = this.config.identityFile || 'identities/kenobot'
-      this._identity = await this.storage.readFile(identityFile)
-      this.logger.info('context', 'identity_loaded', { file: identityFile, length: this._identity.length })
-    }
+    logger.info('context', 'cognitive_system_ready')
   }
 
   /**
@@ -64,15 +34,6 @@ export default class ContextBuilder {
    * @returns {{ system: string, messages: Array<{role: string, content: string}> }}
    */
   async build(sessionId, message) {
-    // Ensure identity is loaded
-    if (this.identityLoader) {
-      if (!this.identityLoader.getSoul()) {
-        await this.loadIdentity()
-      }
-    } else if (!this._identity) {
-      await this.loadIdentity()
-    }
-
     // Build system prompt: identity + tools + skills + memory
     const { system, activeSkill } = await this._buildSystemPrompt(message.text, sessionId)
 
@@ -97,52 +58,18 @@ export default class ContextBuilder {
     const parts = []
     let activeSkill = null
 
-    // Identity: Use CognitiveSystem IdentityManager if available, otherwise IdentityLoader
-    if (this._useCognitive && this.cognitive) {
-      const identityManager = this.cognitive.getIdentityManager()
+    // Identity: Load from CognitiveSystem IdentityManager
+    const identityManager = this.cognitive.getIdentityManager()
+    const { core, behavioralRules, preferences, bootstrap } = await identityManager.buildContext()
 
-      // Load identity components via buildContext()
-      const { core, behavioralRules, preferences, bootstrap } = await identityManager.buildContext()
+    if (core) parts.push(core)
+    if (behavioralRules) parts.push('\n---\n\n' + behavioralRules)
+    if (preferences) parts.push('\n---\n\n## Preferences\n' + preferences)
 
-      if (core) parts.push(core)
-      if (behavioralRules) parts.push('\n---\n\n' + behavioralRules)
-      if (preferences) parts.push('\n---\n\n## Preferences\n' + preferences)
-
-      // Bootstrap if needed
-      if (bootstrap) {
-        this.logger.info('context', 'bootstrap_injected', { length: bootstrap.length })
-        parts.push('\n---\n\n## First Conversation — Bootstrap\n' + bootstrap)
-      }
-      this.logger.info('context', 'identity_loaded', { source: 'cognitive' })
-    } else if (this.identityLoader) {
-      // Legacy: Use IdentityLoader
-      const soul = this.identityLoader.getSoul()
-      if (soul) parts.push(soul)
-
-      const identity = this.identityLoader.getIdentity()
-      if (identity) parts.push('\n---\n\n' + identity)
-
-      const user = await this.identityLoader.getUser()
-      if (user) {
-        const userSection = [
-          '\n---\n',
-          '## User Profile\n',
-          user + '\n',
-          '_Learn something new? Save it: `<user>category: detail</user>` (one line, don\'t duplicate)_\n'
-        ]
-        parts.push(userSection.join('\n'))
-      }
-
-      // Bootstrap prompt for first-conversation onboarding
-      const bootstrap = await this.identityLoader.getBootstrap()
-      if (bootstrap) {
-        this.logger.info('context', 'bootstrap_injected', { length: bootstrap.length })
-        parts.push('\n---\n\n## First Conversation — Bootstrap\n' + bootstrap)
-      }
-      this.logger.info('context', 'identity_loaded', { source: 'legacy' })
-    } else {
-      parts.push(this._identity)
-      this.logger.info('context', 'identity_loaded', { source: 'file' })
+    // Bootstrap if needed
+    if (bootstrap) {
+      this.logger.info('context', 'bootstrap_injected', { length: bootstrap.length })
+      parts.push('\n---\n\n## First Conversation — Bootstrap\n' + bootstrap)
     }
 
     // Collect prompt sections from pluggable sources (tools, skills)
@@ -199,30 +126,13 @@ export default class ContextBuilder {
    * @returns {Promise<{ label: string, content: string }|null>}
    */
   async _buildMemorySection(sessionId, memoryDays = 3, messageText = '') {
-    let longTerm, recentNotes, chatLongTerm, chatRecent, workingMemoryResult
-
-    // Phase 1: Use CognitiveSystem if available (new path)
-    if (this._useCognitive && this.cognitive) {
-      const context = await this.cognitive.buildContext(sessionId, messageText)
-      longTerm = context.memory.longTerm
-      recentNotes = context.memory.recentNotes
-      chatLongTerm = context.memory.chatLongTerm
-      chatRecent = context.memory.chatRecent
-      workingMemoryResult = context.workingMemory
-    } else {
-      // Legacy path: Use FileMemory directly
-      const promises = [
-        this.memory.getLongTermMemory(),
-        this.memory.getRecentDays(memoryDays)
-      ]
-      if (sessionId) {
-        promises.push(this.memory.getChatLongTermMemory(sessionId))
-        promises.push(this.memory.getChatRecentDays(sessionId, memoryDays))
-        promises.push(this.memory.getWorkingMemory(sessionId))
-      }
-
-      [longTerm, recentNotes, chatLongTerm, chatRecent, workingMemoryResult] = await Promise.all(promises)
-    }
+    // Use CognitiveSystem to build memory context
+    const context = await this.cognitive.buildContext(sessionId, messageText)
+    const longTerm = context.memory.longTerm
+    const recentNotes = context.memory.recentNotes
+    const chatLongTerm = context.memory.chatLongTerm
+    const chatRecent = context.memory.chatRecent
+    const workingMemoryResult = context.workingMemory
 
     // Filter stale working memory (>7 days by default)
     const staleDays = this.config.workingMemoryStaleThreshold ?? 7
