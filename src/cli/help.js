@@ -7,6 +7,7 @@ Commands:
                       --install-gemini   Install Gemini CLI
                       --install-n8n      Install n8n workflow automation
                       --install-all      Install all of the above
+  init-cognitive      Initialize cognitive architecture in ~/.kenobot/memory/
   dev                 Start with auto-reload (uses ~/.kenobot/ paths)
   start [-d]          Start the bot (foreground, or -d for daemon)
   stop                Stop the daemon
@@ -14,12 +15,6 @@ Commands:
   status              Show bot health and uptime
   logs [--today]      Tail logs or show a specific day
   config [edit]       Show config or open .env in $EDITOR
-  backup              Backup config/ and data/ to ~/.kenobot/backups/
-  purge [opts]        Reset runtime data (sessions, logs, scheduler)
-                      --memory  Also clear memory files
-                      --all     Clear everything except config
-                      --yes     Skip confirmation
-                      --no-backup  Skip auto-backup before purge
   reset [opts]        Reset cognitive system (dev/testing only)
                       --memory    Reset episodes/facts/working memory
                       --identity  Force re-bootstrap (keep memory)
@@ -27,10 +22,6 @@ Commands:
                       --yes       Skip confirmation
   doctor              Diagnose common problems (config, skills, disk)
   update [--check]    Update to latest release tag
-  migrate <path>      Copy user files from old-style layout
-  audit               Run security audit
-  install-service     Generate systemd user service
-  setup-tunnel        Generate cloudflared tunnel config
   version             Show version
   help                Show this help
 

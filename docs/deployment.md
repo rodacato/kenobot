@@ -1,6 +1,6 @@
 # Deployment
 
-> Running KenoBot on a VPS with systemd and backups. Designed for a $4/month Hetzner server (2vCPU, 4GB RAM, 40GB disk).
+> Running KenoBot on a VPS with systemd. Designed for a $4/month Hetzner server (2vCPU, 4GB RAM, 40GB disk).
 
 ## One-Liner VPS Setup
 
@@ -129,7 +129,6 @@ kenobot restart        # Stop + start -d
 Generate and enable a systemd user service:
 
 ```bash
-kenobot install-service
 ```
 
 This creates `~/.config/systemd/user/kenobot.service` and enables it. Then:
@@ -165,7 +164,6 @@ kenobot setup
 kenobot config edit
 
 # Install systemd service
-kenobot install-service
 ```
 
 ## Backups
@@ -173,17 +171,13 @@ kenobot install-service
 ### Manual
 
 ```bash
-kenobot backup
-# Backup created: ~/.kenobot/backups/kenobot-20260207-143000.tar.gz
 ```
 
-Backs up `~/.kenobot/config/` and `~/.kenobot/data/`. Keeps the last 30 backups.
 
 ### Automated (cron)
 
 ```cron
 # Daily backup at 2 AM
-0 2 * * * kenobot backup
 ```
 
 ### What's Backed Up
@@ -245,7 +239,6 @@ kenobot stop && kenobot start -d
 ## Security Audit
 
 ```bash
-kenobot audit
 ```
 
 Checks for exposed secrets, file permissions, and common security issues.
@@ -264,7 +257,6 @@ Checks for exposed secrets, file permissions, and common security issues.
     logs/                     # Structured JSONL logs (daily rotation)
     scheduler/                # Cron task definitions
     kenobot.pid               # PID file (when running)
-  backups/                    # Backup archives (tar.gz)
 ```
 
 ## Integrations
@@ -337,9 +329,6 @@ The `claude-cli` provider uses `spawn()` with `stdio: ['ignore', 'pipe', 'pipe']
 To start fresh without losing your configuration:
 
 ```bash
-kenobot purge                # Clear sessions, logs, scheduler (preserves memory)
-kenobot purge --memory       # Also clear memory files (restores MEMORY.md template)
-kenobot purge --all          # Clear everything except config/.env, identities, skills
 ```
 
 Options:

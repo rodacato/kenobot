@@ -258,7 +258,6 @@ This opens a browser to authorize cloudflared with your Cloudflare account. Sele
 ### 3.3 Generate config with KenoBot CLI
 
 ```bash
-kenobot setup-tunnel --domain bot.example.com
 ```
 
 This creates `~/.kenobot/config/cloudflared.yml`. Edit it to update the credentials file path.

@@ -22,7 +22,7 @@ if (!existsSync(paths.home) && subcommand !== 'setup' && subcommand !== 'help' &
 }
 
 const commands = {
-  setup:              () => import('./cli/setup.js'),
+  setup:             () => import('./cli/setup.js'),
   'init-cognitive':  () => import('./cli/init-cognitive.js'),
   dev:               () => import('./cli/dev.js'),
   start:             () => import('./cli/start.js'),
@@ -30,16 +30,10 @@ const commands = {
   restart:           () => import('./cli/restart.js'),
   status:            () => import('./cli/status.js'),
   logs:              () => import('./cli/logs.js'),
-  update:            () => import('./cli/update.js'),
-  backup:            () => import('./cli/backup.js'),
   config:            () => import('./cli/config-cmd.js'),
-  migrate:           () => import('./cli/migrate.js'),
-  purge:             () => import('./cli/purge.js'),
   reset:             () => import('./cli/reset.js'),
   doctor:            () => import('./cli/doctor.js'),
-  audit:             () => import('./cli/audit.js'),
-  'install-service': () => import('./cli/install-service.js'),
-  'setup-tunnel':    () => import('./cli/setup-tunnel.js'),
+  update:            () => import('./cli/update.js'),
   version:           () => import('./cli/version.js'),
   help:              () => import('./cli/help.js'),
 }
