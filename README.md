@@ -251,6 +251,65 @@ kenobot/                       # Engine (framework code, updatable)
 
 ## Contributing
 
+Contributions are welcome! We organize contribution opportunities by **impact level** to help you find the right starting point.
+
+### 🟢 Low-Risk Contributions (Great First Issues)
+
+**Documentation** - Improve clarity, fix typos, add examples:
+- Quickstart guides ([docs/quickstart/](docs/quickstart/))
+- Reference documentation ([docs/reference/](docs/reference/))
+- Code comments and JSDoc
+
+**Tests** - Increase coverage, improve reliability:
+- Unit tests for tools, providers, utilities
+- Integration tests for message flows
+- E2E tests for real-world scenarios
+
+**Examples** - Help new users get started:
+- Skill plugins ([templates/skills/](templates/skills/))
+- Tool examples with complete walkthroughs
+- Configuration examples for common setups
+
+### 🟡 Medium-Risk Contributions (Familiar with Codebase)
+
+**Tools** - Extend bot capabilities:
+- New tools (see [docs/quickstart/your-first-tool.md](docs/quickstart/) for guide)
+- Tool improvements (error handling, validation, UX)
+- Test coverage for existing tools
+
+**Providers** - Add LLM support:
+- New providers (Gemini, Ollama, OpenAI)
+- Provider improvements (streaming, embeddings)
+- Contract tests for consistency
+
+**Channels** - Connect to more platforms:
+- New channels (Discord, Slack, WhatsApp)
+- Channel improvements (media support, formatting)
+- Authentication patterns
+
+### 🔴 High-Risk Contributions (Core Maintainers)
+
+**Core Components** - Requires deep understanding:
+- Agent loop (`src/agent/loop.js`)
+- Message bus (`src/bus.js`)
+- Context builder (`src/agent/context.js`)
+- Storage layer (`src/storage/`)
+
+**IMPORTANT:** Changes to core components require:
+- Architecture discussion first (open an issue)
+- 100% test coverage for new code
+- Integration tests demonstrating correctness
+- Approval from maintainers
+
+### Current Focus Areas
+
+We're actively looking for help with:
+
+1. **📝 Documentation** - Completing two-track docs (beginner/advanced)
+2. **🧪 Testing** - Reaching 90% code coverage
+3. **🔧 Tools** - Building more useful tools (email, calendar, notes, etc.)
+4. **🤖 Providers** - Adding Gemini, Ollama, OpenAI support
+
 See [CONTRIBUTING.md](CONTRIBUTING.md) for commit conventions, testing guidelines, and branching strategy.
 
 ## Acknowledgments

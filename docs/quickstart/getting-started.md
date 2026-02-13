@@ -416,8 +416,8 @@ PROVIDER=claude-cli
 
 - [Telegram BotFather](https://t.me/botfather) - Create bots
 - [Telegram UserInfo Bot](https://t.me/userinfobot) - Get your Chat ID
-- [Architecture](architecture.md) - System design
-- [Configuration](configuration.md) - All environment variables
+- [Architecture](../reference/architecture.md) - System design
+- [Configuration](../reference/configuration.md) - All environment variables
 
 ---
 

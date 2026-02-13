@@ -1,25 +1,50 @@
 # Documentation
 
-## Guides
+KenoBot documentation is organized in **two tracks** to serve different audiences:
+
+## 🚀 Quickstart (For Beginners)
+
+**Start here if you're new to KenoBot or want step-by-step guides.**
 
 | Document | Description |
 |----------|-------------|
-| [Getting Started](getting-started.md) | Step-by-step first-time setup |
-| [Architecture](architecture.md) | How the system works internally — components, message flow, design patterns |
-| [Configuration](configuration.md) | Complete environment variable reference |
-| [Deployment](deployment.md) | VPS setup, systemd, auto-recovery, backups |
+| [Getting Started](quickstart/getting-started.md) | First-time setup and basic usage |
+| [Deployment Guide](deployment.md) | VPS setup, systemd, auto-recovery, backups |
+| [Integrations](integrations-guide.md) | Connect KenoBot with external services |
 
-## Feature Guides
+**Tutorials & How-Tos:**
+- [VPS Setup](guides/vps-setup.md) - Deploy to a production server
+- [Cloudflared Tunnel](guides/cloudflared.md) - Expose your bot securely
+- [n8n Integration](guides/n8n.md) - Workflow automation
+
+## 📚 Reference (For Experienced Developers)
+
+**Technical documentation for understanding internals and extending the system.**
 
 | Document | Description |
 |----------|-------------|
-| [Identity](features/identity.md) | Modular identity files, bootstrap onboarding, user preferences |
-| [Memory](features/memory.md) | Four-tier memory system (working, episodic, semantic, procedural) |
+| [Architecture](reference/architecture.md) | System components, message flow, design patterns |
+| [Configuration](reference/configuration.md) | Complete environment variable reference |
 
-## Security
+**Feature Documentation:**
+- [Identity System](features/identity.md) - Modular identity files, bootstrap onboarding, user preferences
+- [Memory System](features/memory.md) - Four-tier memory architecture (working, episodic, semantic, procedural)
 
-See [SECURITY.md](../SECURITY.md) in the project root.
+## 📦 Planning & Decisions
 
-## Contributing
+| Document | Description |
+|----------|-------------|
+| [Planning Overview](planning/README.md) | Implementation plan and design decisions |
+| [Implementation Plan](../IMPLEMENTATION_PLAN.md) | Detailed simplification roadmap |
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) in the project root.
+## 🔒 Security & Contributing
+
+- [Security Policy](../SECURITY.md) - Vulnerability reporting and security practices
+- [Contributing Guide](../CONTRIBUTING.md) - How to contribute to KenoBot
+- [Code of Conduct](../CODE_OF_CONDUCT.md) - Community guidelines
+
+---
+
+## Archive
+
+Archived documentation for deprecated features can be found in [features/archive/](features/archive/).
