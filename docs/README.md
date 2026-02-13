@@ -15,7 +15,6 @@ KenoBot documentation is organized in **two tracks** to serve different audience
 **Tutorials & How-Tos:**
 - [VPS Setup](guides/vps-setup.md) - Deploy to a production server
 - [Cloudflared Tunnel](guides/cloudflared.md) - Expose your bot securely
-- [n8n Integration](guides/n8n.md) - Workflow automation
 
 ## 📚 Reference (For Experienced Developers)
 

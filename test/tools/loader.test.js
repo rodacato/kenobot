@@ -69,43 +69,8 @@ describe('ToolLoader', () => {
       expect(registry.size).toBe(0)
     })
 
-    it('n8n: registers when webhookBase is set', async () => {
-      const { register } = await import('../../src/tools/n8n.js')
-      register(registry, { config: { n8n: { webhookBase: 'https://n8n.example.com' } } })
-      expect(registry.tools.has('n8n_trigger')).toBe(true)
-    })
-
-    it('n8n: skips when webhookBase is empty', async () => {
-      const { register } = await import('../../src/tools/n8n.js')
-      register(registry, { config: { n8n: { webhookBase: '' } } })
-      expect(registry.size).toBe(0)
-    })
-
-    it('n8n-manage: registers when apiUrl and apiKey are set', async () => {
-      const { register } = await import('../../src/tools/n8n-manage.js')
-      register(registry, { config: { n8n: { apiUrl: 'http://localhost:5678', apiKey: 'test-key' } } })
-      expect(registry.tools.has('n8n_manage')).toBe(true)
-    })
-
-    it('n8n-manage: skips when apiUrl is empty', async () => {
-      const { register } = await import('../../src/tools/n8n-manage.js')
-      register(registry, { config: { n8n: { apiUrl: '', apiKey: 'test-key' } } })
-      expect(registry.size).toBe(0)
-    })
-
-    it('n8n-manage: skips when apiKey is empty', async () => {
-      const { register } = await import('../../src/tools/n8n-manage.js')
-      register(registry, { config: { n8n: { apiUrl: 'http://localhost:5678', apiKey: '' } } })
-      expect(registry.size).toBe(0)
-    })
-
-    it('n8n-manage: correctly maps config.n8n to constructor params', async () => {
-      const { register } = await import('../../src/tools/n8n-manage.js')
-      register(registry, { config: { n8n: { apiUrl: 'http://localhost:5678', apiKey: 'test-key' } } })
-      const tool = registry.tools.get('n8n_manage')
-      expect(tool.apiUrl).toBe('http://localhost:5678')
-      expect(tool.apiKey).toBe('test-key')
-    })
+    // n8n tools archived in Phase 1a - tests moved to test/_archive/tools/
+    // To restore, see src/_archive/tools/RESTORE.md
 
     it('approval: registers when workspaceDir and selfImprovementEnabled', async () => {
       const { register } = await import('../../src/tools/approval.js')

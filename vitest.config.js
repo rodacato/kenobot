@@ -30,6 +30,7 @@ export default defineConfig({
 
     // Test match patterns
     include: ['test/**/*.test.js'],
+    exclude: ['test/_archive/**'],
 
     // Timeout for async tests
     testTimeout: 10000

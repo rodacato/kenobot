@@ -2,7 +2,7 @@
 
 Personal AI assistant powered by Claude, built for a single user, extensible by design.
 
-Telegram bot with memory, tools, skills, scheduling, and n8n integration — all running on a $4/month VPS.
+Telegram bot with memory, tools, skills, and scheduling — all running on a $4/month VPS.
 
 ## Features
 
@@ -12,14 +12,12 @@ Telegram bot with memory, tools, skills, scheduling, and n8n integration — all
 - **Per-chat sessions**: isolated conversation history in append-only JSONL files
 - **Tool system**: registry with slash command triggers + LLM tool_use support
   - `web_fetch` — fetch and extract text from URLs (`/fetch <url>`)
-  - `n8n_trigger` — trigger n8n workflows via webhook (`/n8n <workflow>`)
   - `schedule` — cron-based task scheduling (`/schedule add|list|remove`)
   - `dev` — run Claude Code in project directories (`/dev <project> <task>`)
   - `github` — git operations (`/git status|commit|push|pull|log`)
   - `pr` — GitHub Pull Requests (`/pr create|list|view|merge`)
   - `approval` — propose skills, workflows, identity changes (`/pending|approve|reject`)
 - **Skill plugins**: drop-in directories with `manifest.json` + `SKILL.md`, loaded on-demand
-- **n8n integration**: bidirectional webhooks (bot triggers workflows, workflows call bot)
 - **Cron scheduler**: persistent tasks that survive restarts
 - **HTTP webhook channel**: HMAC-SHA256 validated endpoint for external integrations
 - **Structured logging**: JSONL logs with daily rotation
@@ -31,7 +29,7 @@ Telegram bot with memory, tools, skills, scheduling, and n8n integration — all
 
 ### Fresh VPS (one-liner)
 
-For a new Ubuntu/Debian server — installs kenobot, n8n, and Cloudflare tunnel:
+For a new Ubuntu/Debian server — installs kenobot and Cloudflare tunnel:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/rodacato/kenobot/master/install.sh | sudo bash
@@ -108,7 +106,6 @@ Use `kenobot config edit` to open it, or pass `--config path/to/file.env` when r
 | `SKILLS_DIR` | `~/.kenobot/config/skills` | Directory for skill plugins |
 | `MEMORY_DAYS` | `3` | How many days of recent notes to include in context |
 | `MAX_TOOL_ITERATIONS` | `20` | Safety limit for tool execution loops |
-| `N8N_WEBHOOK_BASE` | — | Base URL for n8n webhooks (enables n8n tool) |
 | `HTTP_ENABLED` | `false` | Enable HTTP webhook channel |
 | `HTTP_PORT` | `3000` | HTTP server port |
 | `HTTP_HOST` | `127.0.0.1` | HTTP server bind address |
@@ -194,7 +191,6 @@ kenobot/                       # Engine (framework code, updatable)
       base.js                  # BaseTool: definition + execute + optional trigger
       registry.js              # Tool registration and trigger matching
       web-fetch.js             # Fetch URLs, extract text (10KB limit)
-      n8n.js                   # Trigger n8n workflows via webhook
       schedule.js              # Cron task management (add/list/remove)
       dev.js                   # Workspace development mode (/dev)
     skills/
