@@ -240,17 +240,7 @@ kenobot/                       # Engine (framework code, updatable)
 ### Feature Guides
 
 - [Identity](docs/features/identity.md) — Modular identity files, bootstrap onboarding, user preference learning
-- [Providers](docs/features/providers.md) — LLM provider configuration and switching
-- [Channels](docs/features/channels.md) — Telegram, HTTP webhooks, adding new channels
-- [Memory](docs/features/memory.md) — Daily logs, MEMORY.md, auto-extraction
-- [Tools](docs/features/tools.md) — Built-in tools, slash commands, creating custom tools
-- [Skills](docs/features/skills.md) — Plugin system with on-demand prompt loading
-- [Scheduler](docs/features/scheduler.md) — Cron-based task scheduling
-- [n8n Integration](docs/features/n8n.md) — Bidirectional webhook integration
-- [Multi-Instance](docs/features/multi-instance.md) — Running multiple bots
-- [Logging](docs/features/logging.md) — Structured JSONL logging
-- [Health & Recovery](docs/features/health.md) — Health checks, auto-recovery, backups
-- [Self-Improvement](docs/features/self-improvement.md) — How the bot improves itself over time
+- [Memory](docs/features/memory.md) — Four-tier memory system (working, episodic, semantic, procedural)
 
 ## Tech Stack
 

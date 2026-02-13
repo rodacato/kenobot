@@ -268,8 +268,6 @@ PROVIDER=claude-cli
 MODEL=sonnet
 ```
 
-See [providers.md](features/providers.md) for details on each provider.
-
 ---
 
 ## Troubleshooting
@@ -420,7 +418,6 @@ PROVIDER=claude-cli
 - [Telegram UserInfo Bot](https://t.me/userinfobot) - Get your Chat ID
 - [Architecture](architecture.md) - System design
 - [Configuration](configuration.md) - All environment variables
-- [Providers](features/providers.md) - Provider comparison
 
 ---
 

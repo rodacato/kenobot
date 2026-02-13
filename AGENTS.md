@@ -188,7 +188,6 @@ When modifying `update.js` or `install.sh`, test both paths.
   - Architecture details, module list, file structure → `docs/architecture.md`
   - Configuration and env vars → `docs/configuration.md`
   - Deployment and operations → `docs/deployment.md`
-  - Extending the bot (tools vs skills) → `docs/features/extending.md`
   - Feature guides → `docs/features/*.md`
 
 ---

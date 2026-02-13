@@ -111,6 +111,5 @@ If you enable the HTTP channel for webhooks (n8n, Telegram webhook mode), **don'
 
 ## Next steps
 
-- [n8n guide](n8n.md) — Connect external services (calendar, email, automations)
 - [cloudflared guide](cloudflared.md) — Expose KenoBot securely to the internet
 - [Deployment docs](../deployment.md) — Backups, monitoring, updates

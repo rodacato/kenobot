@@ -138,5 +138,4 @@ If n8n runs on a different server (or n8n Cloud), KenoBot → n8n works out of t
 
 ## Further reading
 
-- [n8n feature docs](../features/n8n.md) — HMAC signing, session modes, tool definitions
 - [Integrations guide](../integrations-guide.md) — Complete env var reference

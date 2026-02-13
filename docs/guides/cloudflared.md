@@ -131,5 +131,4 @@ The tunnel is only for inbound traffic from the internet. KenoBot's outbound con
 ## Further reading
 
 - [Integrations guide](../integrations-guide.md) — Full cloudflared setup with env var reference
-- [n8n guide](n8n.md) — When n8n needs the tunnel (remote n8n → KenoBot)
 - [VPS setup](vps-setup.md) — Firewall considerations
