@@ -47,7 +47,14 @@ User ← Telegram ← TelegramChannel ← bus 'message:out' ← AgentLoop (tool 
 
 **Bus events**: `message:in`, `message:out`, `thinking:start`, `error`
 
-**Composition root**: `src/app.js` exports `createApp(config, provider)` — pure factory, no side effects, returns `{ bus, agent, channels, start(), stop(), ... }`. `src/index.js` is the thin entry point (config loading, provider registration, process signals). Use `createApp` for programmatic boot in E2E tests.
+**Composition root**: `src/app.js` exports `createApp(config, provider, options)` — pure factory, no side effects, returns `{ bus, agent, channels, cognitive, start(), stop(), ... }`. `src/index.js` is the thin entry point (config loading, provider registration, process signals). Use `createApp` for programmatic boot in E2E tests.
+
+**Cognitive System** (Phase 1): New modular architecture for memory management. Located in `src/cognitive/`:
+- `CognitiveSystem`: Main facade orchestrating memory operations
+- `MemorySystem`: Facade for 4 types of memory (working, episodic, semantic, procedural)
+- `MemoryStore`: Persistence layer (currently wraps existing FileMemory structure)
+
+Backward compatible: Set `options.useCognitive = false` in `createApp()` to use legacy FileMemory.
 
 For module details, interfaces, and design patterns → `docs/architecture.md`
 
@@ -171,6 +178,7 @@ When modifying `update.js` or `install.sh`, test both paths.
 - Identity uses directory mode by default (`identities/kenobot/` with SOUL.md, IDENTITY.md, USER.md). Legacy single-file mode (`kenobot.md`) still works via auto-detection.
 - `BOOTSTRAP.md` in the identity directory triggers first-conversation onboarding. Deleted automatically when the bot includes `<bootstrap-complete/>` in a response.
 - Tool registry uses auto-discovery with self-registration — each tool exports `register(registry, deps)`.
+- **Cognitive System (Phase 1)**: New memory architecture in `src/cognitive/`. Currently wraps existing FileMemory for backward compatibility. Enable with `useCognitive: true` (default) or disable with `useCognitive: false` in `createApp()` options. Phase 2+ will add retrieval engine, identity management, and sleep cycle consolidation.
 
 ## Mandatory: Keep Docs Updated
 
