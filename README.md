@@ -43,7 +43,7 @@ Prerequisites: Node.js 22+, a [Telegram bot token](https://t.me/botfather), your
 
 ```bash
 npm install -g github:rodacato/kenobot
-kenobot init                 # Scaffold ~/.kenobot/ directories
+kenobot setup                 # Scaffold ~/.kenobot/ directories
 kenobot config edit          # Set TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_USERS, PROVIDER
 kenobot start                # Start the bot
 ```
@@ -68,7 +68,7 @@ kenobot update               # Update to latest release
 git clone https://github.com/rodacato/kenobot.git
 cd kenobot
 npm install && npm link      # Makes 'kenobot' available globally (symlink)
-kenobot init                 # Scaffold ~/.kenobot/
+kenobot setup                 # Scaffold ~/.kenobot/
 kenobot config edit          # Set tokens and provider
 kenobot start                # Run the bot
 ```
@@ -203,7 +203,7 @@ kenobot/                       # Engine (framework code, updatable)
       scheduler.js             # Cron jobs with persistence
     format/
       telegram.js              # Markdown-to-Telegram HTML converter
-  templates/                   # Default files copied by kenobot init
+  templates/                   # Default files copied by kenobot setup
     env.example                # Config template
     identities/kenobot/        # Default bot identity (SOUL.md, IDENTITY.md, USER.md, BOOTSTRAP.md)
     HEARTBEAT.md               # Dev session continuity template

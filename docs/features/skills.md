@@ -22,7 +22,7 @@ Skills live in `~/.kenobot/config/skills/` (or the `SKILLS_DIR` path):
     SKILL.md
 ```
 
-Default skills (weather, daily-summary) are copied from the engine's `templates/skills/` directory when you run `kenobot init`.
+Default skills (weather, daily-summary) are copied from the engine's `templates/skills/` directory when you run `kenobot setup`.
 
 ### manifest.json
 

@@ -30,7 +30,7 @@ This separation allows:
 
 ## Bootstrap Flow
 
-When `kenobot init` creates a fresh installation, the identity directory includes a `BOOTSTRAP.md` file. This triggers a first-conversation onboarding flow:
+When `kenobot setup` creates a fresh installation, the identity directory includes a `BOOTSTRAP.md` file. This triggers a first-conversation onboarding flow:
 
 1. **Bot starts** — IdentityLoader detects `BOOTSTRAP.md` exists
 2. **First message** — ContextBuilder injects bootstrap instructions into the system prompt

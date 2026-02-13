@@ -27,7 +27,7 @@ const paths = {
   backups: join(home, 'backups'),
   pidFile: join(home, 'data', 'kenobot.pid'),
 
-  // Templates (shipped with engine, used by kenobot init)
+  // Templates (shipped with engine, used by kenobot setup)
   templates: join(engineRoot, 'templates'),
 }
 

@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs'
 
 export default async function dev(args, paths) {
   if (!existsSync(paths.envFile)) {
-    console.error('Error: ~/.kenobot/ not initialized. Run `kenobot init` first.')
+    console.error('Error: ~/.kenobot/ not initialized. Run `kenobot setup` first.')
     process.exit(1)
   }
 

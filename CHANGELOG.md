@@ -10,7 +10,7 @@ and this project uses [Semantic Versioning](https://semver.org/).
 ## [0.3.0] - 2026-02-09
 
 ### Added
-- Root user detection in kenobot init (hard fail) and kenobot doctor (warning)
+- Root user detection in kenobot setup (hard fail) and kenobot doctor (warning)
 - n8n reachability check in kenobot doctor when N8N_API_URL or N8N_WEBHOOK_BASE configured
 - Quick-start guides in docs/guides/ for VPS setup, n8n integration, and cloudflared tunnels
 - TELEGRAM_ALLOWED_USERS env var for user-based authorization
@@ -85,7 +85,7 @@ and this project uses [Semantic Versioning](https://semver.org/).
 - Memory size warning when MEMORY.md exceeds 10KB
 - Unified `kenobot` CLI with subcommand routing (version, help)
 - Path resolution module for ~/.kenobot/ user directory
-- `kenobot init` command to scaffold ~/.kenobot/ user directory
+- `kenobot setup` command to scaffold ~/.kenobot/ user directory
 - `kenobot migrate` command to copy files from old-style layout
 - Templates directory for init scaffolding
 - `kenobot start [-d]` command with foreground and daemon modes
@@ -116,7 +116,7 @@ and this project uses [Semantic Versioning](https://semver.org/).
 - approval bus events with Telegram owner notifications
 - SELF_IMPROVEMENT_ENABLED, N8N_API_URL, N8N_API_KEY config vars
 - gmail skill with inbox, send, read, and search capabilities via n8n workflows
-- SSH keypair generation (ed25519) during kenobot init
+- SSH keypair generation (ed25519) during kenobot setup
 - GIT_SSH_COMMAND integration in github tool and workspace sync
 - n8n watchdog health check when N8N_API_URL configured
 - kenobot setup-tunnel CLI command for cloudflared config generation

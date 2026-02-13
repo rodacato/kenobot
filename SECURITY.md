@@ -94,7 +94,7 @@ Create a dedicated user and install under their home:
 sudo useradd -r -m -s /bin/bash kenobot
 sudo -u kenobot bash
 npm install -g github:rodacato/kenobot
-kenobot init
+kenobot setup
 chmod 600 ~/.kenobot/config/.env
 ```
 

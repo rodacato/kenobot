@@ -45,7 +45,7 @@ kenobot version
 ## Step 4: Initialize
 
 ```bash
-kenobot init
+kenobot setup
 ```
 
 This creates `~/.kenobot/` with config templates, identity files, skills, and an SSH key for Git operations.

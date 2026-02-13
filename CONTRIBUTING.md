@@ -26,7 +26,7 @@ cd kenobot
 npm install
 npm link
 git config core.hooksPath .githooks
-kenobot init
+kenobot setup
 kenobot config edit      # Set TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_USERS
 kenobot dev
 ```

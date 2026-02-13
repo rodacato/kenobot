@@ -57,7 +57,7 @@ export default class IdentityLoader {
       if (!this._soul) {
         this.logger.warn('identity', 'empty_identity', {
           path: this.identityPath,
-          hint: 'Bot will run without personality. Check IDENTITY_FILE path or run kenobot init'
+          hint: 'Bot will run without personality. Check IDENTITY_FILE path or run kenobot setup'
         })
       }
     }

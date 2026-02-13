@@ -146,6 +146,6 @@ export default async function purge(args, paths) {
   console.log(`\n${GREEN}Purge complete.${NC} Freed ${formatBytes(totalBytes)}.`)
 
   if (includeMemory || includeAll) {
-    console.log(`\nRun ${BOLD}kenobot init${NC} to restore default files.`)
+    console.log(`\nRun ${BOLD}kenobot setup${NC} to restore default files.`)
   }
 }

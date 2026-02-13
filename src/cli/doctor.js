@@ -59,7 +59,7 @@ async function checkDirs(paths) {
     return {
       status: 'fail',
       label: `Directory structure — missing: ${missing.join(', ')}`,
-      fix: "Run 'kenobot init' to create missing directories",
+      fix: "Run 'kenobot setup' to create missing directories",
     }
   }
 
@@ -84,7 +84,7 @@ async function checkConfig(paths) {
     return {
       status: 'fail',
       label: 'Config file — .env not found',
-      fix: "Run 'kenobot init' then 'kenobot config edit'",
+      fix: "Run 'kenobot setup' then 'kenobot config edit'",
     }
   }
 
@@ -285,7 +285,7 @@ async function checkIdentity(paths) {
     return {
       status: 'fail',
       label: `Identity — directory not found: ${identityName}`,
-      fix: "Run 'kenobot init' to restore default identity",
+      fix: "Run 'kenobot setup' to restore default identity",
     }
   }
 
@@ -299,7 +299,7 @@ async function checkIdentity(paths) {
     return {
       status: 'warn',
       label: `Identity — missing: ${missing.join(', ')}`,
-      fix: "Run 'kenobot init' to restore default identity files",
+      fix: "Run 'kenobot setup' to restore default identity files",
       details: missing.map(f => `${identityName}/${f}`),
     }
   }
@@ -366,7 +366,7 @@ async function checkTemplateIntegrity(paths) {
     return {
       status: 'warn',
       label: `Template integrity — ${missing.length} file${missing.length > 1 ? 's' : ''} missing`,
-      fix: "Run 'kenobot init' to restore missing files",
+      fix: "Run 'kenobot setup' to restore missing files",
       details: missing,
     }
   }
@@ -445,7 +445,7 @@ async function checkSSHKey(paths) {
   return {
     status: 'warn',
     label: `SSH key — not found at ${keyPath}`,
-    fix: "Run 'kenobot init' to generate SSH key",
+    fix: "Run 'kenobot setup' to generate SSH key",
   }
 }
 

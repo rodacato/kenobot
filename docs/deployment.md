@@ -82,7 +82,7 @@ git clone git@github.com:rodacato/kenobot.git
 cd kenobot
 npm install
 npm link           # Makes 'kenobot' command available globally
-kenobot init       # Scaffold ~/.kenobot/ directories
+kenobot setup       # Scaffold ~/.kenobot/ directories
 ```
 
 ## Configuration
@@ -161,7 +161,7 @@ cd ~/.kenobot/engine && npm install --omit=dev
 ln -sf ~/.kenobot/engine/src/cli.js ~/.npm-global/bin/kenobot
 
 # Configure
-kenobot init
+kenobot setup
 kenobot config edit
 
 # Install systemd service
@@ -326,7 +326,7 @@ Checks: directory structure, config file, provider readiness, skills validity, i
 
 ### "Config missing" error on startup
 
-Run `kenobot init` to scaffold directories, then `kenobot config edit` to set required variables.
+Run `kenobot setup` to scaffold directories, then `kenobot config edit` to set required variables.
 
 ### Claude CLI hanging
 

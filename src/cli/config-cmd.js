@@ -7,7 +7,7 @@ export default async function configCmd(args, paths) {
 
   if (subcmd === 'edit') {
     if (!existsSync(paths.envFile)) {
-      console.error('No .env file found. Run `kenobot init` first.')
+      console.error('No .env file found. Run `kenobot setup` first.')
       process.exit(1)
     }
     const editor = process.env.EDITOR || process.env.VISUAL || 'vi'
@@ -30,7 +30,7 @@ export default async function configCmd(args, paths) {
 
   // Default: show current config with redacted secrets
   if (!existsSync(paths.envFile)) {
-    console.error('No .env file found. Run `kenobot init` first.')
+    console.error('No .env file found. Run `kenobot setup` first.')
     process.exit(1)
   }
 

@@ -10,7 +10,7 @@
 
 ```bash
 # CLI (after install.sh or npm link)
-kenobot init           # Scaffold ~/.kenobot/ directories
+kenobot setup           # Scaffold ~/.kenobot/ directories
 kenobot start          # Start bot (foreground)
 kenobot start -d       # Start bot (daemon)
 kenobot stop           # Stop daemon

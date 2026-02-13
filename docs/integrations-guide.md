@@ -14,7 +14,7 @@ Each section is independent — enable only what you need. The recommended order
 KenoBot installed and running with basic config:
 
 ```bash
-kenobot init
+kenobot setup
 kenobot config edit   # Set TELEGRAM_BOT_TOKEN, PROVIDER, etc.
 kenobot start         # Verify it responds on Telegram
 ```
@@ -42,10 +42,10 @@ Give KenoBot its own GitHub identity and a private repo to store skills, workflo
 
 ### 1.3 Set up SSH keys
 
-`kenobot init` generates an SSH keypair automatically:
+`kenobot setup` generates an SSH keypair automatically:
 
 ```bash
-kenobot init
+kenobot setup
 # [✓] SSH key ~/.ssh/kenobot_ed25519
 #
 #   Public key (add to GitHub):

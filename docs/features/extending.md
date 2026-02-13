@@ -192,7 +192,7 @@ Add to your `.env`:
 TOOLS_DIR=~/.kenobot/config/tools
 ```
 
-The directory is created automatically by `kenobot init`.
+The directory is created automatically by `kenobot setup`.
 
 ### Step 2: Create the Tool File
 
@@ -390,7 +390,7 @@ These tools are available out of the box. Skills can reference them by name in t
 
 ## Built-in Skills Reference
 
-Default skills installed by `kenobot init`. Located in `~/.kenobot/config/skills/`.
+Default skills installed by `kenobot setup`. Located in `~/.kenobot/config/skills/`.
 
 | Skill | Triggers | Uses Tools | Description |
 |-------|----------|-----------|-------------|
