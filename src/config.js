@@ -114,6 +114,30 @@ export function validateConfig(config, errors = []) {
     process.exit(1)
   }
 
+  // Detect placeholder/invalid tokens
+  const invalidTokens = ['your_bot_token_here', 'YOUR_BOT_TOKEN', 'placeholder', 'example', 'test_token']
+  const isPlaceholder = invalidTokens.some(placeholder =>
+    config.telegram.token.toLowerCase().includes(placeholder.toLowerCase())
+  )
+
+  if (isPlaceholder) {
+    logger.error('system', 'config_invalid', {
+      key: 'TELEGRAM_BOT_TOKEN',
+      hint: 'TELEGRAM_BOT_TOKEN appears to be a placeholder. Get a real token from @BotFather on Telegram'
+    })
+    process.exit(1)
+  }
+
+  // Validate token format (Telegram tokens are in format: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz)
+  const tokenPattern = /^\d{8,10}:[A-Za-z0-9_-]{35}$/
+  if (!tokenPattern.test(config.telegram.token)) {
+    logger.error('system', 'config_invalid', {
+      key: 'TELEGRAM_BOT_TOKEN',
+      hint: 'TELEGRAM_BOT_TOKEN format is invalid. Expected format: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz'
+    })
+    process.exit(1)
+  }
+
   if (config.telegram.allowedUsers.length === 0 && config.telegram.allowedChatIds.length === 0) {
     logger.error('system', 'config_missing', {
       key: 'TELEGRAM_ALLOWED_USERS',

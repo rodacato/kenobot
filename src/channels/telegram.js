@@ -19,6 +19,23 @@ export default class TelegramChannel extends BaseChannel {
   async start() {
     this.logger.info('telegram', 'starting')
 
+    // Validate bot token by calling getMe
+    try {
+      const botInfo = await this.bot.api.getMe()
+      this.logger.info('telegram', 'bot_authenticated', {
+        username: botInfo.username,
+        id: botInfo.id,
+        name: botInfo.first_name
+      })
+    } catch (error) {
+      this.logger.error('telegram', 'authentication_failed', {
+        error: error.message,
+        code: error.error_code,
+        hint: 'Check that TELEGRAM_BOT_TOKEN is valid. Get a token from @BotFather on Telegram'
+      })
+      throw new Error(`Telegram authentication failed: ${error.message}. Check your TELEGRAM_BOT_TOKEN in .env`)
+    }
+
     // Handle incoming text messages
     this.bot.on('message:text', async (ctx) => {
       const chatType = ctx.chat.type
@@ -77,8 +94,30 @@ export default class TelegramChannel extends BaseChannel {
     this.bus.on(MESSAGE_OUT, this._onMessageOut)
     this.bus.on(NOTIFICATION, this._onNotification)
 
-    // Start polling
-    await this.bot.start()
+    // Explicitly delete webhook before starting polling (Grammy requires this)
+    // Catch 404 errors as they just mean no webhook was configured
+    try {
+      await this.bot.api.deleteWebhook({ drop_pending_updates: true })
+      this.logger.info('telegram', 'webhook_deleted')
+    } catch (error) {
+      // 404 means no webhook exists - this is fine
+      if (error.error_code !== 404) {
+        this.logger.warn('telegram', 'webhook_delete_warning', {
+          error: error.message,
+          code: error.error_code
+        })
+      }
+    }
+
+    // Start polling (should not attempt to delete webhook again if we already did it)
+    await this.bot.start({
+      onStart: (botInfo) => {
+        this.logger.info('telegram', 'polling_started', {
+          username: botInfo.username,
+          id: botInfo.id
+        })
+      }
+    })
     this.logger.info('telegram', 'started')
   }
 
