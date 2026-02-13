@@ -1,3 +1,7 @@
+import WorkingMemory from './working-memory.js'
+import EpisodicMemory from './episodic-memory.js'
+import SemanticMemory from './semantic-memory.js'
+import ProceduralMemory from './procedural-memory.js'
 import defaultLogger from '../../logger.js'
 
 /**
@@ -7,119 +11,109 @@ import defaultLogger from '../../logger.js'
  * - Working Memory: Current task scratchpad
  * - Episodic Memory: Events with temporal context
  * - Semantic Memory: Facts and knowledge
- * - Procedural Memory: Learned patterns (Phase 2+)
+ * - Procedural Memory: Learned patterns
  *
  * Phase 1: Delegates to existing MemoryStore (backward compatible)
- * Phase 3: Each memory type will be separate class
+ * Phase 3: Uses dedicated classes for each memory type
  */
 export default class MemorySystem {
-  constructor(memoryStore, { logger = defaultLogger } = {}) {
+  constructor(memoryStore, { logger = defaultLogger, workingStaleThreshold = 7 } = {}) {
     this.store = memoryStore
     this.logger = logger
+
+    // Initialize 4 memory types
+    this.working = new WorkingMemory(memoryStore, { logger, staleThreshold: workingStaleThreshold })
+    this.episodic = new EpisodicMemory(memoryStore, { logger })
+    this.semantic = new SemanticMemory(memoryStore, { logger })
+    this.procedural = new ProceduralMemory(memoryStore, { logger })
   }
 
   // --- Semantic Memory (global facts) ---
 
   /**
    * Get long-term semantic memory (facts, knowledge).
-   * Phase 1: Returns MEMORY.md content
-   * Phase 3: Returns memory/semantic/facts.md with retrieval
+   * Phase 3: Delegates to SemanticMemory class
    */
   async getLongTermMemory() {
-    return this.store.readLongTermMemory()
+    return this.semantic.getLongTerm()
   }
 
   /**
    * Get recent semantic notes (last N days).
-   * Phase 1: Returns recent daily logs
-   * Phase 3: Returns consolidated semantic memory
+   * Phase 3: Delegates to SemanticMemory class
    */
   async getRecentDays(days = 3) {
-    return this.store.getRecentDays(days)
+    return this.semantic.getRecent(days)
   }
 
   /**
    * Add a semantic fact.
-   * Phase 1: Appends to daily log
-   * Phase 3: Appends to memory/semantic/facts.md
+   * Phase 3: Delegates to SemanticMemory class
    */
   async addFact(fact) {
-    await this.store.appendDaily(fact)
-    this.logger.info('memory-system', 'fact_added', { fact: fact.slice(0, 100) })
+    await this.semantic.addFact(fact)
   }
 
   // --- Episodic Memory (chat-specific events) ---
 
   /**
    * Get chat-specific long-term memory.
-   * Phase 1: Returns chats/{sessionId}/MEMORY.md
-   * Phase 3: Returns memory/episodic/chats/{sessionId}/facts.md
+   * Phase 3: Delegates to EpisodicMemory class
    */
   async getChatLongTermMemory(sessionId) {
-    return this.store.getChatLongTermMemory(sessionId)
+    return this.episodic.getChatLongTerm(sessionId)
   }
 
   /**
    * Get recent chat-specific episodes.
-   * Phase 1: Returns recent chat daily logs
-   * Phase 3: Returns memory/episodic/chats/{sessionId}/YYYY-MM-DD.md with retrieval
+   * Phase 3: Delegates to EpisodicMemory class
    */
   async getChatRecentDays(sessionId, days = 3) {
-    return this.store.getChatRecentDays(sessionId, days)
+    return this.episodic.getChatRecent(sessionId, days)
   }
 
   /**
    * Add a chat-specific episode/fact.
-   * Phase 1: Appends to chat daily log
-   * Phase 3: Appends to episodic memory with event boundary detection
+   * Phase 3: Delegates to EpisodicMemory class
    */
   async addChatFact(sessionId, fact) {
-    await this.store.appendChatDaily(sessionId, fact)
-    this.logger.info('memory-system', 'chat_fact_added', { sessionId, fact: fact.slice(0, 100) })
+    await this.episodic.addChatEpisode(sessionId, fact)
   }
 
   // --- Working Memory (session scratchpad) ---
 
   /**
    * Get working memory for a session.
-   * Phase 1: Returns { content, updatedAt } from working/{sessionId}.md
-   * Phase 3: Returns structured { task, context, pending, notes } from working/{sessionId}.json
+   * Phase 3: Delegates to WorkingMemory class (includes staleness check)
    */
   async getWorkingMemory(sessionId) {
-    return this.store.getWorkingMemory(sessionId)
+    return this.working.get(sessionId)
   }
 
   /**
    * Replace working memory for a session.
-   * Phase 1: Writes to working/{sessionId}.md
-   * Phase 3: Writes structured JSON to working/{sessionId}.json
+   * Phase 3: Delegates to WorkingMemory class
    */
   async replaceWorkingMemory(sessionId, content) {
-    await this.store.writeWorkingMemory(sessionId, content)
-    this.logger.info('memory-system', 'working_memory_replaced', { sessionId })
+    await this.working.replace(sessionId, content)
   }
 
   // --- Procedural Memory (learned patterns) ---
-  // Phase 2+: Will be implemented with patterns.json
 
   /**
    * Get all learned patterns.
-   * Phase 1: Returns empty array (not implemented)
-   * Phase 2: Returns memory/procedural/patterns.json
+   * Phase 3: Delegates to ProceduralMemory class
    */
   async getPatterns() {
-    // Phase 2
-    return []
+    return this.procedural.getAll()
   }
 
   /**
    * Match patterns against message.
-   * Phase 1: No-op
-   * Phase 2: Returns activated patterns
+   * Phase 3: Delegates to ProceduralMemory class
    */
   async matchPatterns(messageText) {
-    // Phase 2
-    return []
+    return this.procedural.match(messageText)
   }
 
   // --- Compaction (for existing CompactingMemory) ---
@@ -144,6 +138,6 @@ export default class MemorySystem {
    * Write long-term memory (for compaction).
    */
   async writeLongTermMemory(content) {
-    await this.store.writeLongTermMemory(content)
+    await this.semantic.writeLongTerm(content)
   }
 }
