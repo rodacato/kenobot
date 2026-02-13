@@ -38,7 +38,7 @@ export default class CognitiveSystem {
     // Phase 5: Initialize identity manager
     // Use config.identityFile if set, otherwise default to ~/.kenobot/memory/identity
     const identityPath = config.identityFile || join(homedir(), '.kenobot', 'memory', 'identity')
-    this.identity = new IdentityManager(identityPath, { logger })
+    this.identity = new IdentityManager(identityPath, provider, { logger })
     this.useIdentity = config.useIdentity !== false // Default: true
   }
 
@@ -191,5 +191,80 @@ export default class CognitiveSystem {
    */
   getIdentityManager() {
     return this.identity
+  }
+
+  /**
+   * Process message during bootstrap (if active).
+   * Returns action to take (checkpoint, boundaries, complete).
+   *
+   * @param {string} sessionId
+   * @param {string} message - User message
+   * @param {Array<Object>} conversationHistory - Recent messages for inference
+   * @returns {Promise<Object|null>} Bootstrap result or null if not bootstrapping
+   */
+  async processBootstrapIfActive(sessionId, message, conversationHistory = []) {
+    // Check if bootstrap is active
+    const isBootstrapping = await this.identity.isBootstrapping()
+    if (!isBootstrapping) {
+      return null
+    }
+
+    // Load bootstrap state from working memory (if exists)
+    const bootstrapState = await this._loadBootstrapState(sessionId)
+    if (bootstrapState) {
+      this.identity.loadBootstrapState(bootstrapState)
+    }
+
+    // Process message
+    const result = await this.identity.processBootstrapMessage(message, conversationHistory)
+
+    // Save bootstrap state to working memory
+    await this._saveBootstrapState(sessionId, this.identity.getBootstrapState())
+
+    this.logger.info('cognitive', 'bootstrap_processed', {
+      sessionId,
+      phase: result.phase,
+      action: result.action
+    })
+
+    return result
+  }
+
+  /**
+   * Load bootstrap state from working memory.
+   * @private
+   */
+  async _loadBootstrapState(sessionId) {
+    try {
+      const workingMemory = await this.memory.getWorkingMemory(sessionId)
+      return workingMemory?.bootstrapState || null
+    } catch (error) {
+      this.logger.warn('cognitive', 'bootstrap_state_load_failed', {
+        error: error.message
+      })
+      return null
+    }
+  }
+
+  /**
+   * Save bootstrap state to working memory.
+   * @private
+   */
+  async _saveBootstrapState(sessionId, state) {
+    try {
+      const currentMemory = await this.memory.getWorkingMemory(sessionId) || {}
+      currentMemory.bootstrapState = state
+
+      await this.memory.replaceWorkingMemory(sessionId, JSON.stringify(currentMemory, null, 2))
+
+      this.logger.info('cognitive', 'bootstrap_state_saved', {
+        sessionId,
+        phase: state.phase
+      })
+    } catch (error) {
+      this.logger.error('cognitive', 'bootstrap_state_save_failed', {
+        error: error.message
+      })
+    }
   }
 }

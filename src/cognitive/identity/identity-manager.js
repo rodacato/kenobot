@@ -1,6 +1,8 @@
 import CoreLoader from './core-loader.js'
 import RulesEngine from './rules-engine.js'
 import PreferencesManager from './preferences-manager.js'
+import BootstrapOrchestrator from './bootstrap-orchestrator.js'
+import ProfileInferrer from './profile-inferrer.js'
 import defaultLogger from '../../logger.js'
 
 /**
@@ -12,17 +14,22 @@ import defaultLogger from '../../logger.js'
  * 3. Preferences: User-specific learned preferences (preferences.md)
  *
  * Phase 5: Basic loading and injection
- * Phase 6: Rule validation, dynamic rule updates
+ * Phase 6: Natural conversational bootstrap with observation + inference
  */
 export default class IdentityManager {
-  constructor(identityPath, { logger = defaultLogger } = {}) {
+  constructor(identityPath, provider, { logger = defaultLogger } = {}) {
     this.identityPath = identityPath
+    this.provider = provider
     this.logger = logger
 
     // Initialize components
     this.coreLoader = new CoreLoader(identityPath, { logger })
     this.rulesEngine = new RulesEngine(identityPath, { logger })
     this.preferencesManager = new PreferencesManager(identityPath, { logger })
+
+    // New: Bootstrap orchestration
+    this.bootstrapOrchestrator = new BootstrapOrchestrator({ logger })
+    this.profileInferrer = provider ? new ProfileInferrer(provider, { logger }) : null
 
     this.isBootstrapped = false
   }
@@ -172,5 +179,116 @@ export default class IdentityManager {
       },
       hasPreferences: await this.preferencesManager.hasPreferences()
     }
+  }
+
+  /**
+   * Initialize conversational bootstrap.
+   * Called when bot starts and BOOTSTRAP.md exists.
+   *
+   * @returns {Object} Bootstrap state
+   */
+  initializeBootstrap() {
+    const state = this.bootstrapOrchestrator.initialize()
+
+    this.logger.info('identity-manager', 'bootstrap_initialized', {
+      phase: state.phase
+    })
+
+    return state
+  }
+
+  /**
+   * Process message during bootstrap.
+   * Infers user profile and decides next action.
+   *
+   * @param {string} message - User message
+   * @param {Array<Object>} recentMessages - Recent conversation for inference
+   * @returns {Promise<Object>} { phase, action, message?, needsResponse }
+   */
+  async processBootstrapMessage(message, recentMessages = []) {
+    // Infer profile from conversation (only if we have LLM provider)
+    let inferredProfile = null
+    if (this.profileInferrer && recentMessages.length >= 2) {
+      inferredProfile = await this.profileInferrer.inferProfile(recentMessages)
+
+      this.logger.info('identity-manager', 'profile_inferred', {
+        confidence: inferredProfile.confidence,
+        tone: inferredProfile.tone,
+        language: inferredProfile.language
+      })
+    }
+
+    // Process message with orchestrator
+    const result = this.bootstrapOrchestrator.processMessage(message, inferredProfile)
+
+    // If bootstrap is complete, save preferences
+    if (result.action === 'complete') {
+      await this._saveBootstrapPreferences()
+    }
+
+    return result
+  }
+
+  /**
+   * Save bootstrap preferences and mark complete.
+   * @private
+   */
+  async _saveBootstrapPreferences() {
+    const preferencesContent = this.bootstrapOrchestrator.formatPreferences()
+
+    // Write preferences.md
+    const { writeFile } = await import('node:fs/promises')
+    const { join } = await import('node:path')
+    const preferencesPath = join(this.identityPath, 'preferences.md')
+
+    await writeFile(preferencesPath, preferencesContent, 'utf-8')
+
+    // Delete BOOTSTRAP.md to mark as complete
+    await this.deleteBootstrap()
+
+    this.logger.info('identity-manager', 'bootstrap_preferences_saved', {
+      path: preferencesPath
+    })
+  }
+
+  /**
+   * Get bootstrap state for persistence.
+   *
+   * @returns {Object}
+   */
+  getBootstrapState() {
+    return this.bootstrapOrchestrator.getState()
+  }
+
+  /**
+   * Load bootstrap state from persistence.
+   *
+   * @param {Object} state
+   */
+  loadBootstrapState(state) {
+    this.bootstrapOrchestrator.loadState(state)
+
+    this.logger.info('identity-manager', 'bootstrap_state_loaded', {
+      phase: state.phase,
+      messageCount: state.messageCount
+    })
+  }
+
+  /**
+   * Check if currently in bootstrap mode.
+   *
+   * @returns {boolean}
+   */
+  isBootstrapping() {
+    return !this.isBootstrapped
+  }
+
+  /**
+   * Get bootstrap orchestrator (for testing).
+   *
+   * @returns {BootstrapOrchestrator}
+   */
+  getBootstrapOrchestrator() {
+    return this.bootstrapOrchestrator
   }
 }
