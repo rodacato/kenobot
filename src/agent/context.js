@@ -37,14 +37,22 @@ export default class ContextBuilder {
    */
   async build(sessionId, message) {
     // Build system prompt: identity + tools + skills + memory
-    const { system, activeSkill } = await this._buildSystemPrompt(message.text, sessionId)
+    const { system, activeSkill, isBootstrapping } = await this._buildSystemPrompt(message.text, sessionId)
 
-    // Load session history
-    const historyLimit = this.config.sessionHistoryLimit ?? 20
-    const history = await this.storage.loadSession(sessionId, historyLimit)
+    let messages
 
-    // Map history to provider format (strip timestamps)
-    const messages = history.map(({ role, content }) => ({ role, content }))
+    // During bootstrap: Skip session history to avoid contamination
+    if (isBootstrapping) {
+      this.logger.info('context', 'bootstrap_skip_history', {
+        message: 'Skipping session history during bootstrap'
+      })
+      messages = []
+    } else {
+      // Normal mode: Load session history
+      const historyLimit = this.config.sessionHistoryLimit ?? 20
+      const history = await this.storage.loadSession(sessionId, historyLimit)
+      messages = history.map(({ role, content }) => ({ role, content }))
+    }
 
     // Append current user message
     messages.push({ role: 'user', content: message.text })
@@ -130,7 +138,7 @@ export default class ContextBuilder {
       })
     }
 
-    return { system: parts.join('\n'), activeSkill }
+    return { system: parts.join('\n'), activeSkill, isBootstrapping }
   }
 
   /**
