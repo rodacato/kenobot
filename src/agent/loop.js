@@ -43,11 +43,10 @@ export default class AgentLoop {
   }
 
   /**
-   * Start the agent loop: load identity and register bus listener.
+   * Start the agent loop: register bus listener.
+   * Identity is loaded on-demand by CognitiveSystem.
    */
   async start() {
-    await this.contextBuilder.loadIdentity()
-
     this._handler = (message) => this._handleMessage(message)
     this.bus.on(MESSAGE_IN, this._handler)
 
