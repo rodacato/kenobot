@@ -24,6 +24,7 @@ if (!existsSync(paths.home) && subcommand !== 'init' && subcommand !== 'help' &&
 const commands = {
   init:              () => import('./cli/init.js'),
   'init-cognitive':  () => import('./cli/init-cognitive.js'),
+  dev:               () => import('./cli/dev.js'),
   start:             () => import('./cli/start.js'),
   stop:              () => import('./cli/stop.js'),
   restart:           () => import('./cli/restart.js'),

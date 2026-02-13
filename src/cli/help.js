@@ -3,6 +3,7 @@ export default async function help() {
 
 Commands:
   init                Scaffold ~/.kenobot/ directories and config
+  dev                 Start with auto-reload (uses ~/.kenobot/ paths)
   start [-d]          Start the bot (foreground, or -d for daemon)
   stop                Stop the daemon
   restart             Stop + start daemon
