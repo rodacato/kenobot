@@ -75,10 +75,11 @@ describe('AgentLoop', () => {
   })
 
   describe('start', () => {
-    it('should load identity on start', async () => {
+    it('should start without errors', async () => {
       await agent.start()
 
-      expect(contextBuilder.loadIdentity).toHaveBeenCalledOnce()
+      // AgentLoop no longer loads identity directly - it's handled by CognitiveSystem on-demand
+      expect(agent).toBeDefined()
     })
 
     it('should register message:in listener', async () => {
@@ -703,7 +704,8 @@ describe('AgentLoop', () => {
 
       expect(provider.chatWithRetry).toHaveBeenCalledOnce()
       const [messages, opts] = provider.chatWithRetry.mock.calls[0]
-      expect(opts.system).toContain('# TestBot')
+      // System prompt should contain tools section (identity is optional without cognitive)
+      expect(opts.system).toContain('## Available tools')
       expect(messages[messages.length - 1].content).toBe('hello bot')
     })
 
