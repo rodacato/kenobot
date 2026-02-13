@@ -115,19 +115,6 @@ export default async function init(args, paths) {
     'config/identities/kenobot/'
   )
 
-  // Sync each skill individually (restores missing files without overwriting)
-  const skillsSrc = join(tpl, 'skills')
-  if (await exists(skillsSrc)) {
-    const skills = await readdir(skillsSrc)
-    for (const skill of skills) {
-      await syncDir(
-        join(skillsSrc, skill),
-        join(paths.skills, skill),
-        `config/skills/${skill}/`
-      )
-    }
-  }
-
   await copyIfMissing(
     join(tpl, 'memory', 'MEMORY.md'),
     join(paths.data, 'memory', 'MEMORY.md'),

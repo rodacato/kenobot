@@ -12,8 +12,6 @@ export function requiredDirs(paths) {
   return [
     { path: paths.config, label: 'config/' },
     { path: paths.identities, label: 'config/identities/' },
-    { path: paths.skills, label: 'config/skills/' },
-    { path: paths.tools, label: 'config/tools/' },
     { path: paths.data, label: 'data/' },
     { path: join(paths.data, 'sessions'), label: 'data/sessions/', purge: 'always' },
     { path: join(paths.data, 'memory'), label: 'data/memory/', purge: 'memory' },

@@ -20,11 +20,8 @@ Commands:
                       --identity  Force re-bootstrap (keep memory)
                       --all       Reset everything (fresh start)
                       --yes       Skip confirmation
-  doctor              Diagnose common problems (config, skills, disk)
+  doctor              Diagnose common problems (config, disk)
   update [--check]    Update to latest release tag
   version             Show version
-  help                Show this help
-
-Environment:
-  KENOBOT_HOME        Override home directory (default: ~/.kenobot)`)
+  help                Show this help`)
 }

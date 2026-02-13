@@ -15,9 +15,7 @@ export default async function dev(args, paths) {
     env: {
       ...process.env,
       KENOBOT_CONFIG: paths.envFile,
-      KENOBOT_HOME: paths.home,
       DATA_DIR: paths.data,
-      SKILLS_DIR: paths.skills,
       IDENTITY_FILE: join(paths.identities, 'kenobot'),
       KENOBOT_PID_FILE: paths.pidFile,
     },

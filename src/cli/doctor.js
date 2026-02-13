@@ -203,70 +203,6 @@ async function checkProvider(paths) {
   }
 }
 
-async function checkSkills(paths) {
-  if (!await exists(paths.skills)) {
-    return { status: 'skip', label: 'Skills (directory not found)' }
-  }
-
-  const entries = await readdir(paths.skills, { withFileTypes: true })
-  const dirs = entries.filter(e => e.isDirectory())
-
-  if (dirs.length === 0) {
-    return { status: 'ok', label: 'Skills (none installed)' }
-  }
-
-  const issues = []
-  let valid = 0
-
-  for (const dir of dirs) {
-    const skillDir = join(paths.skills, dir.name)
-    const manifestPath = join(skillDir, 'manifest.json')
-    const skillMdPath = join(skillDir, 'SKILL.md')
-
-    if (!await exists(manifestPath)) {
-      issues.push(`${dir.name}: missing manifest.json`)
-      continue
-    }
-
-    try {
-      const raw = await readFile(manifestPath, 'utf8')
-      const manifest = JSON.parse(raw)
-
-      const missing = []
-      if (!manifest.name) missing.push('name')
-      if (!manifest.description) missing.push('description')
-      if (!manifest.triggers || !Array.isArray(manifest.triggers) || manifest.triggers.length === 0) {
-        missing.push('triggers')
-      }
-
-      if (missing.length > 0) {
-        issues.push(`${dir.name}: manifest missing ${missing.join(', ')}`)
-        continue
-      }
-
-      if (!await exists(skillMdPath)) {
-        issues.push(`${dir.name}: missing SKILL.md`)
-        continue
-      }
-
-      valid++
-    } catch {
-      issues.push(`${dir.name}: invalid manifest.json`)
-    }
-  }
-
-  if (issues.length > 0) {
-    return {
-      status: 'warn',
-      label: `Skills — ${valid} valid, ${issues.length} with problems`,
-      fix: issues.map(i => `  Skill ${i}`).join('\n'),
-      details: issues,
-    }
-  }
-
-  return { status: 'ok', label: `Skills (${valid} loaded)` }
-}
-
 async function checkIdentity(paths) {
   let env = {}
   try {
@@ -333,25 +269,6 @@ async function checkTemplateIntegrity(paths) {
     for (const file of tplFiles) {
       if (!await exists(join(identityDir, file))) {
         missing.push(`config/identities/kenobot/${file}`)
-      }
-    }
-  }
-
-  // Check skills match template
-  const tplSkillsDir = join(tplDir, 'skills')
-  if (await exists(tplSkillsDir)) {
-    const tplSkills = await readdir(tplSkillsDir)
-    for (const skill of tplSkills) {
-      const skillDir = join(paths.skills, skill)
-      if (!await exists(skillDir)) {
-        missing.push(`config/skills/${skill}/`)
-        continue
-      }
-      const tplSkillFiles = await readdir(join(tplSkillsDir, skill))
-      for (const file of tplSkillFiles) {
-        if (!await exists(join(skillDir, file))) {
-          missing.push(`config/skills/${skill}/${file}`)
-        }
       }
     }
   }
@@ -553,7 +470,6 @@ export default async function doctor(args, paths) {
     await checkConfig(paths),
     await checkProvider(paths),
     await checkTemplateIntegrity(paths),
-    await checkSkills(paths),
     await checkIdentity(paths),
     await checkPidFile(paths),
     await checkDiskUsage(paths),

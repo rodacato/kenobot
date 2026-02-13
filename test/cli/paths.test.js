@@ -1,26 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
+import paths from '../../src/paths.js'
 
 describe('paths', () => {
-  let originalHome
-
-  beforeEach(() => {
-    originalHome = process.env.KENOBOT_HOME
-    vi.resetModules()
-  })
-
-  afterEach(() => {
-    if (originalHome === undefined) {
-      delete process.env.KENOBOT_HOME
-    } else {
-      process.env.KENOBOT_HOME = originalHome
-    }
-  })
-
-  it('resolves to ~/.kenobot by default', async () => {
-    delete process.env.KENOBOT_HOME
-    const { default: paths } = await import('../../src/paths.js')
+  it('resolves to ~/.kenobot by default', () => {
     const expected = join(homedir(), '.kenobot')
     expect(paths.home).toBe(expected)
     expect(paths.config).toBe(join(expected, 'config'))
@@ -30,19 +14,7 @@ describe('paths', () => {
     expect(paths.pidFile).toBe(join(expected, 'data', 'kenobot.pid'))
   })
 
-  it('respects KENOBOT_HOME override', async () => {
-    process.env.KENOBOT_HOME = '/tmp/test-kenobot'
-    const { default: paths } = await import('../../src/paths.js')
-    expect(paths.home).toBe('/tmp/test-kenobot')
-    expect(paths.config).toBe('/tmp/test-kenobot/config')
-    expect(paths.envFile).toBe('/tmp/test-kenobot/config/.env')
-    expect(paths.identities).toBe('/tmp/test-kenobot/config/identities')
-    expect(paths.skills).toBe('/tmp/test-kenobot/config/skills')
-    expect(paths.data).toBe('/tmp/test-kenobot/data')
-  })
-
-  it('resolves engine root to project directory', async () => {
-    const { default: paths } = await import('../../src/paths.js')
+  it('resolves engine root to project directory', () => {
     expect(paths.engine).toMatch(/kenobot$/)
     expect(paths.templates).toBe(join(paths.engine, 'templates'))
   })
