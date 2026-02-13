@@ -26,6 +26,7 @@ ExecStart=${kenobotBin} start
 Restart=on-failure
 RestartSec=10
 Environment=KENOBOT_HOME=%h/.kenobot
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
 
 [Install]
 WantedBy=default.target

@@ -135,7 +135,15 @@ phase2_main() {
     if command -v claude &>/dev/null; then
       log_info "claude already installed"
     else
-      npm install -g @anthropic-ai/claude-code 2>&1 | tail -1
+      curl -fsSL https://claude.ai/install.sh | bash 2>&1 | tail -1
+
+      # Add ~/.local/bin to PATH if not already there
+      if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+        export PATH="$HOME/.local/bin:$PATH"
+        log_info "Added ~/.local/bin to PATH in ~/.bashrc"
+      fi
+
       log_info "Claude Code CLI installed"
     fi
   fi

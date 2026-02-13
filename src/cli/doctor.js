@@ -166,7 +166,7 @@ async function checkProvider(paths) {
       return {
         status: 'fail',
         label: 'Provider: claude-cli — claude binary not found in PATH',
-        fix: 'Install Claude CLI: npm install -g @anthropic-ai/claude-code',
+        fix: 'Install Claude CLI: curl -fsSL https://claude.ai/install.sh | bash',
       }
     }
   }
