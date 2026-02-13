@@ -5,9 +5,11 @@ import { Logger } from './logger.js'
 import TelegramChannel from './channels/telegram.js'
 import HTTPChannel from './channels/http.js'
 import FilesystemStorage from './storage/filesystem.js'
+import MemoryStore from './storage/memory-store.js'
 import FileMemory from './agent/memory.js'
 import CompactingMemory from './agent/compacting-memory.js'
 import HeuristicCompactor from './agent/heuristic-compactor.js'
+import CognitiveSystem from './cognitive/index.js'
 import IdentityLoader from './agent/identity.js'
 import ContextBuilder from './agent/context.js'
 import AgentLoop from './agent/loop.js'
@@ -34,6 +36,7 @@ import { CONFIG_CHANGED, APPROVAL_APPROVED, ERROR } from './events.js'
  * @param {Object} [options]
  * @param {string} [options.homePath] - KenoBot home dir for ConfigSync
  * @param {Object} [options.logger] - Logger instance (default: new Logger per instance)
+ * @param {boolean} [options.useCognitive] - Use new CognitiveSystem (default: true in Phase 1)
  */
 export function createApp(config, provider, options = {}) {
   const bus = new MessageBus()
@@ -91,21 +94,39 @@ export function createApp(config, provider, options = {}) {
   // Core components
   const scheduler = new Scheduler(bus, config.dataDir, { logger })
   const storage = new FilesystemStorage(config, { logger })
-  const fileMemory = new FileMemory(config.dataDir, { logger })
-  const compactor = new HeuristicCompactor()
-  const memory = new CompactingMemory(fileMemory, compactor, {
-    retentionDays: config.memoryRetentionDays,
-    logger
-  })
   const identityLoader = new IdentityLoader(config.identityFile, { logger })
   const skillLoader = new SkillLoader(config.skillsDir, { logger })
+
+  // Memory system - Phase 1: Support both cognitive and legacy
+  const useCognitive = options.useCognitive !== false // Default: true
+  let memory, cognitive
+
+  if (useCognitive) {
+    // New path: CognitiveSystem
+    const memoryStore = new MemoryStore(config.dataDir, { logger })
+    cognitive = new CognitiveSystem(config, memoryStore, circuitBreaker, { logger })
+    memory = cognitive.getMemorySystem()
+    logger.info('system', 'cognitive_enabled', { phase: 1 })
+  } else {
+    // Legacy path: FileMemory + CompactingMemory
+    const fileMemory = new FileMemory(config.dataDir, { logger })
+    const compactor = new HeuristicCompactor()
+    memory = new CompactingMemory(fileMemory, compactor, {
+      retentionDays: config.memoryRetentionDays,
+      logger
+    })
+    cognitive = null
+    logger.info('system', 'legacy_memory_enabled')
+  }
 
   const toolRegistry = new ToolRegistry()
   const toolLoader = new ToolLoader(toolRegistry, {
     config, scheduler, watchdog, circuitBreaker, bus, skillLoader, identityLoader, logger
   })
 
-  const contextBuilder = new ContextBuilder(config, storage, memory, toolRegistry, skillLoader, identityLoader, { logger })
+  // ContextBuilder: Pass cognitive if available, otherwise memory
+  const memoryManager = cognitive || memory
+  const contextBuilder = new ContextBuilder(config, storage, memoryManager, toolRegistry, skillLoader, identityLoader, { logger })
   const agent = new AgentLoop(bus, circuitBreaker, contextBuilder, storage, memory, toolRegistry, { logger })
   agent.maxToolIterations = config.maxToolIterations
 
@@ -155,10 +176,12 @@ export function createApp(config, provider, options = {}) {
 
     await configSync.init()
 
-    // Fire-and-forget memory compaction on startup
-    memory.compact().catch(err =>
-      logger.warn('system', 'compaction_failed', { error: err.message })
-    )
+    // Fire-and-forget memory compaction on startup (only for CompactingMemory)
+    if (memory.compact && typeof memory.compact === 'function') {
+      memory.compact().catch(err =>
+        logger.warn('system', 'compaction_failed', { error: err.message })
+      )
+    }
 
     await agent.start()
     await Promise.all(channels.map(ch => ch.start()))
@@ -188,6 +211,7 @@ export function createApp(config, provider, options = {}) {
     circuitBreaker,
     storage,
     memory,
+    cognitive, // Phase 1: Export cognitive system (null if legacy mode)
     logger,
     start,
     stop,

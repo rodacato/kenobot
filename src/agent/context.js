@@ -11,12 +11,27 @@ import defaultLogger from '../logger.js'
  *
  * System prompt structure:
  *   [SOUL.md] + [IDENTITY.md] + [User Profile] + [Available tools] + [Available skills] + [Memory]
+ *
+ * Phase 1: Accepts CognitiveSystem OR FileMemory (backward compatible)
+ * Phase 2+: Will only use CognitiveSystem
  */
 export default class ContextBuilder {
   constructor(config, storage, memoryManager, toolRegistry, skillLoader, identityLoader, { logger = defaultLogger } = {}) {
     this.config = config
     this.storage = storage
-    this.memory = memoryManager || null
+
+    // Support both CognitiveSystem (new) and FileMemory (legacy)
+    // Detect by checking for getMemorySystem() method
+    if (memoryManager && typeof memoryManager.getMemorySystem === 'function') {
+      this.cognitive = memoryManager
+      this.memory = memoryManager.getMemorySystem()
+      this._useCognitive = true
+    } else {
+      this.cognitive = null
+      this.memory = memoryManager || null
+      this._useCognitive = false
+    }
+
     this.toolRegistry = toolRegistry || null
     this.skillLoader = skillLoader || null
     this.identityLoader = identityLoader || null
@@ -162,17 +177,30 @@ export default class ContextBuilder {
    * @returns {Promise<{ label: string, content: string }|null>}
    */
   async _buildMemorySection(sessionId, memoryDays = 3) {
-    const promises = [
-      this.memory.getLongTermMemory(),
-      this.memory.getRecentDays(memoryDays)
-    ]
-    if (sessionId) {
-      promises.push(this.memory.getChatLongTermMemory(sessionId))
-      promises.push(this.memory.getChatRecentDays(sessionId, memoryDays))
-      promises.push(this.memory.getWorkingMemory(sessionId))
-    }
+    let longTerm, recentNotes, chatLongTerm, chatRecent, workingMemoryResult
 
-    const [longTerm, recentNotes, chatLongTerm, chatRecent, workingMemoryResult] = await Promise.all(promises)
+    // Phase 1: Use CognitiveSystem if available (new path)
+    if (this._useCognitive && this.cognitive) {
+      const context = await this.cognitive.buildContext(sessionId, '')
+      longTerm = context.memory.longTerm
+      recentNotes = context.memory.recentNotes
+      chatLongTerm = context.memory.chatLongTerm
+      chatRecent = context.memory.chatRecent
+      workingMemoryResult = context.workingMemory
+    } else {
+      // Legacy path: Use FileMemory directly
+      const promises = [
+        this.memory.getLongTermMemory(),
+        this.memory.getRecentDays(memoryDays)
+      ]
+      if (sessionId) {
+        promises.push(this.memory.getChatLongTermMemory(sessionId))
+        promises.push(this.memory.getChatRecentDays(sessionId, memoryDays))
+        promises.push(this.memory.getWorkingMemory(sessionId))
+      }
+
+      [longTerm, recentNotes, chatLongTerm, chatRecent, workingMemoryResult] = await Promise.all(promises)
+    }
 
     // Filter stale working memory (>7 days by default)
     const staleDays = this.config.workingMemoryStaleThreshold ?? 7
