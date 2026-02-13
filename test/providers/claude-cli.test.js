@@ -51,7 +51,7 @@ describe('ClaudeCLIProvider', () => {
       expect(prompt).toContain('Human: second')
     })
 
-    it('should prepend system prompt when provided', async () => {
+    it('should pass system prompt as dedicated flag', async () => {
       const spawnSpy = vi.spyOn(provider, '_spawn').mockResolvedValue({
         stdout: 'response',
         stderr: ''
@@ -63,13 +63,17 @@ describe('ClaudeCLIProvider', () => {
       )
 
       const args = spawnSpy.mock.calls[0][1]
+      expect(args).toContain('--system-prompt')
+      const systemIndex = args.indexOf('--system-prompt')
+      expect(args[systemIndex + 1]).toBe('# Identity\nI am KenoBot.')
+
+      // User prompt should NOT contain system prompt
       const prompt = args[args.length - 1]
-      expect(prompt).toContain('# Identity\nI am KenoBot.')
-      expect(prompt).toContain('---')
-      expect(prompt).toContain('hello')
+      expect(prompt).not.toContain('# Identity')
+      expect(prompt).toBe('hello')
     })
 
-    it('should pass Claudio-compatible flags', async () => {
+    it('should pass required flags with budget protection', async () => {
       const spawnSpy = vi.spyOn(provider, '_spawn').mockResolvedValue({
         stdout: 'response',
         stderr: ''
@@ -84,6 +88,9 @@ describe('ClaudeCLIProvider', () => {
       expect(args).toContain('--no-session-persistence')
       expect(args).toContain('bypassPermissions')
       expect(args).toContain('sonnet')
+      expect(args).toContain('--max-budget-usd')
+      expect(args).toContain('5.0')
+      expect(args).toContain('--print')
     })
 
     it('should use model from options over config', async () => {
@@ -157,6 +164,51 @@ describe('ClaudeCLIProvider', () => {
 
       const spawnOptions = spawnSpy.mock.calls[0][2]
       expect(spawnOptions.cwd).toBe('/tmp/my-project')
+    })
+
+    it('should enable debug mode when KENOBOT_DEBUG is true', async () => {
+      const originalDebug = process.env.KENOBOT_DEBUG
+      process.env.KENOBOT_DEBUG = 'true'
+
+      const spawnSpy = vi.spyOn(provider, '_spawn').mockResolvedValue({
+        stdout: 'response',
+        stderr: ''
+      })
+
+      await provider.chat([{ role: 'user', content: 'test' }])
+
+      const args = spawnSpy.mock.calls[0][1]
+      expect(args).toContain('--debug')
+
+      process.env.KENOBOT_DEBUG = originalDebug
+    })
+
+    it('should enable debug mode when config.debug is true', async () => {
+      const debugProvider = new ClaudeCLIProvider({ model: 'sonnet', debug: true })
+      const spawnSpy = vi.spyOn(debugProvider, '_spawn').mockResolvedValue({
+        stdout: 'response',
+        stderr: ''
+      })
+
+      await debugProvider.chat([{ role: 'user', content: 'test' }])
+
+      const args = spawnSpy.mock.calls[0][1]
+      expect(args).toContain('--debug')
+    })
+
+    it('should use custom maxBudgetUsd from config', async () => {
+      const budgetProvider = new ClaudeCLIProvider({ model: 'sonnet', maxBudgetUsd: '10.0' })
+      const spawnSpy = vi.spyOn(budgetProvider, '_spawn').mockResolvedValue({
+        stdout: 'response',
+        stderr: ''
+      })
+
+      await budgetProvider.chat([{ role: 'user', content: 'test' }])
+
+      const args = spawnSpy.mock.calls[0][1]
+      expect(args).toContain('--max-budget-usd')
+      const budgetIndex = args.indexOf('--max-budget-usd')
+      expect(args[budgetIndex + 1]).toBe('10.0')
     })
   })
 

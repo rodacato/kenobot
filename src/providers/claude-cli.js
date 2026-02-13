@@ -22,11 +22,9 @@ export default class ClaudeCLIProvider extends BaseProvider {
    */
   async chat(messages, options = {}) {
     const model = options.model || this.config.model
+    const maxBudget = this.config.maxBudgetUsd || '5.0'
 
-    // Build prompt from system context + message history
-    const prompt = this._buildPrompt(messages, options)
-
-    // Flags aligned with Claudio's approach (github.com/edgarjs/claudio)
+    // Build args with improved flags
     const args = [
       '--dangerously-skip-permissions',
       '--disable-slash-commands',
@@ -34,8 +32,23 @@ export default class ClaudeCLIProvider extends BaseProvider {
       '--no-session-persistence',
       '--permission-mode', 'bypassPermissions',
       '--model', model,
-      '-p', prompt
+      '--max-budget-usd', maxBudget,
+      '--print'
     ]
+
+    // Add system prompt as dedicated flag (cleaner than injecting into prompt)
+    if (options.system) {
+      args.push('--system-prompt', options.system)
+    }
+
+    // Enable debug mode if configured
+    if (this.config.debug || process.env.KENOBOT_DEBUG === 'true') {
+      args.push('--debug')
+    }
+
+    // Build prompt (now without system context, just messages)
+    const prompt = this._buildPrompt(messages)
+    args.push(prompt)
 
     // CWD: dev mode passes explicit cwd, assistant mode defaults to $HOME
     const cwd = options.cwd || process.env.HOME
@@ -101,21 +114,17 @@ export default class ClaudeCLIProvider extends BaseProvider {
   }
 
   /**
-   * Build a single prompt string from system context + messages.
+   * Build a single prompt string from messages.
+   * System context is now passed via --system-prompt flag.
    * @private
    */
-  _buildPrompt(messages, options = {}) {
-    let prompt = ''
-
-    if (options.system) {
-      prompt += options.system + '\n\n---\n\n'
-    }
-
+  _buildPrompt(messages) {
     if (messages.length === 1) {
       // Single message — no need for role prefixes
-      return prompt + (messages[0].content || '')
+      return messages[0].content || ''
     }
 
+    let prompt = ''
     for (const msg of messages) {
       const prefix = msg.role === 'user' ? 'Human' : 'Assistant'
       prompt += `${prefix}: ${msg.content}\n\n`
