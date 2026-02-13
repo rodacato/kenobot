@@ -50,7 +50,6 @@ export default async function init(args, paths) {
   const flags = {
     installClaude: args.includes('--install-claude'),
     installGemini: args.includes('--install-gemini'),
-    installN8n: args.includes('--install-n8n'),
     installAll: args.includes('--install-all')
   }
 
@@ -58,7 +57,6 @@ export default async function init(args, paths) {
   if (flags.installAll) {
     flags.installClaude = true
     flags.installGemini = true
-    flags.installN8n = true
   }
 
   // Fail early if running as root
@@ -83,10 +81,6 @@ export default async function init(args, paths) {
 
   if (flags.installGemini) {
     await installGeminiCLI()
-  }
-
-  if (flags.installN8n) {
-    await installN8n()
   }
 
   // Configure PATH once if any tool was installed
@@ -187,28 +181,6 @@ async function installGeminiCLI() {
     } catch (error) {
       warn(`Gemini CLI installation failed: ${error.message}`)
       console.log('  You can install it manually: npm install -g @google/gemini-cli')
-    }
-  }
-}
-
-/**
- * Install n8n
- */
-async function installN8n() {
-  try {
-    await execAsync('command -v n8n')
-    const version = await execAsync('n8n --version 2>&1 | head -1')
-    skip(`n8n already installed (${version.stdout.trim()})`)
-  } catch {
-    console.log('Installing n8n...')
-    try {
-      await execAsync('npm install -g n8n')
-      info('n8n installed')
-      console.log('\n  n8n will be available at http://localhost:5678')
-      console.log('  Start it with: n8n start\n')
-    } catch (error) {
-      warn(`n8n installation failed: ${error.message}`)
-      console.log('  You can install it manually: npm install -g n8n')
     }
   }
 }

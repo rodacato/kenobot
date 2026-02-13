@@ -3,8 +3,8 @@
 #
 # Automated setup for a fresh Ubuntu/Debian VPS:
 #   - Creates a 'kenobot' system user (non-root)
-#   - Installs Node.js 22, kenobot, n8n, cloudflared
-#   - Configures systemd user services for all three
+#   - Installs Node.js 22, kenobot, cloudflared
+#   - Configures systemd user services
 #   - Sets up Cloudflare tunnel (optional)
 #
 # Usage:
@@ -134,7 +134,6 @@ phase2_main() {
   INIT_FLAGS=""
   [ "${INSTALL_CLAUDE_CLI:-false}" = "true" ] && INIT_FLAGS="$INIT_FLAGS --install-claude"
   [ "${INSTALL_GEMINI_CLI:-false}" = "true" ] && INIT_FLAGS="$INIT_FLAGS --install-gemini"
-  [ "${INSTALL_N8N:-true}" = "true" ] && INIT_FLAGS="$INIT_FLAGS --install-n8n"
 
   # shellcheck disable=SC2086
   kenobot setup $INIT_FLAGS 2>&1 || true
@@ -146,11 +145,6 @@ phase2_main() {
   # Install kenobot systemd service
   log_step "Installing systemd services"
   kenobot install-service 2>&1 || true
-
-  # Install n8n systemd service
-  if [ "${INSTALL_N8N:-true}" = "true" ]; then
-    phase2_write_n8n_service
-  fi
 
   # Cloudflare tunnel setup (optional)
   if [ -n "${CF_DOMAIN:-}" ]; then
@@ -167,11 +161,6 @@ phase2_main() {
   systemctl --user enable kenobot 2>/dev/null || true
   systemctl --user restart kenobot 2>/dev/null || true
   log_info "kenobot service started"
-
-  if [ "${INSTALL_N8N:-true}" = "true" ]; then
-    systemctl --user enable --now n8n 2>/dev/null || true
-    log_info "n8n service started"
-  fi
 
   if [ -n "${CF_DOMAIN:-}" ]; then
     systemctl --user enable --now cloudflared 2>/dev/null || true
@@ -220,16 +209,6 @@ GOOGLE_API_KEY=${GOOGLE_API_KEY}
 EOF
   fi
 
-  if [ "${INSTALL_N8N:-true}" = "true" ]; then
-    cat >> "$env_file" <<EOF
-
-# n8n Integration
-N8N_WEBHOOK_BASE=http://localhost:5678/webhook
-# N8N_API_URL=http://localhost:5678
-# N8N_API_KEY=set-after-n8n-setup
-EOF
-  fi
-
   if [ -n "${CF_DOMAIN:-}" ]; then
     cat >> "$env_file" <<EOF
 
@@ -243,37 +222,6 @@ EOF
 
   chmod 600 "$env_file"
   log_info "Configuration saved"
-}
-
-phase2_write_n8n_service() {
-  local unit_dir="$HOME/.config/systemd/user"
-  local unit_file="$unit_dir/n8n.service"
-
-  mkdir -p "$unit_dir"
-
-  local n8n_bin
-  n8n_bin=$(which n8n 2>/dev/null || echo "/usr/local/bin/n8n")
-
-  cat > "$unit_file" <<EOF
-[Unit]
-Description=n8n workflow automation
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-ExecStart=${n8n_bin} start
-Restart=on-failure
-RestartSec=10
-Environment=N8N_PORT=5678
-Environment=N8N_PROTOCOL=http
-Environment=N8N_HOST=localhost
-
-[Install]
-WantedBy=default.target
-EOF
-
-  log_info "n8n service written to $unit_file"
 }
 
 phase2_setup_tunnel() {
@@ -319,11 +267,6 @@ phase2_setup_tunnel() {
   log_info "Routing DNS: $CF_DOMAIN -> tunnel kenobot"
   cloudflared tunnel route dns kenobot "$CF_DOMAIN" 2>/dev/null || true
 
-  if [ -n "${N8N_DOMAIN:-}" ]; then
-    log_info "Routing DNS: $N8N_DOMAIN -> tunnel kenobot"
-    cloudflared tunnel route dns kenobot "$N8N_DOMAIN" 2>/dev/null || true
-  fi
-
   # Write cloudflared config
   local config_file="$HOME/.kenobot/config/cloudflared.yml"
   cat > "$config_file" <<EOF
@@ -336,16 +279,6 @@ credentials-file: ${HOME}/.cloudflared/${tunnel_id}.json
 ingress:
   - hostname: ${CF_DOMAIN}
     service: http://localhost:3000
-EOF
-
-  if [ -n "${N8N_DOMAIN:-}" ]; then
-    cat >> "$config_file" <<EOF
-  - hostname: ${N8N_DOMAIN}
-    service: http://localhost:5678
-EOF
-  fi
-
-  cat >> "$config_file" <<EOF
   - service: http_status:404
 EOF
 
@@ -405,7 +338,6 @@ echo ""
 echo -e "  This script will install and configure:"
 echo -e "    - Node.js ${NODE_MAJOR}"
 echo -e "    - KenoBot (Telegram AI assistant)"
-echo -e "    - n8n (workflow automation, optional)"
 echo -e "    - Cloudflare tunnel (optional)"
 echo ""
 echo -e "  Everything runs as a dedicated '${KENOBOT_USER}' user."
@@ -601,16 +533,6 @@ case "$INSTALL_GEMINI_CLI" in
   *)     INSTALL_GEMINI_CLI="false" ;;
 esac
 
-# n8n (optional, recommended)
-echo ""
-echo -e "    ${BOLD}n8n Workflow Automation${NC} ${DIM}(recommended — gives KenoBot tool/workflow abilities)${NC}"
-INSTALL_N8N=""
-prompt_value "Install n8n? (Y/n)" "Y" INSTALL_N8N
-case "$INSTALL_N8N" in
-  [Nn]*) INSTALL_N8N="false" ;;
-  *)     INSTALL_N8N="true" ;;
-esac
-
 # Update channel
 echo ""
 echo -e "    ${BOLD}Update Channel${NC}"
@@ -630,11 +552,6 @@ echo -e "    ${BOLD}Cloudflare Tunnel${NC} ${DIM}(optional, for webhooks and ext
 CF_DOMAIN=""
 prompt_value "KenoBot domain (e.g., bot.example.com, blank to skip)" "" CF_DOMAIN
 
-N8N_DOMAIN=""
-if [ -n "$CF_DOMAIN" ] && [ "$INSTALL_N8N" = "true" ]; then
-  prompt_value "n8n domain (e.g., n8n.example.com, blank to skip)" "" N8N_DOMAIN
-fi
-
 # Auto-generate webhook secret
 WEBHOOK_SECRET=$(openssl rand -hex 32)
 
@@ -648,7 +565,6 @@ echo -e "    Provider:        ${PROVIDER}"
 echo -e "    Claude CLI:      ${INSTALL_CLAUDE_CLI}"
 echo -e "    Gemini CLI:      ${INSTALL_GEMINI_CLI}"
 echo -e "    Channel:         ${KENOBOT_CHANNEL}"
-echo -e "    n8n:             ${INSTALL_N8N}"
 if [ -n "$ANTHROPIC_API_KEY" ]; then
   echo -e "    API key:         ${DIM}${ANTHROPIC_API_KEY:0:12}...${NC}"
 fi
@@ -657,9 +573,6 @@ if [ -n "$GOOGLE_API_KEY" ]; then
 fi
 if [ -n "$CF_DOMAIN" ]; then
   echo -e "    KenoBot domain:  ${CF_DOMAIN}"
-fi
-if [ -n "$N8N_DOMAIN" ]; then
-  echo -e "    n8n domain:      ${N8N_DOMAIN}"
 fi
 echo ""
 
@@ -674,9 +587,7 @@ ANTHROPIC_API_KEY='${ANTHROPIC_API_KEY}'
 GOOGLE_API_KEY='${GOOGLE_API_KEY}'
 INSTALL_CLAUDE_CLI='${INSTALL_CLAUDE_CLI}'
 INSTALL_GEMINI_CLI='${INSTALL_GEMINI_CLI}'
-INSTALL_N8N='${INSTALL_N8N}'
 CF_DOMAIN='${CF_DOMAIN}'
-N8N_DOMAIN='${N8N_DOMAIN}'
 WEBHOOK_SECRET='${WEBHOOK_SECRET}'
 KENOBOT_GIT_URL='${KENOBOT_GIT_URL}'
 KENOBOT_VERSION='${KENOBOT_VERSION:-}'
@@ -744,12 +655,8 @@ echo ""
 # Service statuses
 log_step "Service status"
 echo ""
-for svc in kenobot n8n cloudflared; do
+for svc in kenobot cloudflared; do
   # Skip services that were not installed
-  if [ "$svc" = "n8n" ] && [ "${INSTALL_N8N:-true}" != "true" ]; then
-    echo -e "  ${DIM}[-] $svc: skipped${NC}"
-    continue
-  fi
   if [ "$svc" = "cloudflared" ] && [ -z "${CF_DOMAIN:-}" ]; then
     echo -e "  ${DIM}[-] $svc: skipped (no domain)${NC}"
     continue
@@ -770,32 +677,6 @@ log_step "Manual steps remaining"
 echo ""
 step=1
 
-if [ "${INSTALL_N8N:-true}" = "true" ]; then
-  echo "  ${step}. n8n Admin Setup:"
-  if [ -n "${N8N_DOMAIN:-}" ]; then
-    echo "     Open https://${N8N_DOMAIN} in your browser"
-  elif [ -n "${CF_DOMAIN:-}" ]; then
-    echo "     SSH tunnel: ssh -L 5678:localhost:5678 <your-server>"
-    echo "     Then open http://localhost:5678 in your browser"
-  else
-    echo "     Open http://<your-server-ip>:5678 in your browser"
-    echo "     (or use SSH tunnel: ssh -L 5678:localhost:5678 <your-server>)"
-  fi
-  echo "     Create your admin account (first visit only)"
-  echo ""
-  step=$((step + 1))
-
-  echo "  ${step}. Connect n8n to KenoBot:"
-  echo "     In n8n: Settings > API > Create API Key"
-  echo "     Then run:"
-  echo "       sudo -iu ${KENOBOT_USER} kenobot config edit"
-  echo "     Uncomment and set:"
-  echo "       N8N_API_URL=http://localhost:5678"
-  echo "       N8N_API_KEY=<your-api-key>"
-  echo ""
-  step=$((step + 1))
-fi
-
 echo "  ${step}. Verify the bot:"
 echo "     Send a message to your bot on Telegram"
 echo ""
@@ -815,9 +696,6 @@ echo "  kenobot status                               # Bot status"
 echo "  kenobot logs                                 # Tail logs"
 echo "  kenobot config edit                          # Edit configuration"
 echo "  systemctl --user status kenobot              # Service status"
-if [ "${INSTALL_N8N:-true}" = "true" ]; then
-  echo "  systemctl --user status n8n"
-fi
 if [ -n "${CF_DOMAIN:-}" ]; then
   echo "  systemctl --user status cloudflared"
 fi
