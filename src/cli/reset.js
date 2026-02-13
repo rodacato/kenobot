@@ -83,9 +83,10 @@ export default async function reset(args, paths) {
     operations.push({
       name: 'Identity',
       paths: [
-        join(paths.home, 'memory', 'identity', 'preferences.md')
+        join(paths.home, 'memory', 'identity', 'preferences.md'),
+        join(paths.home, 'data', 'sessions')
       ],
-      description: 'User preferences (will trigger re-bootstrap)',
+      description: 'User preferences and session history (will trigger re-bootstrap)',
       recreate: [
         {
           path: join(paths.home, 'memory', 'identity', 'BOOTSTRAP.md'),
