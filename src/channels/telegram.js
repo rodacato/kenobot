@@ -25,14 +25,17 @@ export default class TelegramChannel extends BaseChannel {
       const isGroup = chatType === 'group' || chatType === 'supergroup'
       let text = ctx.message.text
 
-      // In groups: only respond to mentions or replies to the bot
+      // In groups: respond to authorized users always, others only on mention/reply
       if (isGroup) {
+        const userId = String(ctx.from.id)
+        const isAuthorizedUser = this.config.allowedUsers.includes(userId)
         const botId = ctx.me.id
         const botUsername = ctx.me.username
         const isReply = ctx.message.reply_to_message?.from?.id === botId
         const isMention = botUsername && text.includes(`@${botUsername}`)
 
-        if (!isReply && !isMention) return // silently skip
+        // Skip if not authorized and not a mention/reply
+        if (!isAuthorizedUser && !isReply && !isMention) return
 
         // Strip @botname from message text
         if (isMention && botUsername) {
