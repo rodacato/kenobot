@@ -26,10 +26,12 @@ export default class ContextBuilder {
       this.cognitive = memoryManager
       this.memory = memoryManager.getMemorySystem()
       this._useCognitive = true
+      logger.info('context', 'cognitive_system_detected', { useCognitive: true })
     } else {
       this.cognitive = null
       this.memory = memoryManager || null
       this._useCognitive = false
+      logger.info('context', 'legacy_memory_detected', { useCognitive: false })
     }
 
     this.toolRegistry = toolRegistry || null

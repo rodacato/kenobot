@@ -36,7 +36,8 @@ export default class CognitiveSystem {
     this.useRetrieval = config.useRetrieval !== false // Default: true
 
     // Phase 5: Initialize identity manager
-    const identityPath = join(homedir(), '.kenobot', 'memory', 'identity')
+    // Use config.identityFile if set, otherwise default to ~/.kenobot/memory/identity
+    const identityPath = config.identityFile || join(homedir(), '.kenobot', 'memory', 'identity')
     this.identity = new IdentityManager(identityPath, { logger })
     this.useIdentity = config.useIdentity !== false // Default: true
   }

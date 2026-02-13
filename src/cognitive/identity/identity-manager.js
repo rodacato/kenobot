@@ -67,6 +67,14 @@ export default class IdentityManager {
     let bootstrap = null
     if (!this.isBootstrapped) {
       bootstrap = await this.preferencesManager.getBootstrapInstructions()
+      this.logger.info('identity-manager', 'bootstrap_loading', {
+        hasBootstrap: !!bootstrap,
+        length: bootstrap?.length || 0
+      })
+    } else {
+      this.logger.info('identity-manager', 'bootstrap_skipped', {
+        reason: 'already_bootstrapped'
+      })
     }
 
     return {
