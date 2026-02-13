@@ -184,7 +184,7 @@ export default class AgentLoop {
         // Run post-processor pipeline: extract tags, persist, clean text
         const { cleanText, stats } = await runPostProcessors(response.content, {
           memory: this.memory,
-          identityLoader: this.contextBuilder.identityLoader,
+          cognitive: this.contextBuilder.cognitive,
           bus: this.bus,
           sessionId,
           logger: this.logger

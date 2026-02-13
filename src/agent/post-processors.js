@@ -58,9 +58,13 @@ export const defaultPostProcessors = [
       const { cleanText, updates } = extractUserUpdates(text)
       return { cleanText, data: { updates } }
     },
-    async apply({ updates }, { identityLoader, bus }) {
-      if (updates.length === 0 || !identityLoader) return
-      await identityLoader.appendUser(updates)
+    async apply({ updates }, { cognitive, bus }) {
+      if (updates.length === 0 || !cognitive) return
+      const identityManager = cognitive.getIdentityManager()
+      // Save each update as a preference
+      for (const update of updates) {
+        await identityManager.updatePreference('learned', update)
+      }
       bus.emit(CONFIG_CHANGED, { reason: 'user preferences update' })
     }
   },
@@ -70,9 +74,9 @@ export const defaultPostProcessors = [
       const { cleanText, isComplete } = extractBootstrapComplete(text)
       return { cleanText, data: { isComplete } }
     },
-    async apply({ isComplete }, { identityLoader, bus }) {
-      if (!isComplete || !identityLoader) return
-      await identityLoader.deleteBootstrap()
+    async apply({ isComplete }, { cognitive, bus }) {
+      if (!isComplete || !cognitive) return
+      await cognitive.getIdentityManager().deleteBootstrap()
       bus.emit(CONFIG_CHANGED, { reason: 'bootstrap complete' })
     }
   }
