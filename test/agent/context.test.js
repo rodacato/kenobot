@@ -183,7 +183,7 @@ describe('ContextBuilder', () => {
 
       expect(result.system).toContain('## Memory')
       expect(result.system).toContain('<memory>')
-      expect(result.system).toContain('How to remember things')
+      expect(result.system).toContain('Include these in your response when something is worth remembering')
     })
 
     it('should include long-term memory content in section', async () => {
@@ -336,7 +336,7 @@ describe('ContextBuilder', () => {
       const result = await context.build('telegram-123', { text: 'hello' })
 
       expect(result.system).toContain('<working-memory>')
-      expect(result.system).toContain('How to maintain working memory')
+      expect(result.system).toContain('Current task, pending items')
     })
   })
 
@@ -622,7 +622,7 @@ describe('ContextBuilder', () => {
       expect(result.system).toContain('## User Profile')
       expect(result.system).toContain('Name: Carlos')
       expect(result.system).toContain('<user>')
-      expect(result.system).toContain('How to update user preferences')
+      expect(result.system).toContain('Learn something new? Save it')
     })
 
     it('should not include user profile section when USER.md is empty', async () => {
