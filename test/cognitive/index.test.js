@@ -19,7 +19,8 @@ describe('CognitiveSystem', () => {
 
   beforeEach(() => {
     mockConfig = {
-      memoryDays: 3
+      memoryDays: 3,
+      useRetrieval: false // Disable retrieval for tests to use legacy path
     }
 
     mockStore = {

@@ -1,4 +1,5 @@
 import MemorySystem from './memory/memory-system.js'
+import RetrievalEngine from './retrieval/retrieval-engine.js'
 import defaultLogger from '../logger.js'
 
 /**
@@ -7,10 +8,11 @@ import defaultLogger from '../logger.js'
  * Orchestrates:
  * - Memory System (4 types: working, episodic, semantic, procedural)
  * - Retrieval Engine (Phase 2+)
- * - Identity Manager (Phase 2+)
+ * - Identity Manager (Phase 5+)
  *
  * Phase 1: Delegates to existing MemoryStore (backward compatible)
- * Phase 2+: Will add retrieval, identity management, sleep cycle
+ * Phase 2: Adds selective retrieval
+ * Phase 3+: Will add identity management, sleep cycle
  *
  * Usage:
  *   const cognitive = new CognitiveSystem(config, memoryStore, provider, { logger })
@@ -26,8 +28,11 @@ export default class CognitiveSystem {
     // Initialize memory system
     this.memory = new MemorySystem(memoryStore, { logger })
 
-    // Phase 2+: Will add
-    // this.retrieval = new RetrievalEngine(...)
+    // Phase 2: Initialize retrieval engine
+    this.retrieval = new RetrievalEngine(this.memory, { logger })
+    this.useRetrieval = config.useRetrieval !== false // Default: true
+
+    // Phase 5+: Will add
     // this.identity = new IdentityManager(...)
   }
 
@@ -36,25 +41,55 @@ export default class CognitiveSystem {
    * Called by ContextBuilder to get memory for system prompt.
    *
    * Phase 1: Returns all memory (backward compatible)
-   * Phase 2+: Returns retrieval-based selective memory
+   * Phase 2: Returns retrieval-based selective memory
    *
    * @param {string} sessionId - e.g. "telegram-123456"
    * @param {string} messageText - User message
-   * @returns {Promise<{ memory: Object, workingMemory: Object|null }>}
+   * @returns {Promise<{ memory: Object, workingMemory: Object|null, retrieval?: Object }>}
    */
   async buildContext(sessionId, messageText) {
-    // Phase 1: Load all memory (same as before)
+    const workingMemory = await this.memory.getWorkingMemory(sessionId)
+
+    // Phase 2: Use retrieval if enabled
+    if (this.useRetrieval && messageText) {
+      const limits = {
+        maxFacts: this.config.maxFacts ?? 10,
+        maxProcedures: this.config.maxProcedures ?? 5,
+        maxEpisodes: this.config.maxEpisodes ?? 3
+      }
+
+      const retrieved = await this.retrieval.retrieve(sessionId, messageText, limits)
+
+      this.logger.info('cognitive', 'retrieval_used', {
+        sessionId,
+        confidence: retrieved.confidence.level,
+        resultCount: retrieved.facts.length + retrieved.procedures.length + retrieved.episodes.length
+      })
+
+      // Return retrieved memory in compatible format
+      return {
+        memory: {
+          // Convert retrieved results to legacy format for ContextBuilder
+          longTerm: this._formatRetrievedFacts(retrieved.facts),
+          recentNotes: this._formatRetrievedEpisodes(retrieved.episodes),
+          chatLongTerm: '',
+          chatRecent: ''
+        },
+        workingMemory,
+        retrieval: retrieved // Include full retrieval metadata
+      }
+    }
+
+    // Phase 1: Load all memory (legacy path)
     const memoryDays = this.config.memoryDays ?? 3
 
-    const [longTerm, recentNotes, chatLongTerm, chatRecent, workingMemory] = await Promise.all([
+    const [longTerm, recentNotes, chatLongTerm, chatRecent] = await Promise.all([
       this.memory.getLongTermMemory(),
       this.memory.getRecentDays(memoryDays),
       this.memory.getChatLongTermMemory(sessionId),
-      this.memory.getChatRecentDays(sessionId, memoryDays),
-      this.memory.getWorkingMemory(sessionId)
+      this.memory.getChatRecentDays(sessionId, memoryDays)
     ])
 
-    // Phase 1: Return in same format as before (for ContextBuilder compatibility)
     return {
       memory: {
         longTerm,
@@ -64,14 +99,31 @@ export default class CognitiveSystem {
       },
       workingMemory
     }
+  }
 
-    // Phase 2: Will use retrieval engine
-    // const retrieved = await this.retrieval.retrieve(sessionId, messageText, {
-    //   maxFacts: 10,
-    //   maxProcedures: 5,
-    //   maxEpisodes: 3
-    // })
-    // return { memory: retrieved, workingMemory }
+  /**
+   * Format retrieved facts for ContextBuilder.
+   * @private
+   */
+  _formatRetrievedFacts(facts) {
+    if (!facts || facts.length === 0) return ''
+
+    const lines = ['# Retrieved Facts\n']
+    for (const fact of facts) {
+      lines.push(`- ${fact.content} (relevance: ${fact.score})`)
+    }
+
+    return lines.join('\n')
+  }
+
+  /**
+   * Format retrieved episodes for ContextBuilder.
+   * @private
+   */
+  _formatRetrievedEpisodes(episodes) {
+    if (!episodes || episodes.length === 0) return ''
+
+    return episodes.map(ep => ep.content).join('\n\n---\n\n')
   }
 
   /**
