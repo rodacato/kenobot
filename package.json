@@ -21,7 +21,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "vitest run test/e2e/ --fileParallelism=false",
     "test:smoke": "vitest run test/e2e/smoke.test.js",
-    "test:features": "vitest run test/e2e/features/"
+    "test:features": "vitest run test/e2e/features/",
+    "test:cognitive": "node scripts/test-cognitive.js"
   },
   "keywords": [
     "ai",
