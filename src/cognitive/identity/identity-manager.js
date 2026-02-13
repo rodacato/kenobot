@@ -70,9 +70,12 @@ export default class IdentityManager {
     // Convert rules to natural language instructions
     const behavioralRules = this.rulesEngine.formatRulesForPrompt(rules)
 
+    // CRITICAL: Always check disk, never trust cached state
+    const isBootstrapping = await this.isBootstrapping()
+
     // Load bootstrap instructions if not complete
     let bootstrap = null
-    if (!this.isBootstrapped) {
+    if (isBootstrapping) {
       bootstrap = await this.preferencesManager.getBootstrapInstructions()
       this.logger.info('identity-manager', 'bootstrap_loading', {
         hasBootstrap: !!bootstrap,
@@ -89,7 +92,7 @@ export default class IdentityManager {
       behavioralRules,
       preferences,
       bootstrap,
-      isBootstrapping: !this.isBootstrapped
+      isBootstrapping
     }
   }
 
