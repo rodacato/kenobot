@@ -277,11 +277,15 @@ export default class IdentityManager {
 
   /**
    * Check if currently in bootstrap mode.
+   * CRITICAL: This MUST sync with disk (check if BOOTSTRAP.md exists)
    *
-   * @returns {boolean}
+   * @returns {Promise<boolean>}
    */
-  isBootstrapping() {
-    return !this.isBootstrapped
+  async isBootstrapping() {
+    // ALWAYS sync with disk - don't rely on memory state
+    const bootstrapped = await this.preferencesManager.isBootstrapped()
+    this.isBootstrapped = bootstrapped
+    return !bootstrapped
   }
 
   /**

@@ -246,16 +246,34 @@ describe('IdentityManager', () => {
     })
 
     describe('isBootstrapping', () => {
-      it('should return true when not bootstrapped', () => {
-        identityManager.isBootstrapped = false
+      it('should return true when not bootstrapped', async () => {
+        identityManager.preferencesManager.isBootstrapped = vi.fn().mockResolvedValue(false)
 
-        expect(identityManager.isBootstrapping()).toBe(true)
+        const result = await identityManager.isBootstrapping()
+
+        expect(result).toBe(true)
+        expect(identityManager.preferencesManager.isBootstrapped).toHaveBeenCalled()
       })
 
-      it('should return false when bootstrapped', () => {
-        identityManager.isBootstrapped = true
+      it('should return false when bootstrapped', async () => {
+        identityManager.preferencesManager.isBootstrapped = vi.fn().mockResolvedValue(true)
 
-        expect(identityManager.isBootstrapping()).toBe(false)
+        const result = await identityManager.isBootstrapping()
+
+        expect(result).toBe(false)
+        expect(identityManager.preferencesManager.isBootstrapped).toHaveBeenCalled()
+      })
+
+      it('should sync state from disk', async () => {
+        // Initially in memory: false
+        identityManager.isBootstrapped = false
+        // But on disk: true (BOOTSTRAP.md doesn't exist)
+        identityManager.preferencesManager.isBootstrapped = vi.fn().mockResolvedValue(true)
+
+        await identityManager.isBootstrapping()
+
+        // Should update memory state from disk
+        expect(identityManager.isBootstrapped).toBe(true)
       })
     })
   })
