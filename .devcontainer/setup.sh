@@ -51,6 +51,15 @@ if [ -f "$ENV_FILE" ]; then
   fi
 fi
 
+# 5. Symlink project .env -> ~/.kenobot/config/.env (single source of truth)
+PROJECT_ENV="$(pwd)/.env"
+if [ -f "$ENV_FILE" ] && [ ! -L "$PROJECT_ENV" ]; then
+  rm -f "$PROJECT_ENV"
+  ln -s "$ENV_FILE" "$PROJECT_ENV"
+  echo ""
+  echo "  [ok] .env -> ~/.kenobot/config/.env (symlink)"
+fi
+
 echo ""
 echo "=== Ready! ==="
 echo ""
