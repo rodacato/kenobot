@@ -1,0 +1,137 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+
+vi.mock('../../../src/logger.js', () => ({
+  default: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn()
+  }
+}))
+
+import IdentityManager from '../../../src/cognitive/identity/identity-manager.js'
+
+describe('IdentityManager', () => {
+  let identityManager
+  const mockPath = '/mock/identity/path'
+
+  beforeEach(() => {
+    identityManager = new IdentityManager(mockPath)
+    vi.clearAllMocks()
+
+    // Mock component methods
+    identityManager.coreLoader.load = vi.fn().mockResolvedValue('Core personality')
+    identityManager.rulesEngine.loadRules = vi.fn().mockResolvedValue({
+      behavioral: [{ category: 'test', instruction: 'Be helpful' }],
+      forbidden: [{ pattern: 'um', reason: 'Filler' }]
+    })
+    identityManager.rulesEngine.formatRulesForPrompt = vi.fn().mockReturnValue('Formatted rules')
+    identityManager.preferencesManager.load = vi.fn().mockResolvedValue('User preferences')
+    identityManager.preferencesManager.isBootstrapped = vi.fn().mockResolvedValue(true)
+  })
+
+  describe('initialization', () => {
+    it('should initialize with all components', () => {
+      expect(identityManager.coreLoader).toBeDefined()
+      expect(identityManager.rulesEngine).toBeDefined()
+      expect(identityManager.preferencesManager).toBeDefined()
+    })
+
+    it('should set isBootstrapped to false initially', () => {
+      expect(identityManager.isBootstrapped).toBe(false)
+    })
+  })
+
+  describe('load', () => {
+    it('should load all identity components', async () => {
+      const result = await identityManager.load()
+
+      expect(result).toHaveProperty('core', 'Core personality')
+      expect(result).toHaveProperty('rules')
+      expect(result).toHaveProperty('preferences', 'User preferences')
+      expect(identityManager.coreLoader.load).toHaveBeenCalledOnce()
+      expect(identityManager.rulesEngine.loadRules).toHaveBeenCalledOnce()
+      expect(identityManager.preferencesManager.load).toHaveBeenCalledOnce()
+    })
+
+    it('should check bootstrap status', async () => {
+      await identityManager.load()
+
+      expect(identityManager.preferencesManager.isBootstrapped).toHaveBeenCalledOnce()
+      expect(identityManager.isBootstrapped).toBe(true)
+    })
+  })
+
+  describe('buildContext', () => {
+    it('should build identity context for LLM', async () => {
+      identityManager.preferencesManager.isBootstrapped = vi.fn().mockResolvedValue(true)
+
+      const context = await identityManager.buildContext()
+
+      expect(context).toHaveProperty('core', 'Core personality')
+      expect(context).toHaveProperty('behavioralRules', 'Formatted rules')
+      expect(context).toHaveProperty('preferences', 'User preferences')
+      expect(context).toHaveProperty('bootstrap', null)
+    })
+
+    it('should include bootstrap instructions if not complete', async () => {
+      identityManager.preferencesManager.isBootstrapped = vi.fn().mockResolvedValue(false)
+      identityManager.preferencesManager.getBootstrapInstructions = vi.fn().mockResolvedValue('Bootstrap instructions')
+
+      const context = await identityManager.buildContext()
+
+      expect(context.bootstrap).toBe('Bootstrap instructions')
+    })
+  })
+
+  describe('saveBootstrapAnswers', () => {
+    it('should save bootstrap answers', async () => {
+      identityManager.preferencesManager.saveBootstrapAnswers = vi.fn().mockResolvedValue(undefined)
+
+      await identityManager.saveBootstrapAnswers({ style: 'concise', language: 'spanish' })
+
+      expect(identityManager.preferencesManager.saveBootstrapAnswers).toHaveBeenCalledWith({
+        style: 'concise',
+        language: 'spanish'
+      })
+      expect(identityManager.isBootstrapped).toBe(true)
+    })
+  })
+
+  describe('updatePreference', () => {
+    it('should update a single preference', async () => {
+      identityManager.preferencesManager.updatePreference = vi.fn().mockResolvedValue(undefined)
+
+      await identityManager.updatePreference('editor', 'vim')
+
+      expect(identityManager.preferencesManager.updatePreference).toHaveBeenCalledWith('editor', 'vim')
+    })
+  })
+
+  describe('proposeRule', () => {
+    it('should return proposal ID', async () => {
+      const proposalId = await identityManager.proposeRule({
+        category: 'communication',
+        instruction: 'Be concise'
+      })
+
+      expect(proposalId).toBe('proposal-id-placeholder')
+    })
+  })
+
+  describe('getStatus', () => {
+    it('should return identity status', async () => {
+      identityManager.preferencesManager.hasPreferences = vi.fn().mockResolvedValue(true)
+
+      // Load identity to set isBootstrapped
+      await identityManager.load()
+
+      const status = await identityManager.getStatus()
+
+      expect(status).toHaveProperty('isBootstrapped', true)
+      expect(status).toHaveProperty('rulesCount')
+      expect(status.rulesCount.behavioral).toBe(1)
+      expect(status.rulesCount.forbidden).toBe(1)
+      expect(status).toHaveProperty('hasPreferences', true)
+    })
+  })
+})
