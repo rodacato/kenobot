@@ -20,7 +20,7 @@ vi.mock('../../src/logger.js', () => ({
 // Mock grammy to prevent real Telegram API calls
 vi.mock('grammy', () => ({
   Bot: class MockBot {
-    constructor() { this.api = { sendMessage: vi.fn(), sendChatAction: vi.fn() } }
+    constructor() { this.api = { sendMessage: vi.fn(), sendChatAction: vi.fn(), getMe: vi.fn().mockResolvedValue({ id: 12345, username: "test_bot" }) } }
     on() {}
     async start() {}
     async stop() {}

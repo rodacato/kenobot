@@ -8,7 +8,7 @@ vi.mock('../../../src/logger.js', () => ({
 }))
 
 vi.mock('grammy', () => ({
-  Bot: class { constructor() { this.api = { sendMessage: vi.fn(), sendChatAction: vi.fn() } }; on() {}; async start() {}; async stop() {} }
+  Bot: class { constructor() { this.api = { sendMessage: vi.fn(), sendChatAction: vi.fn(), getMe: vi.fn().mockResolvedValue({ id: 12345, username: "test_bot" }) } }; on() {}; async start() {}; async stop() {} }
 }))
 
 import { createTestApp } from '../harness.js'

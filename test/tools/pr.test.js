@@ -71,7 +71,7 @@ describe('PRTool', () => {
     it('parses view without number', () => {
       const match = '/pr view '.match(tool.trigger)
       const parsed = tool.parseTrigger(match)
-      expect(parsed).toEqual({ action: 'view', number: NaN })
+      expect(parsed).toEqual({ action: 'view', number: undefined })
     })
 
     it('parses merge with number', () => {

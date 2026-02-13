@@ -39,7 +39,7 @@ describe('kenobot setup', () => {
 
   it('creates all directories and copies templates', async () => {
     const paths = makePaths(tmpDir)
-    const { default: init } = await import('../../src/cli/init.js')
+    const { default: init } = await import('../../src/cli/setup.js')
     await init([], paths)
 
     // Directories exist
@@ -67,7 +67,7 @@ describe('kenobot setup', () => {
 
   it('does not overwrite existing files on re-run', async () => {
     const paths = makePaths(tmpDir)
-    const { default: init } = await import('../../src/cli/init.js')
+    const { default: init } = await import('../../src/cli/setup.js')
 
     // First run
     await init([], paths)
@@ -86,7 +86,7 @@ describe('kenobot setup', () => {
 
   it('restores missing files inside existing directories', async () => {
     const paths = makePaths(tmpDir)
-    const { default: init } = await import('../../src/cli/init.js')
+    const { default: init } = await import('../../src/cli/setup.js')
 
     // First run — full install
     await init([], paths)
