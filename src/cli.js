@@ -35,6 +35,7 @@ const commands = {
   config:            () => import('./cli/config-cmd.js'),
   migrate:           () => import('./cli/migrate.js'),
   purge:             () => import('./cli/purge.js'),
+  reset:             () => import('./cli/reset.js'),
   doctor:            () => import('./cli/doctor.js'),
   audit:             () => import('./cli/audit.js'),
   'install-service': () => import('./cli/install-service.js'),
