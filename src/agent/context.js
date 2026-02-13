@@ -61,18 +61,25 @@ export default class ContextBuilder {
     let activeSkill = null
 
     // Identity: Load from CognitiveSystem IdentityManager (if available)
+    let isBootstrapping = false
     if (this.cognitive) {
       const identityManager = this.cognitive.getIdentityManager()
-      const { core, behavioralRules, preferences, bootstrap } = await identityManager.buildContext()
+      const { core, behavioralRules, preferences, bootstrap, isBootstrapping: bootstrapping } = await identityManager.buildContext()
+
+      isBootstrapping = bootstrapping
 
       if (core) parts.push(core)
       if (behavioralRules) parts.push('\n---\n\n' + behavioralRules)
-      if (preferences) parts.push('\n---\n\n## Preferences\n' + preferences)
 
-      // Bootstrap if needed
-      if (bootstrap) {
-        this.logger.info('context', 'bootstrap_injected', { length: bootstrap.length })
+      // During bootstrap: Skip preferences, only show bootstrap instructions
+      if (isBootstrapping && bootstrap) {
+        this.logger.info('context', 'bootstrap_mode', {
+          message: 'First conversation - skipping preferences and memory'
+        })
         parts.push('\n---\n\n## First Conversation — Bootstrap\n' + bootstrap)
+      } else if (!isBootstrapping && preferences) {
+        // Normal mode: Load preferences
+        parts.push('\n---\n\n## Preferences\n' + preferences)
       }
     }
 
@@ -104,7 +111,8 @@ export default class ContextBuilder {
     }
 
     // Memory section (built inline from CRUD methods)
-    if (this.memory) {
+    // SKIP during bootstrap - identity must be established first
+    if (this.memory && !isBootstrapping) {
       try {
         const memorySection = await this._buildMemorySection(sessionId, sectionContext.memoryDays, messageText)
         if (memorySection) {
@@ -116,6 +124,10 @@ export default class ContextBuilder {
           error: error.message || String(error)
         })
       }
+    } else if (isBootstrapping) {
+      this.logger.info('context', 'memory_skipped', {
+        reason: 'bootstrap_in_progress'
+      })
     }
 
     return { system: parts.join('\n'), activeSkill }
