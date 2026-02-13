@@ -62,7 +62,7 @@ export default class IdentityManager {
   /**
    * Build identity context for LLM system prompt.
    *
-   * @returns {Promise<{core: string, behavioralRules: string, preferences: string, bootstrap: string|null}>}
+   * @returns {Promise<{core: string, behavioralRules: string, preferences: string, bootstrap: string|null, isBootstrapping: boolean}>}
    */
   async buildContext() {
     const { core, rules, preferences } = await this.load()
@@ -88,7 +88,8 @@ export default class IdentityManager {
       core,
       behavioralRules,
       preferences,
-      bootstrap
+      bootstrap,
+      isBootstrapping: !this.isBootstrapped
     }
   }
 

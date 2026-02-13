@@ -48,12 +48,35 @@ export default class CognitiveSystem {
    *
    * Phase 1: Returns all memory (backward compatible)
    * Phase 2: Returns retrieval-based selective memory
+   * Bootstrap mode: Returns empty memory (identity > memory)
    *
    * @param {string} sessionId - e.g. "telegram-123456"
    * @param {string} messageText - User message
-   * @returns {Promise<{ memory: Object, workingMemory: Object|null, retrieval?: Object }>}
+   * @returns {Promise<{ memory: Object, workingMemory: Object|null, retrieval?: Object, isBootstrapping?: boolean }>}
    */
   async buildContext(sessionId, messageText) {
+    // CRITICAL: Check if we're in bootstrap mode FIRST
+    // During bootstrap, we should NOT load memory - only identity
+    const isBootstrapping = await this.identity.isBootstrapping()
+
+    if (isBootstrapping) {
+      this.logger.info('cognitive', 'bootstrap_mode', {
+        sessionId,
+        message: 'Skipping memory load - bootstrap in progress'
+      })
+
+      return {
+        memory: {
+          longTerm: '',
+          recentNotes: '',
+          chatLongTerm: '',
+          chatRecent: ''
+        },
+        workingMemory: null,
+        isBootstrapping: true
+      }
+    }
+
     const workingMemory = await this.memory.getWorkingMemory(sessionId)
 
     // Phase 2: Use retrieval if enabled
@@ -82,7 +105,8 @@ export default class CognitiveSystem {
           chatRecent: ''
         },
         workingMemory,
-        retrieval: retrieved // Include full retrieval metadata
+        retrieval: retrieved, // Include full retrieval metadata
+        isBootstrapping: false
       }
     }
 
@@ -103,7 +127,8 @@ export default class CognitiveSystem {
         chatLongTerm,
         chatRecent
       },
-      workingMemory
+      workingMemory,
+      isBootstrapping: false
     }
   }
 

@@ -37,15 +37,44 @@ describe('CognitiveSystem', () => {
     mockProvider = {}
 
     cognitive = new CognitiveSystem(mockConfig, mockStore, mockProvider)
+
+    // Mock identity.isBootstrapping to return false by default
+    cognitive.identity.isBootstrapping = vi.fn().mockResolvedValue(false)
+
     vi.clearAllMocks()
   })
 
   describe('buildContext', () => {
-    it('should load all memory types', async () => {
+    it('should skip memory during bootstrap', async () => {
+      // Mock identity as bootstrapping
+      cognitive.identity.isBootstrapping = vi.fn().mockResolvedValue(true)
+
+      const context = await cognitive.buildContext('telegram-123', 'test message')
+
+      expect(context.isBootstrapping).toBe(true)
+      expect(context.memory.longTerm).toBe('')
+      expect(context.memory.recentNotes).toBe('')
+      expect(context.memory.chatLongTerm).toBe('')
+      expect(context.memory.chatRecent).toBe('')
+      expect(context.workingMemory).toBeNull()
+
+      // Verify memory was NOT loaded
+      expect(mockStore.readLongTermMemory).not.toHaveBeenCalled()
+      expect(mockStore.getRecentDays).not.toHaveBeenCalled()
+      expect(mockStore.getChatLongTermMemory).not.toHaveBeenCalled()
+      expect(mockStore.getChatRecentDays).not.toHaveBeenCalled()
+      expect(mockStore.getWorkingMemory).not.toHaveBeenCalled()
+    })
+
+    it('should load all memory types when not bootstrapping', async () => {
+      // Mock identity as NOT bootstrapping
+      cognitive.identity.isBootstrapping = vi.fn().mockResolvedValue(false)
+
       const context = await cognitive.buildContext('telegram-123', 'test message')
 
       expect(context).toHaveProperty('memory')
       expect(context).toHaveProperty('workingMemory')
+      expect(context.isBootstrapping).toBe(false)
       expect(context.memory.longTerm).toBe('Long-term facts')
       expect(context.memory.recentNotes).toBe('Recent notes')
       expect(context.memory.chatLongTerm).toBe('Chat facts')
