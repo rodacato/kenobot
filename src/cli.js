@@ -14,15 +14,15 @@ if (process.getuid && process.getuid() === 0) {
   console.error('See: docs/guides/vps-setup.md\n')
 }
 
-// First run: suggest kenobot init when ~/.kenobot/ doesn't exist
-if (!existsSync(paths.home) && subcommand !== 'init' && subcommand !== 'help' && subcommand !== 'version') {
+// First run: suggest kenobot setup when ~/.kenobot/ doesn't exist
+if (!existsSync(paths.home) && subcommand !== 'setup' && subcommand !== 'help' && subcommand !== 'version') {
   console.log('Welcome to KenoBot!\n')
-  console.log('Run \x1b[1mkenobot init\x1b[0m first to set up your directories.\n')
+  console.log('Run \x1b[1mkenobot setup\x1b[0m first to set up your directories.\n')
   process.exit(0)
 }
 
 const commands = {
-  init:              () => import('./cli/init.js'),
+  setup:              () => import('./cli/setup.js'),
   'init-cognitive':  () => import('./cli/init-cognitive.js'),
   dev:               () => import('./cli/dev.js'),
   start:             () => import('./cli/start.js'),

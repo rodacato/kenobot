@@ -2,7 +2,11 @@ export default async function help() {
   console.log(`Usage: kenobot <command> [options]
 
 Commands:
-  init                Scaffold ~/.kenobot/ directories and config
+  setup [opts]        Scaffold ~/.kenobot/ directories and config
+                      --install-claude   Install Claude Code CLI + configure PATH
+                      --install-gemini   Install Gemini CLI
+                      --install-n8n      Install n8n workflow automation
+                      --install-all      Install all of the above
   dev                 Start with auto-reload (uses ~/.kenobot/ paths)
   start [-d]          Start the bot (foreground, or -d for daemon)
   stop                Stop the daemon
