@@ -94,14 +94,7 @@ export default class ContextBuilder {
           '\n---\n',
           '## User Profile\n',
           user + '\n',
-          '### How to update user preferences',
-          'When you learn a user preference or profile fact, include it in your response:\n',
-          '<user>Preference category: detail</user>\n',
-          'Rules:',
-          '- Only save genuine user preferences and profile information',
-          '- Be concise: one line per preference',
-          '- Don\'t duplicate existing preferences',
-          '- Use this for communication preferences, timezone, name, recurring patterns\n'
+          '_Learn something new? Save it: `<user>category: detail</user>` (one line, don\'t duplicate)_\n'
         ]
         parts.push(userSection.join('\n'))
       }
@@ -188,30 +181,14 @@ export default class ContextBuilder {
     if (!longTerm && !recentNotes && !chatLongTerm && !chatRecent && !workingMemory) return null
 
     const lines = [
-      'You have persistent memory across conversations. Use it wisely.\n',
-      '### How to remember things',
-      'When you learn something worth remembering (important facts, project context, decisions made), include it in your response:\n',
-      '<memory>Short title: fact to remember</memory>\n',
-      'For facts specific to THIS conversation or chat context, use:\n',
-      '<chat-memory>Short title: chat-specific fact</chat-memory>\n',
-      'Rules:',
-      '- Only save things that matter across conversations',
-      '- Be concise: one line per memory',
-      '- Don\'t save things already in your long-term memory',
-      '- You can include multiple <memory> and <chat-memory> tags in one response',
-      '- Use <memory> for global facts, <chat-memory> for chat-specific context\n',
-      '### How to maintain working memory',
-      'For maintaining context across long conversations, use:\n',
-      '<working-memory>',
-      '- Current topic/task being discussed',
-      '- Key decisions or facts from this conversation',
-      '- What\'s pending or next',
-      '</working-memory>\n',
-      'Rules:',
-      '- Each update replaces the previous one entirely — include everything relevant',
-      '- Keep it concise: bullet points, not paragraphs',
-      '- Update when the topic shifts or significant progress is made',
-      '- This is your scratchpad for the current conversation, not for long-term facts\n'
+      '### Memory tags',
+      'Include these in your response when something is worth remembering:\n',
+      '| Tag | Use for | Scope |',
+      '|-----|---------|-------|',
+      '| `<memory>fact</memory>` | Important facts, decisions, context | Global, forever |',
+      '| `<chat-memory>fact</chat-memory>` | Chat-specific context | This conversation only |',
+      '| `<working-memory>bullets</working-memory>` | Current task, pending items | Scratchpad (replaces previous) |\n',
+      '_Use sparingly. One line per fact. Don\'t duplicate what\'s already saved._\n'
     ]
 
     if (longTerm) {
