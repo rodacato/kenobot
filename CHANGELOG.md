@@ -7,6 +7,135 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-02-13
+
+### Added
+
+**Cognitive Architecture (Complete Implementation)**
+- Cognitive architecture module with 6-phase implementation (backward compatible)
+- MemoryStore persistence layer for all memory operations
+- MemorySystem facade supporting 4 memory types (episodic, semantic, procedural, contextual)
+- CognitiveSystem orchestrator for unified memory management
+- RetrievalEngine with keyword matching and confidence scoring
+- KeywordMatcher for selective memory search
+- ConfidenceScorer for retrieval quality assessment
+- Sleep cycle consolidation system for nightly memory processing
+- Error classification and salience scoring for consolidation
+- Memory health checker for system observability
+- 197 new tests for cognitive system components (MemoryStore: 11, CognitiveSystem: 9, memory types: 50, consolidation: 46, identity: 43, optimization: 58)
+- COGNITIVE_ARCHITECTURE_PLAN.md with complete implementation roadmap
+
+**Identity & Bootstrap System**
+- Identity management system for bot personality and behavioral rules
+- Conversational bootstrap with natural conversation flow (replaces questionnaire)
+- BootstrapOrchestrator for managing conversational onboarding phases
+- ProfileInferrer for automatic preference detection from conversation
+- Rules engine with forbidden pattern validation
+- Memory structure initialization command (kenobot init-cognitive)
+- CLI reset command for cognitive system (--memory, --identity, --all)
+- Comprehensive identity and memory system documentation with theoretical foundations
+
+**Developer Experience**
+- Zero-config devcontainer setup with automatic kenobot init
+- kenobot dev command with auto-reload and isolated ~/.kenobot/ paths
+- Granular install flags (--install-claude, --install-gemini, --install-n8n)
+- init-cognitive command now visible in help
+
+**Deployment & Installation**
+- One-liner VPS install script (kenobot + n8n + cloudflared)
+- Dev/stable deployment channels with auto-detection in kenobot update
+- Gemini API/CLI provider options in install.sh interactive menu
+- Optional Claude Code CLI and Gemini CLI installation independent of provider choice
+- GOOGLE_API_KEY prompt and .env writing for gemini-api provider
+- gemini-api and gemini-cli health checks in kenobot doctor
+
+**Features & Tools**
+- External tools directory support via TOOLS_DIR for plugin tools
+- PR tool for creating GitHub Pull Requests (/pr create|list|view|merge)
+- Public welcome page at root URL showing bot status and version
+- Budget protection with --max-budget-usd (configurable)
+- Cost tracking with budget alerts and daily/monthly limits
+- Debug mode support for claude-cli provider
+- Message batching utility with adaptive debouncing
+- Transparency manager for learning feedback and explanations
+
+**Documentation**
+- Self-improvement documentation guide
+- AGENTS.md workspace template for session consistency
+- Extensibility guide documenting when and how to create tools vs skills
+
+**Telegram**
+- Telegram groups now respond to all messages from authorized users without requiring mentions
+
+### Changed
+
+**Memory & Identity**
+- ContextBuilder supports both CognitiveSystem and legacy FileMemory (backward compatible)
+- app.js uses CognitiveSystem by default with legacy fallback
+- Simplified codebase by removing legacy memory system (FileMemory and CompactingMemory)
+- Memory system now uses dedicated classes for each memory type
+- Working memory now detects stale sessions (>7 days)
+- CognitiveSystem supports selective retrieval (useRetrieval config)
+- Identity verification happens before memory loading
+- Streamline memory/user instructions in system prompt (compact table format)
+
+**Bootstrap & Onboarding**
+- Bootstrap process now uses natural conversation instead of questionnaire
+- IdentityManager now supports conversational bootstrap with LLM inference
+- BOOTSTRAP.md with improved conversational onboarding flow
+- BOOTSTRAP.md now asks detailed style preferences (length, formality, personality, filler)
+- USER.md template with boundary checklist
+- SOUL.md Response Style is now minimal defaults, defers to USER.md preferences
+
+**CLI & Configuration**
+- Renamed kenobot init to kenobot setup
+- install.sh and .devcontainer/setup.sh now use kenobot setup command
+- All documentation updated to reference kenobot setup command
+- Simplified CONTRIBUTING.md with clear development workflow
+
+**Deployment**
+- Switch VPS installer from npm to git clone with tag-based versioning
+- README and deployment docs updated with one-liner quick start
+
+**Providers**
+- claude-cli provider now uses --system-prompt flag
+
+**Documentation**
+- AGENTS.md to document cognitive system and backward compatibility
+
+### Removed
+- Unused CLI commands (purge, migrate, backup, audit, install-service, setup-tunnel)
+- FileMemory and CompactingMemory classes (use CognitiveSystem)
+- useCognitive configuration option (always enabled)
+- --install-deps flag (replaced by --install-claude)
+
+### Fixed
+
+**Cognitive System**
+- Bootstrap completion now properly deletes BOOTSTRAP.md via cognitive system
+- Bootstrap post-processor now properly deletes BOOTSTRAP.md after completion
+- User preferences post-processor now uses cognitive system
+- ContextBuilder now handles null cognitive system gracefully
+- Bootstrap now skips memory loading to avoid contamination
+- ContextBuilder now properly skips memory during bootstrap
+- Bootstrap process now correctly detects first-run state from disk
+- Bootstrap state now syncs with disk on every message
+- Bootstrap now starts with clean conversation (no history)
+- Identity reset now clears session history for clean bootstrap
+- Incorrect test assertions in context.test.js
+
+**Deployment & Installation**
+- CLI providers (claude-cli, gemini-cli) failing with ENOENT on VPS daemon mode
+- Claude Code CLI installation PATH in devcontainer
+
+**Telegram**
+- Telegram bot startup now fails gracefully with clear error messages for invalid tokens
+- Resolved "deleteWebhook failed (404)" error during bot initialization
+- Telegram bot startup errors (webhook 404, token validation)
+
+**Development**
+- /dev now lists symlinked project directories correctly
+
 ## [0.3.0] - 2026-02-09
 
 ### Added
