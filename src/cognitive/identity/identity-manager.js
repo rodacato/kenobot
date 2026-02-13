@@ -101,6 +101,33 @@ export default class IdentityManager {
   }
 
   /**
+   * Delete BOOTSTRAP.md to mark bootstrap as complete.
+   * Called by post-processor when bot includes <bootstrap-complete/> tag.
+   *
+   * @returns {Promise<void>}
+   */
+  async deleteBootstrap() {
+    const bootstrapPath = this.preferencesManager.bootstrapPath
+
+    try {
+      const { unlink } = await import('node:fs/promises')
+      await unlink(bootstrapPath)
+      this.isBootstrapped = true
+
+      this.logger.info('identity-manager', 'bootstrap_deleted', {
+        path: bootstrapPath
+      })
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        this.logger.error('identity-manager', 'bootstrap_delete_failed', {
+          error: error.message
+        })
+        throw error
+      }
+    }
+  }
+
+  /**
    * Update a single preference.
    *
    * @param {string} key - Preference key
