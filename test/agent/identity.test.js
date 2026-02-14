@@ -16,67 +16,19 @@ import IdentityLoader from '../../src/agent/identity.js'
 
 describe('IdentityLoader', () => {
   let tempDir
+  let identityDir
 
   beforeEach(async () => {
     tempDir = await mkdtemp(join(tmpdir(), 'kenobot-identity-'))
+    identityDir = join(tempDir, 'kenobot')
+    await mkdir(identityDir, { recursive: true })
   })
 
   afterEach(async () => {
     await rm(tempDir, { recursive: true, force: true })
   })
 
-  describe('file mode (backwards compat)', () => {
-    it('should load a single file as soul', async () => {
-      const filePath = join(tempDir, 'kenobot.md')
-      await writeFile(filePath, '# KenoBot\nI am KenoBot.')
-
-      const loader = new IdentityLoader(filePath)
-      await loader.load()
-
-      expect(loader.getSoul()).toBe('# KenoBot\nI am KenoBot.')
-      expect(loader.getIdentity()).toBe('')
-    })
-
-    it('should return empty user in file mode', async () => {
-      const filePath = join(tempDir, 'kenobot.md')
-      await writeFile(filePath, '# KenoBot')
-
-      const loader = new IdentityLoader(filePath)
-      await loader.load()
-
-      expect(await loader.getUser()).toBe('')
-    })
-
-    it('should handle missing file gracefully', async () => {
-      const loader = new IdentityLoader(join(tempDir, 'nonexistent.md'))
-      await loader.load()
-
-      expect(loader.getSoul()).toBe('')
-      expect(loader.getIdentity()).toBe('')
-    })
-
-    it('should reload file content', async () => {
-      const filePath = join(tempDir, 'kenobot.md')
-      await writeFile(filePath, 'Original content')
-
-      const loader = new IdentityLoader(filePath)
-      await loader.load()
-      expect(loader.getSoul()).toBe('Original content')
-
-      await writeFile(filePath, 'Updated content')
-      await loader.reload()
-      expect(loader.getSoul()).toBe('Updated content')
-    })
-  })
-
-  describe('directory mode', () => {
-    let identityDir
-
-    beforeEach(async () => {
-      identityDir = join(tempDir, 'kenobot')
-      await mkdir(identityDir, { recursive: true })
-    })
-
+  describe('load', () => {
     it('should load SOUL.md and IDENTITY.md from directory', async () => {
       await writeFile(join(identityDir, 'SOUL.md'), '# Soul\nI am friendly.')
       await writeFile(join(identityDir, 'IDENTITY.md'), '# Identity\nExpert in Node.js.')
@@ -88,6 +40,36 @@ describe('IdentityLoader', () => {
       expect(loader.getIdentity()).toBe('# Identity\nExpert in Node.js.')
     })
 
+    it('should handle missing SOUL.md gracefully', async () => {
+      await writeFile(join(identityDir, 'IDENTITY.md'), '# Identity')
+
+      const loader = new IdentityLoader(identityDir)
+      await loader.load()
+
+      expect(loader.getSoul()).toBe('')
+      expect(loader.getIdentity()).toBe('# Identity')
+    })
+
+    it('should handle missing IDENTITY.md gracefully', async () => {
+      await writeFile(join(identityDir, 'SOUL.md'), '# Soul')
+
+      const loader = new IdentityLoader(identityDir)
+      await loader.load()
+
+      expect(loader.getSoul()).toBe('# Soul')
+      expect(loader.getIdentity()).toBe('')
+    })
+
+    it('should handle missing directory gracefully', async () => {
+      const loader = new IdentityLoader(join(tempDir, 'nonexistent'))
+      await loader.load()
+
+      expect(loader.getSoul()).toBe('')
+      expect(loader.getIdentity()).toBe('')
+    })
+  })
+
+  describe('getUser', () => {
     it('should load USER.md fresh each call', async () => {
       await writeFile(join(identityDir, 'SOUL.md'), '# Soul')
       await writeFile(join(identityDir, 'USER.md'), '# User\n- Name: Carlos')
@@ -111,27 +93,9 @@ describe('IdentityLoader', () => {
 
       expect(await loader.getUser()).toBe('')
     })
+  })
 
-    it('should handle missing SOUL.md gracefully', async () => {
-      await writeFile(join(identityDir, 'IDENTITY.md'), '# Identity')
-
-      const loader = new IdentityLoader(identityDir)
-      await loader.load()
-
-      expect(loader.getSoul()).toBe('')
-      expect(loader.getIdentity()).toBe('# Identity')
-    })
-
-    it('should handle missing IDENTITY.md gracefully', async () => {
-      await writeFile(join(identityDir, 'SOUL.md'), '# Soul')
-
-      const loader = new IdentityLoader(identityDir)
-      await loader.load()
-
-      expect(loader.getSoul()).toBe('# Soul')
-      expect(loader.getIdentity()).toBe('')
-    })
-
+  describe('reload', () => {
     it('should reload SOUL.md and IDENTITY.md', async () => {
       await writeFile(join(identityDir, 'SOUL.md'), 'Original soul')
       await writeFile(join(identityDir, 'IDENTITY.md'), 'Original identity')
@@ -148,11 +112,7 @@ describe('IdentityLoader', () => {
   })
 
   describe('appendUser', () => {
-    let identityDir
-
     beforeEach(async () => {
-      identityDir = join(tempDir, 'kenobot')
-      await mkdir(identityDir, { recursive: true })
       await writeFile(join(identityDir, 'SOUL.md'), '# Soul')
     })
 
@@ -212,27 +172,10 @@ describe('IdentityLoader', () => {
       const content = await readFile(join(identityDir, 'USER.md'), 'utf8')
       expect(content).toBe('# User\nOriginal')
     })
-
-    it('should no-op in file mode', async () => {
-      const filePath = join(tempDir, 'single.md')
-      await writeFile(filePath, '# KenoBot')
-
-      const loader = new IdentityLoader(filePath)
-      await loader.load()
-      await loader.appendUser(['Should not be saved'])
-
-      // No USER.md should be created
-      const content = await readFile(filePath, 'utf8')
-      expect(content).toBe('# KenoBot')
-    })
   })
 
   describe('getBootstrap', () => {
-    let identityDir
-
     beforeEach(async () => {
-      identityDir = join(tempDir, 'kenobot')
-      await mkdir(identityDir, { recursive: true })
       await writeFile(join(identityDir, 'SOUL.md'), '# Soul')
     })
 
@@ -251,24 +194,10 @@ describe('IdentityLoader', () => {
 
       expect(await loader.getBootstrap()).toBeNull()
     })
-
-    it('should return null in file mode', async () => {
-      const filePath = join(tempDir, 'single.md')
-      await writeFile(filePath, '# KenoBot')
-
-      const loader = new IdentityLoader(filePath)
-      await loader.load()
-
-      expect(await loader.getBootstrap()).toBeNull()
-    })
   })
 
   describe('deleteBootstrap', () => {
-    let identityDir
-
     beforeEach(async () => {
-      identityDir = join(tempDir, 'kenobot')
-      await mkdir(identityDir, { recursive: true })
       await writeFile(join(identityDir, 'SOUL.md'), '# Soul')
     })
 
@@ -292,30 +221,6 @@ describe('IdentityLoader', () => {
       await loader.load()
 
       await expect(loader.deleteBootstrap()).resolves.not.toThrow()
-    })
-
-    it('should be no-op in file mode', async () => {
-      const filePath = join(tempDir, 'single.md')
-      await writeFile(filePath, '# KenoBot')
-
-      const loader = new IdentityLoader(filePath)
-      await loader.load()
-
-      await expect(loader.deleteBootstrap()).resolves.not.toThrow()
-    })
-  })
-
-  describe('fallback detection', () => {
-    it('should fall back to .md file when directory path does not exist', async () => {
-      // Create kenobot.md but not kenobot/ directory
-      const mdPath = join(tempDir, 'kenobot.md')
-      await writeFile(mdPath, '# Fallback content')
-
-      // Pass directory path (without .md)
-      const loader = new IdentityLoader(join(tempDir, 'kenobot'))
-      await loader.load()
-
-      expect(loader.getSoul()).toBe('# Fallback content')
     })
   })
 })

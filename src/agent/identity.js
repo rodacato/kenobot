@@ -5,11 +5,7 @@ import defaultLogger from '../logger.js'
 /**
  * IdentityLoader - Loads modular identity files (SOUL.md, IDENTITY.md, USER.md)
  *
- * Supports two modes:
- *   - File mode: single .md file (backwards compat with identities/kenobot.md)
- *   - Directory mode: directory with SOUL.md, IDENTITY.md, USER.md
- *
- * Detection is automatic based on whether the path is a file or directory.
+ * Expects a directory with SOUL.md, IDENTITY.md, USER.md files.
  *
  * Caching policy:
  *   - SOUL.md + IDENTITY.md: cached at startup, reloaded via reload()
@@ -19,47 +15,34 @@ export default class IdentityLoader {
   constructor(identityPath, { logger = defaultLogger } = {}) {
     this.identityPath = identityPath
     this.logger = logger
-    this._isDirectory = null
     this._soul = ''
     this._identity = ''
   }
 
   /**
-   * Detect file vs directory mode and load cached files.
+   * Load and cache identity files from directory.
    * Called once at startup by AgentLoop via ContextBuilder.
    */
   async load() {
-    this._isDirectory = await this._detectDirectory()
-
-    if (this._isDirectory) {
-      this._soul = await this._readSafe(join(this.identityPath, 'SOUL.md'))
-      this._identity = await this._readSafe(join(this.identityPath, 'IDENTITY.md'))
-      const hasBootstrap = await this._readSafe(join(this.identityPath, 'BOOTSTRAP.md'))
-      this.logger.info('identity', 'loaded_directory', {
-        path: this.identityPath,
-        soul: this._soul.length,
-        identity: this._identity.length,
-        bootstrap: hasBootstrap.length > 0
+    this._soul = await this._readSafe(join(this.identityPath, 'SOUL.md'))
+    this._identity = await this._readSafe(join(this.identityPath, 'IDENTITY.md'))
+    const hasBootstrap = await this._readSafe(join(this.identityPath, 'BOOTSTRAP.md'))
+    this.logger.info('identity', 'loaded', {
+      path: this.identityPath,
+      soul: this._soul.length,
+      identity: this._identity.length,
+      bootstrap: hasBootstrap.length > 0
+    })
+    if (hasBootstrap) {
+      this.logger.info('identity', 'bootstrap_pending', {
+        hint: 'First conversation will trigger onboarding flow'
       })
-      if (hasBootstrap) {
-        this.logger.info('identity', 'bootstrap_pending', {
-          hint: 'First conversation will trigger onboarding flow'
-        })
-      }
-    } else {
-      // File mode: entire file is treated as soul
-      this._soul = await this._readSafe(this.identityPath)
-      this._identity = ''
-      this.logger.info('identity', 'loaded_file', {
+    }
+    if (!this._soul && !this._identity) {
+      this.logger.warn('identity', 'empty_identity', {
         path: this.identityPath,
-        length: this._soul.length
+        hint: 'Bot will run without personality. Check IDENTITY_FILE path or run kenobot setup'
       })
-      if (!this._soul) {
-        this.logger.warn('identity', 'empty_identity', {
-          path: this.identityPath,
-          hint: 'Bot will run without personality. Check IDENTITY_FILE path or run kenobot setup'
-        })
-      }
     }
   }
 
@@ -81,12 +64,10 @@ export default class IdentityLoader {
 
   /**
    * Read USER.md fresh from disk (not cached).
-   * Returns empty string if file doesn't exist or not in directory mode.
+   * Returns empty string if file doesn't exist.
    * @returns {Promise<string>}
    */
   async getUser() {
-    if (!this._isDirectory) return ''
-
     const userPath = join(this.identityPath, 'USER.md')
     const content = await this._readSafe(userPath)
 
@@ -103,11 +84,11 @@ export default class IdentityLoader {
 
   /**
    * Append entries to the "Learned Preferences" section of USER.md.
-   * Creates the section if it doesn't exist. No-op in file mode.
+   * Creates the section if it doesn't exist.
    * @param {string[]} entries - Preference entries to append
    */
   async appendUser(entries) {
-    if (!this._isDirectory || entries.length === 0) return
+    if (entries.length === 0) return
 
     const userPath = join(this.identityPath, 'USER.md')
     await mkdir(this.identityPath, { recursive: true })
@@ -132,22 +113,20 @@ export default class IdentityLoader {
   }
 
   /**
-   * Read BOOTSTRAP.md if it exists (directory mode only).
+   * Read BOOTSTRAP.md if it exists.
    * Returns null when no bootstrap is pending.
    * @returns {Promise<string|null>}
    */
   async getBootstrap() {
-    if (!this._isDirectory) return null
     const content = await this._readSafe(join(this.identityPath, 'BOOTSTRAP.md'))
     return content || null
   }
 
   /**
    * Delete BOOTSTRAP.md after bootstrap conversation is complete.
-   * No-op in file mode or if file is already gone.
+   * No-op if file is already gone.
    */
   async deleteBootstrap() {
-    if (!this._isDirectory) return
     try {
       await unlink(join(this.identityPath, 'BOOTSTRAP.md'))
       this.logger.info('identity', 'bootstrap_deleted', { path: this.identityPath })
@@ -158,47 +137,14 @@ export default class IdentityLoader {
 
   /**
    * Force reload SOUL.md and IDENTITY.md from disk.
-   * Called after an approval activates identity/soul changes.
    */
   async reload() {
-    if (this._isDirectory) {
-      this._soul = await this._readSafe(join(this.identityPath, 'SOUL.md'))
-      this._identity = await this._readSafe(join(this.identityPath, 'IDENTITY.md'))
-      this.logger.info('identity', 'reloaded', {
-        soul: this._soul.length,
-        identity: this._identity.length
-      })
-    } else {
-      this._soul = await this._readSafe(this.identityPath)
-      this.logger.info('identity', 'reloaded', { length: this._soul.length })
-    }
-  }
-
-  /**
-   * Check whether identityPath is a directory.
-   * Falls back: if path doesn't exist, checks for path.md file.
-   * @private
-   */
-  async _detectDirectory() {
-    try {
-      const s = await stat(this.identityPath)
-      return s.isDirectory()
-    } catch (err) {
-      if (err.code !== 'ENOENT') throw err
-
-      // Path doesn't exist — check if it's a directory reference missing .md
-      // e.g. "identities/kenobot" when "identities/kenobot.md" exists
-      try {
-        const s = await stat(this.identityPath + '.md')
-        if (s.isFile()) {
-          this.identityPath = this.identityPath + '.md'
-          return false
-        }
-      } catch {
-        // Neither exists — will load as empty
-      }
-      return false
-    }
+    this._soul = await this._readSafe(join(this.identityPath, 'SOUL.md'))
+    this._identity = await this._readSafe(join(this.identityPath, 'IDENTITY.md'))
+    this.logger.info('identity', 'reloaded', {
+      soul: this._soul.length,
+      identity: this._identity.length
+    })
   }
 
   /**

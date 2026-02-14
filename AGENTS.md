@@ -175,7 +175,7 @@ When modifying `update.js` or `install.sh`, test both paths.
 - The `gemini-api` provider uses `@google/genai` SDK directly. Supports native tool use (function calling). Gemini uses `model` instead of `assistant` as the role, and function calls have no `id` field — synthetic IDs are generated.
 - Non-root devcontainer: running as `node` user (uid=1000).
 - Skills use `manifest.json` + `SKILL.md` (not `skill.json` + `prompt.md` as originally planned).
-- Identity uses directory mode by default (`identities/kenobot/` with SOUL.md, IDENTITY.md, USER.md). Legacy single-file mode (`kenobot.md`) still works via auto-detection.
+- Identity uses directory mode (`identities/kenobot/` with SOUL.md, IDENTITY.md, USER.md).
 - `BOOTSTRAP.md` in the identity directory triggers first-conversation onboarding. Deleted automatically when the bot includes `<bootstrap-complete/>` in a response.
 - Tool registry uses auto-discovery with self-registration — each tool exports `register(registry, deps)`.
 - **Cognitive System (Phase 1)**: New memory architecture in `src/cognitive/`. Currently wraps existing FileMemory for backward compatibility. Enable with `useCognitive: true` (default) or disable with `useCognitive: false` in `createApp()` options. Phase 2+ will add retrieval engine, identity management, and sleep cycle consolidation.
