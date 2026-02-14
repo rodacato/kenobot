@@ -34,6 +34,8 @@ const commands = {
   reset:             () => import('./cli/reset.js'),
   doctor:            () => import('./cli/doctor.js'),
   update:            () => import('./cli/update.js'),
+  sleep:             () => import('./cli/sleep.js'),
+  memory:            () => import('./cli/memory.js'),
   version:           () => import('./cli/version.js'),
   help:              () => import('./cli/help.js'),
 }

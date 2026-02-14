@@ -20,6 +20,12 @@ Commands:
                       --identity  Force re-bootstrap (keep memory)
                       --all       Reset everything (fresh start)
                       --yes       Skip confirmation
+  sleep [opts]        Run sleep cycle (memory consolidation)
+                      --status      Show last run info
+                      --proposals   Show recent improvement proposals
+  memory [opts]       Show memory statistics
+                      --health      Run memory health checks
+                      --prune       Run memory pruner
   doctor              Diagnose common problems (config, disk)
   update [--check]    Update to latest release tag
   version             Show version
