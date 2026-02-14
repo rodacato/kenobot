@@ -5,18 +5,13 @@ import defaultLogger from '../../logger.js'
  *
  * Process:
  * 1. Load recent episodes (last 24h) from all chats + global
- * 2. Filter salient episodes (errors, successes, novel events)
- * 3. Extract facts → SemanticMemory
- * 4. Extract patterns → ProceduralMemory
- *
- * Phase 4: Simple extraction based on keywords and frequency
- * Phase 6: Use embeddings for semantic clustering
+ * 2. Extract facts → SemanticMemory (all episodes trusted — LLM curated via <memory> tags)
+ * 3. Extract patterns → ProceduralMemory
  */
 export default class Consolidator {
-  constructor(memorySystem, { logger = defaultLogger, salienceThreshold = 0.5 } = {}) {
+  constructor(memorySystem, { logger = defaultLogger } = {}) {
     this.memory = memorySystem
     this.logger = logger
-    this.salienceThreshold = salienceThreshold
   }
 
   /**
@@ -36,10 +31,10 @@ export default class Consolidator {
       return result
     }
 
-    // 2. Filter salient episodes
-    const salient = episodes.filter(ep => this.scoreSalience(ep) >= this.salienceThreshold)
+    // 2. All episodes are trusted (LLM already curated via <memory> tags)
+    const salient = episodes
 
-    // 3. Extract facts from salient episodes, deduplicate against MEMORY.md
+    // 3. Extract facts, deduplicate against MEMORY.md
     const facts = this.extractFacts(salient)
     const existingMemory = (await this.memory.getLongTermMemory()).toLowerCase()
     const newFacts = facts.filter(f => !existingMemory.includes(f.toLowerCase()))
@@ -118,68 +113,26 @@ export default class Consolidator {
   }
 
   /**
-   * Determine if an episode is salient (worth consolidating).
+   * Score episode salience. Returns 1.0 for all episodes — the LLM already
+   * decided they were worth remembering when it wrapped them in <memory> tags.
    *
-   * @param {string} episode - Episode text
-   * @returns {number} Salience score (0.0 - 1.0)
+   * @param {string} _episode - Episode text (unused)
+   * @returns {number} Always 1.0
    */
-  scoreSalience(episode) {
-    const lowerEpisode = episode.toLowerCase()
-
-    let score = 0.0
-
-    // Error indicators (+0.4)
-    if (lowerEpisode.includes('error') || lowerEpisode.includes('fail')) {
-      score += 0.4
-    }
-
-    // Success indicators (+0.3)
-    if (lowerEpisode.includes('success') || lowerEpisode.includes('solved')) {
-      score += 0.3
-    }
-
-    // User correction (+0.5)
-    if (lowerEpisode.includes('actually') || lowerEpisode.includes('correction')) {
-      score += 0.5
-    }
-
-    // Novel situations (+0.3)
-    if (lowerEpisode.includes('new') || lowerEpisode.includes('first time')) {
-      score += 0.3
-    }
-
-    // User preferences and knowledge (+0.6) — these come from <memory> tags,
-    // the LLM already decided they were worth remembering
-    if (lowerEpisode.includes('favorite') || lowerEpisode.includes('prefer') ||
-        lowerEpisode.includes('likes') || lowerEpisode.includes('language') ||
-        lowerEpisode.includes('lives in') || lowerEpisode.includes('works at') ||
-        lowerEpisode.includes('timezone') || lowerEpisode.includes('name is')) {
-      score += 0.6
-    }
-
-    // Decisions and lessons (+0.4)
-    if (lowerEpisode.includes('decided') || lowerEpisode.includes('learned') ||
-        lowerEpisode.includes('remember') || lowerEpisode.includes('important')) {
-      score += 0.4
-    }
-
-    return Math.min(score, 1.0)
+  scoreSalience(_episode) {
+    return 1.0
   }
 
   /**
-   * Extract semantic facts from salient episodes.
-   * Looks for declarative statements about preferences, states, and knowledge.
+   * Extract semantic facts from episodes.
+   * All episode content is extracted — the LLM already curated what's important
+   * via <memory> tags, so no keyword filtering is needed.
    *
-   * @param {Array<string>} episodes - Salient episodes
+   * @param {Array<string>} episodes - Episodes to extract from
    * @returns {Array<string>} Extracted facts
    */
   extractFacts(episodes) {
     const facts = []
-    const factIndicators = [
-      'prefers', 'prefer', 'likes', 'always', 'never', 'wants', 'uses', 'needs',
-      'favorite', 'favourite', 'lives in', 'works at', 'name is', 'timezone',
-      'decided', 'learned', 'language'
-    ]
 
     for (const episode of episodes) {
       const lines = episode.split('\n').map(l => l.trim()).filter(l => l.length > 0)
@@ -189,10 +142,8 @@ export default class Consolidator {
         if (line.startsWith('#') && !/^## \d{2}:\d{2} —/.test(line)) continue
 
         const cleaned = line.replace(/^## \d{2}:\d{2} — /, '').trim()
-        const lower = cleaned.toLowerCase()
-        const hasFact = factIndicators.some(indicator => lower.includes(indicator))
 
-        if (hasFact && cleaned.length > 10) {
+        if (cleaned.length > 10) {
           facts.push(cleaned)
         }
       }

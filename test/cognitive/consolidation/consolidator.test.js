@@ -66,9 +66,9 @@ describe('Consolidator', () => {
       expect(result.episodesProcessed).toBe(2)
     })
 
-    it('should extract facts from salient episodes', async () => {
+    it('should extract facts from episodes', async () => {
       mockMemory.getRecentDays.mockResolvedValue(
-        '## 10:00 — Error: User actually prefers dark mode always'
+        '## 10:00 — Adrian prefiere modo oscuro siempre'
       )
 
       const result = await consolidator.run()
@@ -90,62 +90,36 @@ describe('Consolidator', () => {
   })
 
   describe('scoreSalience', () => {
-    it('should score errors as salient', () => {
-      const score = consolidator.scoreSalience('An error occurred while processing')
-
-      expect(score).toBeGreaterThan(0)
-    })
-
-    it('should score successes as salient', () => {
-      const score = consolidator.scoreSalience('Successfully solved the problem')
-
-      expect(score).toBeGreaterThan(0)
-    })
-
-    it('should score corrections as highly salient', () => {
-      const score = consolidator.scoreSalience('Actually, the correct approach is...')
-
-      expect(score).toBeGreaterThanOrEqual(0.5)
-    })
-
-    it('should score novel situations as salient', () => {
-      const score = consolidator.scoreSalience('This is a new type of request')
-
-      expect(score).toBeGreaterThan(0)
-    })
-
-    it('should cap salience at 1.0', () => {
-      const score = consolidator.scoreSalience('Error: new situation that actually failed successfully')
-
-      expect(score).toBeLessThanOrEqual(1.0)
-    })
-
-    it('should return low score for mundane episodes', () => {
-      const score = consolidator.scoreSalience('Regular conversation about weather')
-
-      expect(score).toBe(0)
+    it('should return 1.0 for all episodes (trusts LLM curation)', () => {
+      expect(consolidator.scoreSalience('An error occurred')).toBe(1.0)
+      expect(consolidator.scoreSalience('Regular weather chat')).toBe(1.0)
+      expect(consolidator.scoreSalience('Usuario prefiere español')).toBe(1.0)
     })
   })
 
   describe('extractFacts', () => {
-    it('should extract facts containing preference indicators', () => {
-      const episodes = ['User prefers to communicate in Spanish']
-
-      const facts = consolidator.extractFacts(episodes)
-
-      expect(facts).toHaveLength(1)
-      expect(facts[0]).toContain('prefers')
-    })
-
-    it('should extract multiple facts from multiple episodes', () => {
+    it('should extract all episode content regardless of language', () => {
       const episodes = [
-        'User always wants detailed explanations',
-        'User never likes being interrupted'
+        'Usuario prefiere comunicarse en español',
+        'User prefers to communicate in English'
       ]
 
       const facts = consolidator.extractFacts(episodes)
 
-      expect(facts.length).toBeGreaterThanOrEqual(2)
+      expect(facts).toHaveLength(2)
+      expect(facts[0]).toContain('prefiere')
+      expect(facts[1]).toContain('prefers')
+    })
+
+    it('should extract multiple facts from multiple episodes', () => {
+      const episodes = [
+        'Stack principal: Node.js + PostgreSQL',
+        'Migrando de Express a Fastify'
+      ]
+
+      const facts = consolidator.extractFacts(episodes)
+
+      expect(facts).toHaveLength(2)
     })
 
     it('should skip headers', () => {
@@ -157,8 +131,8 @@ describe('Consolidator', () => {
       expect(facts[0]).not.toContain('#')
     })
 
-    it('should return empty array when no facts found', () => {
-      const episodes = ['Regular conversation about weather']
+    it('should skip short content (<=10 chars)', () => {
+      const episodes = ['Short']
 
       const facts = consolidator.extractFacts(episodes)
 
@@ -166,11 +140,12 @@ describe('Consolidator', () => {
     })
 
     it('should strip timestamp prefix from facts', () => {
-      const episodes = ['## 10:00 — User always prefers concise answers']
+      const episodes = ['## 10:00 — Adrian prefiere respuestas con código']
 
       const facts = consolidator.extractFacts(episodes)
 
       expect(facts[0]).not.toMatch(/^## \d{2}:\d{2}/)
+      expect(facts[0]).toContain('Adrian prefiere')
     })
   })
 
