@@ -13,8 +13,7 @@ import defaultLogger from '../../logger.js'
  * - Semantic Memory: Facts and knowledge
  * - Procedural Memory: Learned patterns
  *
- * Phase 1: Delegates to existing MemoryStore (backward compatible)
- * Phase 3: Uses dedicated classes for each memory type
+ * Each memory type delegates to MemoryStore for persistence.
  */
 export default class MemorySystem {
   constructor(memoryStore, { logger = defaultLogger, workingStaleThreshold = 7 } = {}) {
@@ -32,7 +31,6 @@ export default class MemorySystem {
 
   /**
    * Get long-term semantic memory (facts, knowledge).
-   * Phase 3: Delegates to SemanticMemory class
    */
   async getLongTermMemory() {
     return this.semantic.getLongTerm()
@@ -40,7 +38,6 @@ export default class MemorySystem {
 
   /**
    * Get recent semantic notes (last N days).
-   * Phase 3: Delegates to SemanticMemory class
    */
   async getRecentDays(days = 3) {
     return this.semantic.getRecent(days)
@@ -48,7 +45,6 @@ export default class MemorySystem {
 
   /**
    * Add a semantic fact.
-   * Phase 3: Delegates to SemanticMemory class
    */
   async addFact(fact) {
     await this.semantic.addFact(fact)
@@ -58,7 +54,6 @@ export default class MemorySystem {
 
   /**
    * Get chat-specific long-term memory.
-   * Phase 3: Delegates to EpisodicMemory class
    */
   async getChatLongTermMemory(sessionId) {
     return this.episodic.getChatLongTerm(sessionId)
@@ -66,7 +61,6 @@ export default class MemorySystem {
 
   /**
    * Get recent chat-specific episodes.
-   * Phase 3: Delegates to EpisodicMemory class
    */
   async getChatRecentDays(sessionId, days = 3) {
     return this.episodic.getChatRecent(sessionId, days)
@@ -74,7 +68,6 @@ export default class MemorySystem {
 
   /**
    * Add a chat-specific episode/fact.
-   * Phase 3: Delegates to EpisodicMemory class
    */
   async addChatFact(sessionId, fact) {
     await this.episodic.addChatEpisode(sessionId, fact)
@@ -84,7 +77,7 @@ export default class MemorySystem {
 
   /**
    * Get working memory for a session.
-   * Phase 3: Delegates to WorkingMemory class (includes staleness check)
+   * Includes staleness check (returns null if older than threshold).
    */
   async getWorkingMemory(sessionId) {
     return this.working.get(sessionId)
@@ -92,7 +85,6 @@ export default class MemorySystem {
 
   /**
    * Replace working memory for a session.
-   * Phase 3: Delegates to WorkingMemory class
    */
   async replaceWorkingMemory(sessionId, content) {
     await this.working.replace(sessionId, content)
@@ -102,7 +94,6 @@ export default class MemorySystem {
 
   /**
    * Get all learned patterns.
-   * Phase 3: Delegates to ProceduralMemory class
    */
   async getPatterns() {
     return this.procedural.getAll()
@@ -110,18 +101,15 @@ export default class MemorySystem {
 
   /**
    * Match patterns against message.
-   * Phase 3: Delegates to ProceduralMemory class
    */
   async matchPatterns(messageText) {
     return this.procedural.match(messageText)
   }
 
-  // --- Compaction (for existing CompactingMemory) ---
+  // --- Compaction ---
 
   /**
    * List all daily logs (for compaction).
-   * Phase 1: Delegates to store
-   * Phase 3: Will handle new structure
    */
   async listDailyLogs() {
     return this.store.listDailyLogs()

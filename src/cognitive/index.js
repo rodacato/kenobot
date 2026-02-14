@@ -8,14 +8,10 @@ import { homedir } from 'node:os'
 /**
  * CognitiveSystem - Main facade for cognitive architecture
  *
- * Orchestrates:
+ * Orchestrates three sub-systems:
  * - Memory System (4 types: working, episodic, semantic, procedural)
- * - Retrieval Engine (Phase 2+)
- * - Identity Manager (Phase 5+)
- *
- * Phase 1: Delegates to existing MemoryStore (backward compatible)
- * Phase 2: Adds selective retrieval
- * Phase 3+: Will add identity management, sleep cycle
+ * - Identity System (core personality, behavioral rules, learned preferences)
+ * - Retrieval Engine (keyword + confidence-based memory recall)
  *
  * Usage:
  *   const cognitive = new CognitiveSystem(config, memoryStore, provider, { logger })
@@ -28,14 +24,14 @@ export default class CognitiveSystem {
     this.provider = provider
     this.logger = logger
 
-    // Initialize memory system
+    // Memory System
     this.memory = new MemorySystem(memoryStore, { logger })
 
-    // Phase 2: Initialize retrieval engine
+    // Retrieval Engine
     this.retrieval = new RetrievalEngine(this.memory, { logger })
     this.useRetrieval = config.useRetrieval !== false // Default: true
 
-    // Phase 5: Initialize identity manager
+    // Identity System
     // Use config.identityFile if set, otherwise default to ~/.kenobot/memory/identity
     const identityPath = config.identityFile || join(homedir(), '.kenobot', 'memory', 'identity')
     this.identity = new IdentityManager(identityPath, provider, { logger })
@@ -46,9 +42,9 @@ export default class CognitiveSystem {
    * Build context for a message.
    * Called by ContextBuilder to get memory for system prompt.
    *
-   * Phase 1: Returns all memory (backward compatible)
-   * Phase 2: Returns retrieval-based selective memory
-   * Bootstrap mode: Returns empty memory (identity > memory)
+   * With retrieval enabled: returns keyword-matched selective memory.
+   * Without retrieval: loads all memory (full context).
+   * Bootstrap mode: returns empty memory (identity takes priority).
    *
    * @param {string} sessionId - e.g. "telegram-123456"
    * @param {string} messageText - User message
@@ -79,7 +75,7 @@ export default class CognitiveSystem {
 
     const workingMemory = await this.memory.getWorkingMemory(sessionId)
 
-    // Phase 2: Use retrieval if enabled
+    // Selective retrieval (keyword-based)
     if (this.useRetrieval && messageText) {
       const limits = {
         maxFacts: this.config.maxFacts ?? 10,
@@ -95,10 +91,9 @@ export default class CognitiveSystem {
         resultCount: retrieved.facts.length + retrieved.procedures.length + retrieved.episodes.length
       })
 
-      // Return retrieved memory in compatible format
+      // Return retrieved memory in ContextBuilder-compatible format
       return {
         memory: {
-          // Convert retrieved results to legacy format for ContextBuilder
           longTerm: this._formatRetrievedFacts(retrieved.facts),
           recentNotes: this._formatRetrievedEpisodes(retrieved.episodes),
           chatLongTerm: '',
@@ -110,7 +105,7 @@ export default class CognitiveSystem {
       }
     }
 
-    // Phase 1: Load all memory (legacy path)
+    // Full memory load (no retrieval filtering)
     const memoryDays = this.config.memoryDays ?? 3
 
     const [longTerm, recentNotes, chatLongTerm, chatRecent] = await Promise.all([

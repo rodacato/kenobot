@@ -7,7 +7,6 @@ import HTTPChannel from './channels/http.js'
 import FilesystemStorage from './storage/filesystem.js'
 import MemoryStore from './storage/memory-store.js'
 import CognitiveSystem from './cognitive/index.js'
-import IdentityLoader from './agent/identity.js'
 import ContextBuilder from './agent/context.js'
 import AgentLoop from './agent/loop.js'
 import Scheduler from './scheduler/scheduler.js'
@@ -73,15 +72,14 @@ export function createApp(config, provider, options = {}) {
   // Core components
   const scheduler = new Scheduler(bus, config.dataDir, { logger })
   const storage = new FilesystemStorage(config, { logger })
-  const identityLoader = new IdentityLoader(config.identityFile, { logger })
 
-  // Memory system: Always use CognitiveSystem
+  // Cognitive System: Memory System + Identity System
   const memoryStore = new MemoryStore(config.dataDir, { logger })
   const cognitive = new CognitiveSystem(config, memoryStore, circuitBreaker, { logger })
   const memory = cognitive.getMemorySystem()
-  logger.info('system', 'cognitive_enabled', { phase: 1 })
+  logger.info('system', 'cognitive_system_ready')
 
-  // ContextBuilder: Uses cognitive system for identity and memory
+  // ContextBuilder: Uses Cognitive System for identity and memory
   const contextBuilder = new ContextBuilder(config, storage, cognitive, { logger })
   const agent = new AgentLoop(bus, circuitBreaker, contextBuilder, storage, memory, { logger })
 

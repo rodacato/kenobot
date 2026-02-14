@@ -3,12 +3,15 @@ import { join } from 'node:path'
 import defaultLogger from '../logger.js'
 
 /**
- * MemoryStore - Persistence layer for cognitive memory system
+ * MemoryStore - Persistence layer for the Memory System
  *
- * Phase 1: Wrapper around existing FileMemory structure (data/memory/)
- * Phase 3: Will handle new structure (memory/semantic/, memory/episodic/, etc.)
+ * Filesystem-backed storage for all memory types:
+ *   data/memory/MEMORY.md          — global long-term facts
+ *   data/memory/YYYY-MM-DD.md      — global daily logs
+ *   data/memory/chats/{id}/        — per-chat memory
+ *   data/memory/working/{id}.md    — session scratchpad
  *
- * This abstraction allows us to migrate storage without changing consumers.
+ * Consumed by MemorySystem (via cognitive sub-classes).
  */
 export default class MemoryStore {
   constructor(dataDir, { logger = defaultLogger } = {}) {
@@ -22,8 +25,6 @@ export default class MemoryStore {
 
   /**
    * Read global long-term memory (MEMORY.md).
-   * Phase 1: Reads data/memory/MEMORY.md
-   * Phase 3: Will read memory/semantic/facts.md
    */
   async readLongTermMemory() {
     try {
@@ -34,9 +35,7 @@ export default class MemoryStore {
   }
 
   /**
-   * Append to global daily log.
-   * Phase 1: Appends to data/memory/YYYY-MM-DD.md
-   * Phase 3: Will append to memory/episodic/shared/YYYY-MM-DD.md
+   * Append to global daily log (data/memory/YYYY-MM-DD.md).
    */
   async appendDaily(entry) {
     await this._ensureDir()
@@ -51,8 +50,6 @@ export default class MemoryStore {
 
   /**
    * Get recent daily logs (N days).
-   * Phase 1: Reads from data/memory/
-   * Phase 3: Will read from memory/episodic/shared/
    */
   async getRecentDays(days = 3) {
     return this._getRecentDaysFromDir(this.memoryDir, days)
@@ -61,9 +58,7 @@ export default class MemoryStore {
   // --- Per-chat memory (episodic) ---
 
   /**
-   * Append to chat-specific daily log.
-   * Phase 1: data/memory/chats/{sessionId}/YYYY-MM-DD.md
-   * Phase 3: memory/episodic/chats/{sessionId}/YYYY-MM-DD.md
+   * Append to chat-specific daily log (data/memory/chats/{sessionId}/YYYY-MM-DD.md).
    */
   async appendChatDaily(sessionId, entry) {
     const chatDir = join(this.memoryDir, 'chats', sessionId)
@@ -86,9 +81,7 @@ export default class MemoryStore {
   }
 
   /**
-   * Get chat-specific long-term memory.
-   * Phase 1: data/memory/chats/{sessionId}/MEMORY.md
-   * Phase 3: memory/episodic/chats/{sessionId}/facts.md
+   * Get chat-specific long-term memory (data/memory/chats/{sessionId}/MEMORY.md).
    */
   async getChatLongTermMemory(sessionId) {
     try {
@@ -103,8 +96,6 @@ export default class MemoryStore {
 
   /**
    * Write working memory for a session.
-   * Phase 1: data/memory/working/{sessionId}.md
-   * Phase 3: memory/working/{sessionId}.json (structured)
    */
   async writeWorkingMemory(sessionId, content) {
     const dir = join(this.memoryDir, 'working')
@@ -116,8 +107,7 @@ export default class MemoryStore {
 
   /**
    * Get working memory with timestamp.
-   * Phase 1: Returns { content, updatedAt }
-   * Phase 3: Will return structured JSON
+   * @returns {{ content: string, updatedAt: number }|null}
    */
   async getWorkingMemory(sessionId) {
     try {
@@ -131,7 +121,7 @@ export default class MemoryStore {
     }
   }
 
-  // --- Compaction (for existing system) ---
+  // --- Compaction ---
 
   async listDailyLogs() {
     let files
