@@ -2,7 +2,7 @@
 
 KenoBot documentation is organized in **two tracks** to serve different audiences:
 
-## 🚀 Quickstart (For Beginners)
+## Quickstart (For Beginners)
 
 **Start here if you're new to KenoBot or want step-by-step guides.**
 
@@ -10,13 +10,12 @@ KenoBot documentation is organized in **two tracks** to serve different audience
 |----------|-------------|
 | [Getting Started](quickstart/getting-started.md) | First-time setup and basic usage |
 | [Deployment Guide](deployment.md) | VPS setup, systemd, auto-recovery, backups |
-| [Integrations](integrations-guide.md) | Connect KenoBot with external services |
 
 **Tutorials & How-Tos:**
 - [VPS Setup](guides/vps-setup.md) - Deploy to a production server
 - [Cloudflared Tunnel](guides/cloudflared.md) - Expose your bot securely
 
-## 📚 Reference (For Experienced Developers)
+## Reference (For Experienced Developers)
 
 **Technical documentation for understanding internals and extending the system.**
 
@@ -24,26 +23,26 @@ KenoBot documentation is organized in **two tracks** to serve different audience
 |----------|-------------|
 | [Architecture](reference/architecture.md) | System components, message flow, design patterns |
 | [Configuration](reference/configuration.md) | Complete environment variable reference |
+| [Events](reference/events.md) | Signal schema and contracts |
 
 **Feature Documentation:**
-- [Identity System](features/identity.md) - Modular identity files, bootstrap onboarding, user preferences
-- [Memory System](features/memory.md) - Four-tier memory architecture (working, episodic, semantic, procedural)
+- [Nervous System](features/nervous-system/) - Signal-aware event bus with middleware, tracing, and audit trail
+- [Cognitive System](features/cognitive-system/) - Memory, identity, retrieval, and consolidation
+  - [Memory System](features/cognitive-system/memory.md) - Four-tier memory architecture (working, episodic, semantic, procedural)
+  - [Identity System](features/cognitive-system/identity.md) - Modular identity files, bootstrap onboarding, user preferences
 
-## 📦 Planning & Decisions
+## Design & Research
+
+**Design rationale, research notes, and expert consultations behind KenoBot's architecture.**
 
 | Document | Description |
 |----------|-------------|
-| [Planning Overview](planning/README.md) | Implementation plan and design decisions |
-| [Implementation Plan](../IMPLEMENTATION_PLAN.md) | Detailed simplification roadmap |
+| [Design Guide](design/README.md) | Conventions, research diary, and how to add new research |
+| [Expert Catalog](design/experts.md) | All expert personas used across research sessions |
 
-## 🔒 Security & Contributing
+Research topics: [Cognitive Architecture](design/cognitive-architecture.md), [Nervous System](design/nervous-system.md), [Metacognition](design/metacognition.md), [Body Systems](design/body-systems.md), [Implementation Plan](design/implementation-plan.md), [Developer Experience](design/developer-experience.md), [Documentation](design/documentation.md)
+
+## Security & Contributing
 
 - [Security Policy](../SECURITY.md) - Vulnerability reporting and security practices
 - [Contributing Guide](../CONTRIBUTING.md) - How to contribute to KenoBot
-- [Code of Conduct](../CODE_OF_CONDUCT.md) - Community guidelines
-
----
-
-## Archive
-
-Archived documentation for deprecated features can be found in [features/archive/](features/archive/).

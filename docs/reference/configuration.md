@@ -14,7 +14,7 @@ kenobot start --config config/main.env     # Use alternate config file
 |----------|------|---------|----------|-------------|
 | `PROVIDER` | string | `claude-cli` | No | LLM provider: `claude-api`, `claude-cli`, `gemini-api`, `gemini-cli`, or `mock` |
 | `MODEL` | string | `sonnet` | No | Model name passed to provider: `sonnet`, `opus`, `haiku` |
-| `IDENTITY_FILE` | string | `identities/kenobot` | No | Path to bot identity directory or file (relative to config dir or absolute). Directory mode loads SOUL.md + IDENTITY.md + USER.md separately. See [Identity](features/identity.md). |
+| `IDENTITY_FILE` | string | `identities/kenobot` | No | Path to bot identity directory or file (relative to config dir or absolute). Directory mode loads SOUL.md + IDENTITY.md + USER.md separately. See [Identity](../features/cognitive-system/identity.md). |
 | `DATA_DIR` | string | `~/.kenobot/data` | No | Base directory for sessions, memory, logs, and scheduler data |
 
 ## Telegram
@@ -72,31 +72,6 @@ The bot supports two memory tiers:
 
 Per-chat memory is zero-config — directories are auto-created when the bot first writes a `<chat-memory>` tag. You can also manually create a `data/memory/chats/{sessionId}/MEMORY.md` for curated per-chat facts.
 
-## Skills
-
-| Variable | Type | Default | Required | Description |
-|----------|------|---------|----------|-------------|
-| `SKILLS_DIR` | string | `~/.kenobot/config/skills` | No | Directory to scan for skill plugins |
-
-## Tools
-
-| Variable | Type | Default | Required | Description |
-|----------|------|---------|----------|-------------|
-| `TOOLS_DIR` | string | — | No | Directory for external tool plugins. When set, `.js` files in this directory are loaded alongside built-in tools. |
-| `MAX_TOOL_ITERATIONS` | integer | `20` | No | Maximum tool execution rounds per message (safety valve) |
-
-## Dev Mode
-
-| Variable | Type | Default | Required | Description |
-|----------|------|---------|----------|-------------|
-| `PROJECTS_DIR` | string | — | No | Parent directory containing project folders. When set, enables the `/dev` tool for running Claude Code in project directories with full repo context. |
-
-## n8n Integration
-
-| Variable | Type | Default | Required | Description |
-|----------|------|---------|----------|-------------|
-| `N8N_WEBHOOK_BASE` | string | — | No | Base URL for n8n webhooks (e.g. `https://n8n.example.com/webhook`). When set, enables the `n8n_trigger` tool. |
-
 ## HTTP Webhook Channel
 
 The HTTP channel is opt-in. When enabled, it starts a server with two endpoints:
@@ -111,32 +86,20 @@ The HTTP channel is opt-in. When enabled, it starts a server with two endpoints:
 | `WEBHOOK_SECRET` | string | — | When `HTTP_ENABLED=true` | HMAC-SHA256 secret for webhook signature validation. Generate with: `openssl rand -hex 32` |
 | `HTTP_TIMEOUT` | integer | `60000` | No | Timeout in milliseconds for webhook responses |
 
-## Config Backup (Git Sync)
-
-When `CONFIG_REPO` is set, KenoBot automatically commits and pushes config changes (identities, skills, memory) to a private git repository. Changes are debounced — multiple writes within 30 seconds are batched into a single commit. Sync failures are logged but never crash the bot.
+## Resilience
 
 | Variable | Type | Default | Required | Description |
 |----------|------|---------|----------|-------------|
-| `CONFIG_REPO` | string | — | No | Git remote URL for config backup (e.g. `git@github.com:user/kenobot-config.git`). When empty, config sync is disabled. |
+| `WATCHDOG_INTERVAL` | integer | `60000` | No | Health check interval (ms) |
+| `CIRCUIT_BREAKER_THRESHOLD` | integer | `5` | No | Provider failures before circuit opens |
+| `CIRCUIT_BREAKER_COOLDOWN` | integer | `60000` | No | Cooldown before retry after circuit opens (ms) |
 
-Setup:
-```bash
-# 1. Create a private repo on GitHub (or similar)
-# 2. Set the env var
-CONFIG_REPO=git@github.com:youruser/kenobot-config.git
+## Other
 
-# 3. Ensure SSH key is available (uses KENOBOT_SSH_KEY or ~/.ssh/kenobot_ed25519)
-```
-
-Synced files include identities, skills, and memory. Runtime data (sessions, logs, scheduler) and secrets (`.env` files) are excluded via `.gitignore`.
-
-## Environment Variable: KENOBOT_HOME
-
-The `KENOBOT_HOME` environment variable overrides the default user home directory (`~/.kenobot`). Useful for isolated development or testing:
-
-```bash
-KENOBOT_HOME=/tmp/kenobot-test kenobot start
-```
+| Variable | Type | Default | Required | Description |
+|----------|------|---------|----------|-------------|
+| `MAX_TOOL_ITERATIONS` | integer | `20` | No | Maximum tool execution rounds per message (safety valve) |
+| `KENOBOT_HOME` | string | `~/.kenobot` | No | Override home directory |
 
 ## Example `.env`
 
@@ -157,46 +120,10 @@ ANTHROPIC_API_KEY=sk-ant-api03-...
 # MEMORY_RETENTION_DAYS=30
 # MAX_TOOL_ITERATIONS=20
 
-# n8n (optional)
-# N8N_WEBHOOK_BASE=https://n8n.example.com/webhook
-
 # HTTP channel (optional)
 # HTTP_ENABLED=true
 # HTTP_PORT=3000
 # HTTP_HOST=127.0.0.1
 # WEBHOOK_SECRET=your-secret-here
 # HTTP_TIMEOUT=60000
-
-# Config backup (optional)
-# CONFIG_REPO=git@github.com:youruser/kenobot-config.git
 ```
-
-## Multi-Instance
-
-Each instance uses its own `.env` file. Variables are isolated per process:
-
-```bash
-# ~/.kenobot/config/main.env
-PROVIDER=claude-api
-MODEL=opus
-IDENTITY_FILE=identities/kenobot
-TELEGRAM_BOT_TOKEN=<main_bot_token>
-TELEGRAM_ALLOWED_USERS=123456789
-DATA_DIR=~/.kenobot/data/main
-
-# ~/.kenobot/config/quick.env
-PROVIDER=claude-api
-MODEL=haiku
-IDENTITY_FILE=identities/quick.md
-TELEGRAM_BOT_TOKEN=<quick_bot_token>
-TELEGRAM_ALLOWED_USERS=123456789
-DATA_DIR=~/.kenobot/data/quick
-```
-
-Run both:
-```bash
-kenobot start --config ~/.kenobot/config/main.env &
-kenobot start --config ~/.kenobot/config/quick.env &
-```
-
-Each instance maintains separate sessions, memory, logs, and scheduled tasks under its own `DATA_DIR`.

@@ -1,6 +1,8 @@
 # Memory System
 
 > **A cognitive architecture for memory built on principles from neuroscience and cognitive psychology**
+>
+> *Sub-system of the [Cognitive System](README.md)*
 
 ## Table of Contents
 
@@ -65,7 +67,7 @@ LONG-TERM MEMORY
         └── Procedural (skills: "how to respond to errors")
 ```
 
-**Source:** COGNITIVE_ARCHITECTURE.md § Fundamentos de Neurociencia Cognitiva
+
 
 ### Memory Consolidation (Sleep Theory)
 
@@ -86,7 +88,6 @@ LONG-TERM MEMORY
 - Forgetting is a feature: prevents noise, maintains relevance
 - Saves LLM cost (selective consolidation)
 
-**Source:** COGNITIVE_EXPERTS.md (Neuroscientist validation)
 
 ### Retrieval Cues (Context-Dependent Memory)
 
@@ -97,7 +98,6 @@ LONG-TERM MEMORY
 - **Temporal cues:** "yesterday we talked about X" → search recent episodes
 - **Semantic cues:** "my n8n project" → search facts tagged with "n8n"
 
-**Source:** COGNITIVE_ARCHITECTURE.md § Retrieval Cues
 
 ---
 
@@ -115,9 +115,8 @@ MemorySystem (Facade)
 
 **Persistence Layer:**
 ```
-MemoryStore (Abstraction)
-└── FileMemory (Implementation)
-    └── data/memory/ and ~/.kenobot/memory/
+MemoryStore (src/storage/memory-store.js)
+└── Filesystem: data/memory/ and ~/.kenobot/memory/
 ```
 
 **Key Design Principles:**
@@ -184,7 +183,6 @@ MemoryStore (Abstraction)
 
 **Storage:** `~/.kenobot/memory/working/{sessionId}.json`
 
-**Source:** COGNITIVE_ARCHITECTURE.md § Working Memory
 
 ---
 
@@ -226,7 +224,6 @@ Webhook returned 401 Unauthorized. We tried:
 - Isolates chat-specific context (debugging in chat A ≠ planning in chat B)
 - Allows retrieval scoped to conversation
 
-**Source:** COGNITIVE_ARCHITECTURE.md § Episodic Memory
 
 ---
 
@@ -266,7 +263,6 @@ Webhook returned 401 Unauthorized. We tried:
 - Deduplication (case-insensitive substring matching)
 - Only salient facts (errors, successes, novel info)
 
-**Source:** COGNITIVE_ARCHITECTURE.md § Semantic Memory
 
 ---
 
@@ -313,7 +309,6 @@ Webhook returned 401 Unauthorized. We tried:
 - Proposes new pattern with confidence score
 - User approves → pattern added
 
-**Source:** COGNITIVE_ARCHITECTURE.md § Procedural Memory
 
 ---
 
@@ -565,7 +560,6 @@ async match(messageText) {
 - Vector search in semantic memory
 - Return top N by cosine similarity
 
-**Source:** COGNITIVE_ARCHITECTURE.md § Retrieval
 
 ### RetrievalEngine (Phase 2+)
 
@@ -598,7 +592,6 @@ function scoreFact(fact, keywords) {
 }
 ```
 
-**Source:** COGNITIVE_ARCHITECTURE.md § Retrieval Implementation
 
 ---
 
@@ -790,11 +783,9 @@ test/cognitive/memory/
 
 **Additional:**
 ```
-test/agent/memory.test.js                    (20 tests) ✓  [FileMemory]
 test/agent/memory-extractor.test.js          (11 tests) ✓  [Tag extraction]
 test/agent/chat-memory-extractor.test.js     (10 tests) ✓  [Chat tag extraction]
 test/agent/working-memory-extractor.test.js  (9 tests) ✓   [Working tag extraction]
-test/agent/compacting-memory.test.js         (15 tests) ✓  [Compaction]
 test/storage/memory-store.test.js            (11 tests) ✓  [MemoryStore]
 test/e2e/features/memory.test.js             (10 tests) ✓  [End-to-end]
 ```
@@ -871,7 +862,6 @@ DATA_DIR=~/.kenobot/data           # Data directory (default)
 - **Heuristic** (Phase 1): Simple deduplication, zero cost
 - **LLM-based** (Phase 2): Use Haiku to summarize + merge
 
-**Source:** MEMORY_COMPACTION.md
 
 ### Memory Pruning (Phase 3)
 
@@ -907,7 +897,6 @@ return results.map(r => r.content)
 - Qdrant (self-hosted)
 - ChromaDB (embedded)
 
-**Source:** COGNITIVE_ARCHITECTURE.md § Embeddings
 
 ### Multi-Chat Memory Sharing
 
@@ -922,7 +911,6 @@ return results.map(r => r.content)
 - Chat B episodes → `chats/telegram-B/`
 - No cross-contamination
 
-**Source:** COGNITIVE_ARCHITECTURE.md § Múltiples Chats
 
 ### Testing Memory System
 
@@ -958,12 +946,6 @@ KenoBot's memory system is a **cognitive architecture** built on:
 
 **Key Innovation:** **Four-tier memory** (working, episodic, semantic, procedural) with **selective retrieval** and **staleness tracking**.
 
-**Next Steps:**
-- Read [COGNITIVE_ARCHITECTURE.md](../../COGNITIVE_ARCHITECTURE.md) for full cognitive system design
-- Read [identity.md](./identity.md) for the identity system
-- Read [COGNITIVE_EXPERTS.md](../../COGNITIVE_EXPERTS.md) for expert validation
-- Read [MEMORY_COMPACTION.md](../../MEMORY_COMPACTION.md) for compaction details
-
----
-
-**Archived:** Previous version archived to [`docs/features/archive/memory-2026-02-13.md`](./archive/memory-2026-02-13.md)
+**See also:**
+- [Cognitive System](README.md) — Parent bounded context
+- [Identity System](identity.md) — Bot personality and preferences

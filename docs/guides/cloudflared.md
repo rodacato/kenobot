@@ -19,13 +19,11 @@ https://bot.example.com
 
 KenoBot's HTTP channel listens on `localhost:3000` by default — it's not reachable from the internet. A tunnel is needed when:
 
-1. **n8n runs on a different machine** — n8n needs to send results back to KenoBot, but can't reach localhost
-2. **Telegram webhook mode** — instead of polling, Telegram pushes updates directly to your bot (lower latency, more efficient)
-3. **Any external webhook** — third-party services that need to notify KenoBot
+1. **Telegram webhook mode** — instead of polling, Telegram pushes updates directly to your bot (lower latency, more efficient)
+2. **Any external webhook** — third-party services that need to notify KenoBot
 
 ## When you DON'T need it
 
-- **n8n and KenoBot on the same machine** — localhost works, no tunnel needed
 - **Telegram long polling** (default) — KenoBot pulls messages from Telegram, no inbound connection needed
 - **No external integrations** — if nothing outside your machine needs to reach KenoBot
 
@@ -120,15 +118,13 @@ sudo systemctl enable --now cloudflared
 
 ```
 You (Telegram) → Telegram API → (polling) → KenoBot
-                                                ↕ localhost
-                                              n8n (same machine)
 
 External service → https://bot.example.com → cloudflared → KenoBot HTTP channel
 ```
 
-The tunnel is only for inbound traffic from the internet. KenoBot's outbound connections (to Telegram API, to n8n, to Claude API) work directly without a tunnel.
+The tunnel is only for inbound traffic from the internet. KenoBot's outbound connections (to Telegram API, to Claude API) work directly without a tunnel.
 
 ## Further reading
 
-- [Integrations guide](../integrations-guide.md) — Full cloudflared setup with env var reference
+- [Deployment docs](../deployment.md) — Backups, monitoring, updates
 - [VPS setup](vps-setup.md) — Firewall considerations

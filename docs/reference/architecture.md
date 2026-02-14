@@ -1,31 +1,33 @@
 # Architecture
 
-> Event-driven message bus with pluggable components. Every piece is swappable without touching the core.
+> Event-driven architecture with two bounded contexts: the **Nervous System** (signaling) and the **Cognitive System** (memory & identity). Every piece is swappable without touching the core.
 
 ## Overview
 
-KenoBot follows an **event-driven architecture** where all components communicate through a singleton EventEmitter bus. No component calls another directly — they emit and listen to events.
+KenoBot follows an **event-driven architecture** where all components communicate through the Nervous System — a signal-aware event bus with middleware, tracing, and audit. No component calls another directly — they fire and listen to signals.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                       KenoBot Core                          │
 │                                                             │
 │  ┌────────────┐  ┌───────────┐  ┌──────────────────────┐   │
-│  │  Context    │  │   Agent   │  │     Memory           │   │
-│  │  Builder    │  │   Loop    │  │     Manager          │   │
-│  │            │  │           │  │                      │   │
-│  │ identity   │  │ receive   │  │ daily notes          │   │
-│  │ memory     │  │ build     │  │ MEMORY.md            │   │
-│  │ history    │  │ execute   │  │ auto-extraction      │   │
-│  │ skills     │  │ respond   │  │                      │   │
+│  │  Context    │  │   Agent   │  │   Cognitive System   │   │
+│  │  Builder    │  │   Loop    │  │                      │   │
+│  │            │  │           │  │ working memory       │   │
+│  │ identity   │  │ receive   │  │ episodic memory      │   │
+│  │ memory     │  │ build     │  │ semantic memory      │   │
+│  │ history    │  │ execute   │  │ procedural memory    │   │
 │  └────────────┘  └─────┬─────┘  └──────────────────────┘   │
 │                        │                                    │
-│                  ┌─────┴──────┐                             │
-│                  │    Bus     │  (EventEmitter)             │
-│                  │            │                             │
-│  Events:         │ message:in │  message:out               │
-│                  │ thinking   │  error                     │
-│                  └─────┬──────┘                             │
+│              ┌─────────┴──────────┐                         │
+│              │  Nervous System    │                          │
+│              │  (signal bus)      │                          │
+│              │                    │                          │
+│  Signals:    │ middleware pipeline│                          │
+│  message:in  │ audit trail (JSONL)│                          │
+│  message:out │ trace correlation  │                          │
+│  health:*    │ dead-signal detect │                          │
+│              └─────────┬──────────┘                         │
 └────────────────────────┼────────────────────────────────────┘
                          │
        ┌─────────────────┼─────────────────┐
@@ -35,16 +37,18 @@ KenoBot follows an **event-driven architecture** where all components communicat
 ├─────────────┤   ├─────────────┤   ├────────────┤
 │ Telegram    │   │ Claude API  │   │ Filesystem │
 │ HTTP        │   │ Claude CLI  │   │ (JSONL +   │
-│             │   │ Mock        │   │  markdown) │
+│             │   │ Gemini API  │   │  markdown) │
+│             │   │ Gemini CLI  │   │            │
+│             │   │ Mock        │   │            │
 └─────────────┘   └─────────────┘   └────────────┘
-       │                                    │
-┌──────┴──────┐   ┌─────────────┐   ┌──────┴─────┐
-│    Tools    │   │   Skills    │   │ Scheduler  │
-├─────────────┤   ├─────────────┤   ├────────────┤
-│ web_fetch   │   │ weather/    │   │ node-cron  │
-│ schedule    │   │ daily-      │   │ tasks.json │
-│ dev + more  │   │  summary/   │   │ → bus emit │
-└─────────────┘   └─────────────┘   └────────────┘
+       │
+┌──────┴──────┐
+│ Scheduler   │
+├─────────────┤
+│ node-cron   │
+│ tasks.json  │
+│ → bus.fire()│
+└─────────────┘
 ```
 
 ## Message Flow
@@ -53,43 +57,49 @@ When a user sends a message in Telegram:
 
 1. **TelegramChannel** receives the message via grammy
 2. **Auth check**: `_isAllowed()` verifies the sender is in `TELEGRAM_ALLOWED_USERS` (deny-by-default)
-3. **Bus publish**: Channel emits `message:in` with `{text, chatId, userId, channel, timestamp}`
+3. **Nervous System**: Channel fires `message:in` with `{text, chatId, userId, channel, timestamp}` — middleware logs it, audit trail records it, traceId is generated
 4. **AgentLoop** picks up `message:in`, derives session ID: `telegram-{chatId}`
-5. **Trigger check**: Registry checks if message matches a tool slash command (e.g. `/fetch`)
-6. **ContextBuilder** assembles the prompt:
-   - System prompt: identity + available tools + available skills + active skill prompt + memory (MEMORY.md + recent daily logs + instructions)
+5. **ContextBuilder** assembles the prompt:
+   - System prompt: identity + memory (working + episodic + semantic)
    - Messages: session history (last 20) + current user message
-7. **Provider.chat()** sends to LLM and gets response
-8. **Tool loop**: If response contains `toolCalls`, execute them in parallel, feed results back to LLM, repeat (max 20 iterations)
-9. **Memory extraction**: Parse `<memory>` tags from response, append to daily log
-10. **User preference extraction**: Parse `<user>` tags, append to USER.md
-11. **Bootstrap detection**: If `<bootstrap-complete/>` found, delete BOOTSTRAP.md
-12. **Session save**: Append user message + clean response to `data/sessions/{sessionId}.jsonl`
-11. **Bus publish**: Agent emits `message:out` with `{text, chatId, channel}`
+6. **Provider.chat()** sends to LLM and gets response
+7. **Memory extraction**: Parse `<memory>` tags from response, append to daily log
+8. **User preference extraction**: Parse `<user>` tags, append to USER.md
+9. **Bootstrap detection**: If `<bootstrap-complete/>` found, delete BOOTSTRAP.md
+10. **Session save**: Append user message + clean response to `data/sessions/{sessionId}.jsonl`
+11. **Nervous System**: Agent fires `message:out` with `{text, chatId, channel}` — trace middleware links to original `message:in` traceId
 12. **TelegramChannel** picks up `message:out`, formats markdown to HTML, sends to user (chunked if > 4000 chars)
 
 ## Core Components
 
-### Bus (`src/bus.js`)
+### Nervous System (`src/nervous/`)
 
-Singleton EventEmitter with no listener limit. All inter-component communication flows through it.
+Signal-aware event bus with middleware pipeline and audit trail. Extends `EventEmitter` — all existing `bus.on()` patterns work unchanged. Producers use `bus.fire()` to create typed Signal envelopes with source attribution and trace correlation.
 
-| Event | Emitter | Listener | Payload |
-|-------|---------|----------|---------|
+Built-in middleware (registered in `app.js`):
+- **Trace propagation**: Links `message:in` → `message:out` via shared traceId per chatId
+- **Logging**: Logs all signals through the structured logger (skips `thinking:start`)
+- **Dead signal detection**: Warns when a signal has zero listeners
+
+See [Nervous System](../features/nervous-system/) for the full feature documentation and [Signal Schema](events.md) for signal type details.
+
+| Signal | Source | Listener | Payload |
+|--------|--------|----------|---------|
 | `message:in` | Channels, Scheduler | AgentLoop | `{text, chatId, userId, channel, timestamp}` |
 | `message:out` | AgentLoop | Channels | `{text, chatId, channel}` |
-| `thinking:start` | AgentLoop | TelegramChannel | `{chatId, channel}` |
-| `error` | Any | index.js (logger) | `{source, error, context}` |
+| `thinking:start` | TypingIndicator | TelegramChannel | `{chatId, channel}` |
+| `error` | Any | App (error handler) | `{source, error, context}` |
+| `health:*` | Watchdog | Notifications | `{previous, detail}` |
+| `config:changed` | Post-processors | Audit trail | `{reason}` |
+| `notification` | Notifications | TelegramChannel | `{chatId, text}` |
 
 ### Agent Loop (`src/agent/loop.js`)
 
 The core reasoning engine. Handles the full lifecycle of a message:
 
 - Listens for `message:in` events
-- Checks for slash command triggers (tool regex matching)
 - Builds context via ContextBuilder
 - Calls the provider with assembled context
-- Runs the tool execution loop (parallel tool calls, max iterations safety valve)
 - Extracts `<memory>` tags from responses
 - Saves to session history
 - Emits `message:out`
@@ -112,18 +122,6 @@ Assembles the system prompt and message history for each provider call.
 ## First Conversation — Bootstrap     ← only when BOOTSTRAP.md exists
 [BOOTSTRAP.md — onboarding flow]
 ---
-## Available tools
-- web_fetch: Fetch a web page and return its text content
-- schedule: Schedule a recurring or one-time task
-- n8n_trigger: Trigger an n8n workflow via webhook
----
-## Available skills
-- weather: Get weather forecasts and current conditions
-- daily-summary: Generate a summary of your day
----
-## Active skill: weather
-[Full SKILL.md content loaded on-demand]
----
 ## Memory
 [Instructions for <memory> tags]
 ### Long-term memory
@@ -134,26 +132,16 @@ Assembles the system prompt and message history for each provider call.
 
 **Messages array:** Last 20 messages from the session + current user message.
 
-### Memory System (`src/agent/memory.js`, `src/agent/compacting-memory.js`)
+### Cognitive System (`src/cognitive/`)
 
-Layered memory architecture with swappable storage and compaction strategies:
+The brain of KenoBot. Orchestrates four sub-systems:
 
-```
-ContextBuilder._buildMemorySection()   ← Prompt formatting (CRUD calls)
-  │
-BaseMemory (interface)                 ← 6 CRUD + 4 compaction methods
-  │
-  ├── FileMemory                       ← Filesystem: MEMORY.md + YYYY-MM-DD.md
-  │
-  └── CompactingMemory (decorator)     ← Wraps any BaseMemory, adds compact()
-        └── HeuristicCompactor         ← Strategy: dedup old logs → MEMORY.md
-```
+- **Memory System**: Four-tier memory (working, episodic, semantic, procedural)
+- **Identity System**: Core personality, behavioral rules, learned user preferences
+- **Retrieval Engine**: Keyword + confidence-based selective memory recall
+- **Consolidation**: Sleep cycle, memory pruning, error analysis
 
-Two tiers of memory:
-- **Global**: `MEMORY.md` + daily logs in `data/memory/`
-- **Per-chat**: Same structure under `data/memory/chats/{sessionId}/`
-
-**Compaction** runs on startup (fire-and-forget). Daily logs older than `MEMORY_RETENTION_DAYS` (default 30) are merged into MEMORY.md via case-insensitive deduplication, then deleted. See `MEMORY_COMPACTION.md` for the full flow.
+See [Cognitive System](../features/cognitive-system/) for the full feature documentation.
 
 ## Interfaces & Contracts
 
@@ -166,7 +154,7 @@ class BaseProvider {
 }
 ```
 
-Three implementations: `claude-api` (Anthropic SDK), `claude-cli` (subprocess with dynamic CWD), `mock` (testing).
+Five implementations: `claude-api` (Anthropic SDK), `claude-cli` (subprocess), `gemini-api` (Google GenAI SDK), `gemini-cli` (subprocess), `mock` (testing).
 
 ### BaseChannel (`src/channels/base.js`)
 
@@ -199,58 +187,33 @@ class BaseStorage {
 
 One implementation: `filesystem` (JSONL sessions + markdown files).
 
-### BaseTool (`src/tools/base.js`)
-
-```javascript
-class BaseTool {
-  get definition() {}        // {name, description, input_schema} for LLM
-  get trigger() {}           // Optional regex for slash commands (e.g. /fetch)
-  parseTrigger(match) {}     // Parse regex match into tool input
-  async execute(input) {}    // Run the tool, return string result
-}
-```
-
-Built-in tools include `web_fetch`, `schedule`, `diagnostics`, `workspace`, `github`, `n8n_trigger`, `n8n_manage`, `approval`, and `dev`. All use auto-discovery via `register()`.
-
 ## Design Patterns
 
-### 1. CLI Wrapping
+### 1. Nervous System (Signal Bus)
 
-The `claude-cli` provider wraps the official Claude CLI as a subprocess instead of reimplementing authentication. ToS-compliant, maintained by Anthropic.
+All components are decoupled through signals. The Nervous System adds middleware (trace, logging, dead-signal detection) and audit (JSONL persistence) on top of the EventEmitter pattern. Adding a new channel (Discord, WhatsApp) requires zero changes to the agent or providers.
 
-### 2. Message Bus
-
-All components are decoupled through events. Adding a new channel (Discord, WhatsApp) requires zero changes to the agent or providers.
-
-### 3. Context Injection
+### 2. Context Injection
 
 Each provider call is stateless. Context (identity, memory, history) is injected as text in every prompt. Providers don't manage state.
 
-### 4. Markdown Memory
+### 3. Markdown Memory
 
 Memory stored as plain markdown files. Git-versionable, human-readable, zero-dependency. Daily rotation built in.
 
-### 5. JSONL Sessions
+### 4. JSONL Sessions
 
 One JSON object per line, append-only. Safe for concurrent writes, streamable, git-friendly diffs.
 
-### 6. Template Method Channels
+### 5. Template Method Channels
 
 Base class handles auth and bus wiring. Subclasses only implement I/O. New channels are < 100 LOC.
 
-### 7. Deny by Default
+### 6. Deny by Default
 
 If `allowFrom` is empty or missing, **all messages are rejected**. Fail closed, not open.
 
-### 8. On-Demand Skills
-
-System prompt includes a compact skill list (~50 bytes per skill). Full SKILL.md is only loaded when a message triggers the skill. Keeps context budget small.
-
-### 9. Tool Triggers
-
-Tools can define a regex trigger for slash commands (`/fetch`, `/schedule`, `/n8n`). This works with any provider, including `claude-cli` which doesn't support native tool_use.
-
-### 10. Max Iterations
+### 7. Max Iterations
 
 Tool execution loop has a configurable safety limit (default: 20). If the agent is still requesting tools after 20 iterations, it stops and returns an error message.
 
@@ -267,6 +230,9 @@ All runtime data lives in `~/.kenobot/data/` (or `$KENOBOT_HOME/data/`):
     MEMORY.md                   # Long-term curated facts
     2026-02-07.md               # Today's auto-extracted notes
     2026-02-06.md               # Yesterday
+  nervous/
+    signals/
+      2026-02-07.jsonl          # Nervous System audit trail (daily rotation)
   logs/
     kenobot-2026-02-07.log      # Structured JSONL (daily rotation)
   scheduler/
@@ -281,7 +247,6 @@ All runtime data lives in `~/.kenobot/data/` (or `$KENOBOT_HOME/data/`):
 | Session history | Last 20 messages per session | Yes (`SESSION_HISTORY_LIMIT`) |
 | Max tool iterations | 20 rounds per message | Yes (`MAX_TOOL_ITERATIONS`) |
 | Telegram message chunk | 4000 characters | No (Telegram API limit) |
-| web_fetch output cap | 10KB | No (hardcoded) |
 | MEMORY.md size | Unlimited | No (grows with usage) |
 | Daily logs retention | 30 days (compacted into MEMORY.md) | Yes (`MEMORY_RETENTION_DAYS`) |
 | System prompt budget | No token limit enforced | No |
@@ -295,7 +260,7 @@ All runtime data lives in `~/.kenobot/data/` (or `$KENOBOT_HOME/data/`):
 
 KenoBot separates side effects from component wiring:
 
-- **`src/app.js`** — Pure factory. `createApp(config, provider)` builds and wires all components, returns an app object with `start()`/`stop()`. No global side effects. Can be called multiple times for isolated instances.
+- **`src/app.js`** — Pure factory. `createApp(config, provider)` builds and wires all components (Nervous System, Cognitive System, Agent Loop, Channels, Watchdog, Scheduler), returns an app object with `start()`/`stop()`. No global side effects. Can be called multiple times for isolated instances.
 
 - **`src/index.js`** — Thin entry point. Handles config loading (env vars, `.env` file), provider self-registration (side-effect imports), process signal handlers (`SIGTERM`, `SIGINT`), and calls `createApp()`.
 
@@ -312,7 +277,7 @@ await app.start()
 await app.stop()
 ```
 
-The `createApp()` return object exposes all internal components (`bus`, `agent`, `channels`, `watchdog`, `scheduler`, `storage`, `memory`, etc.) for diagnostics and testing.
+The `createApp()` return object exposes all internal components (`bus`, `agent`, `channels`, `watchdog`, `scheduler`, `storage`, `memory`, `cognitive`, etc.) for diagnostics and testing.
 
 ## Extending KenoBot
 
@@ -331,26 +296,3 @@ The `createApp()` return object exposes all internal components (`bus`, `agent`,
 3. Call `_publishMessage()` when messages arrive (auth is inherited)
 4. Listen for `message:out` on the bus to send responses
 5. Register in `src/index.js`
-
-### Add a new Tool
-
-1. Create `src/tools/my-tool.js` extending `BaseTool`
-2. Implement `get definition()` and `execute(input)`
-3. Optionally add `get trigger()` and `parseTrigger()` for slash commands
-4. Export a `register(registry, deps)` function that conditionally creates and registers the tool
-5. The `ToolLoader` auto-discovers the file — no changes to `index.js` needed
-
-Lifecycle hooks (optional): override `init()` for async setup, `stop()` for cleanup.
-
-### Add a new Skill
-
-1. Create `~/.kenobot/config/skills/my-skill/manifest.json`:
-   ```json
-   {
-     "name": "my-skill",
-     "description": "What this skill does",
-     "triggers": ["keyword1", "keyword2"]
-   }
-   ```
-2. Create `~/.kenobot/config/skills/my-skill/SKILL.md` with agent instructions
-3. Restart the bot — skill is auto-discovered

@@ -2,23 +2,22 @@
 
 Personal AI assistant powered by Claude, built for a single user, extensible by design.
 
-Telegram bot with memory, tools, skills, and scheduling — all running on a $4/month VPS.
+Telegram bot with memory, identity, and scheduling — all running on a $4/month VPS.
 
 ## Features
 
 - **Telegram bot** with deny-by-default authentication
-- **3 LLM providers**: Claude API (Anthropic SDK), Claude CLI (subprocess wrapper), Mock (testing)
-- **Memory system**: daily logs + curated MEMORY.md + auto-extraction from `<memory>` tags
+- **5 LLM providers**: Claude API, Claude CLI, Gemini API, Gemini CLI, Mock (testing)
+- **Nervous System**: signal-aware event bus with middleware pipeline, trace correlation, and JSONL audit trail
+- **Cognitive System**: orchestrates memory, identity, and retrieval
+  - **4-tier memory**: working, episodic, semantic, procedural — with auto-extraction from `<memory>`, `<chat-memory>`, `<working-memory>` tags
+  - **Identity system**: modular personality (SOUL + IDENTITY + USER), conversational bootstrap, user preference learning
+  - **Retrieval engine**: keyword matching + confidence scoring for selective memory recall
+  - **Consolidation**: sleep cycles, memory pruning, error analysis
 - **Per-chat sessions**: isolated conversation history in append-only JSONL files
-- **Tool system**: registry with slash command triggers + LLM tool_use support
-  - `web_fetch` — fetch and extract text from URLs (`/fetch <url>`)
-  - `schedule` — cron-based task scheduling (`/schedule add|list|remove`)
-  - `dev` — run Claude Code in project directories (`/dev <project> <task>`)
-  - `github` — git operations (`/git status|commit|push|pull|log`)
-  - `pr` — GitHub Pull Requests (`/pr create|list|view|merge`)
-  - `approval` — propose skills, workflows, identity changes (`/pending|approve|reject`)
-- **Skill plugins**: drop-in directories with `manifest.json` + `SKILL.md`, loaded on-demand
-- **Cron scheduler**: persistent tasks that survive restarts
+- **Circuit breaker**: automatic failure protection with configurable fallback provider
+- **Watchdog**: health monitoring with configurable intervals
+- **Cron scheduler**: persistent tasks that fire as synthetic signals
 - **HTTP webhook channel**: HMAC-SHA256 validated endpoint for external integrations
 - **Structured logging**: JSONL logs with daily rotation
 - **Health checks**: PID management, `kenobot status`, systemd integration
@@ -49,15 +48,19 @@ kenobot start                # Start the bot
 ### CLI Commands
 
 ```bash
+kenobot setup                # Scaffold ~/.kenobot/ directories
 kenobot start [-d]           # Start (foreground, or -d for daemon)
 kenobot stop                 # Stop daemon
+kenobot restart              # Restart daemon
 kenobot status               # Check if running
 kenobot logs                 # Tail latest log
 kenobot config [edit]        # Show config or open in $EDITOR
-kenobot backup               # Backup config/ and data/
-kenobot purge                # Reset runtime data (sessions, logs, scheduler)
+kenobot dev                  # Run with --watch (development mode)
+kenobot init-cognitive       # Initialize cognitive system memory structure
+kenobot reset                # Reset cognitive system
 kenobot doctor               # Diagnose common problems
 kenobot update               # Update to latest release
+kenobot version              # Show version
 ```
 
 ### Development
@@ -71,21 +74,23 @@ kenobot config edit          # Set tokens and provider
 kenobot start                # Run the bot
 ```
 
-See [Getting Started](docs/getting-started.md) for a detailed walkthrough or [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
+See [Getting Started](docs/quickstart/getting-started.md) for a detailed walkthrough or [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
 
 ## Architecture
 
+Event-driven architecture with two bounded contexts: the **Nervous System** (signaling) and the **Cognitive System** (memory & identity).
+
 ```
-User → Telegram → TelegramChannel → bus 'message:in' → AgentLoop → ContextBuilder → Provider.chat()
-                                                            ↓
-User ← Telegram ← TelegramChannel ← bus 'message:out' ← AgentLoop (tool loop → memory extraction → session save)
+User → Telegram → TelegramChannel → bus.fire('message:in') → AgentLoop → ContextBuilder → Provider.chat()
+                                                                  ↓
+User ← Telegram ← TelegramChannel ← bus.fire('message:out') ← AgentLoop (memory extraction → session save)
 ```
 
-All components communicate via an EventEmitter message bus. Channels, providers, tools, and skills are pluggable — swap or extend without touching the core.
+All components communicate via the Nervous System — a signal-aware event bus with middleware, tracing, and audit. Channels and providers are pluggable — swap or extend without touching the core.
 
-**Bus events**: `message:in`, `message:out`, `thinking:start`, `error`
+**Signals**: `message:in`, `message:out`, `thinking:start`, `error`, `notification`, `config:changed`, `health:degraded`, `health:unhealthy`, `health:recovered`, `approval:proposed`, `approval:approved`, `approval:rejected`
 
-See [Architecture](docs/architecture.md) for a deep dive.
+See [Architecture](docs/reference/architecture.md) for a deep dive.
 
 ## Configuration
 
@@ -96,24 +101,30 @@ Use `kenobot config edit` to open it, or pass `--config path/to/file.env` when r
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `TELEGRAM_BOT_TOKEN` | *required* | Bot token from @BotFather |
-| `TELEGRAM_ALLOWED_USERS` | *required** | Comma-separated allowed user IDs |
-| `TELEGRAM_ALLOWED_CHAT_IDS` | optional | Comma-separated allowed group chat IDs |
-| `PROVIDER` | `claude-cli` | `claude-api`, `claude-cli`, or `mock` |
+| `TELEGRAM_ALLOWED_USERS` | *required* | Comma-separated allowed user IDs |
+| `TELEGRAM_ALLOWED_CHAT_IDS` | — | Comma-separated allowed group chat IDs |
+| `PROVIDER` | `claude-cli` | `claude-api`, `claude-cli`, `gemini-api`, `gemini-cli`, or `mock` |
 | `MODEL` | `sonnet` | `sonnet`, `opus`, or `haiku` |
 | `ANTHROPIC_API_KEY` | — | Required for `claude-api` provider |
 | `IDENTITY_FILE` | `identities/kenobot` | Path to bot identity directory |
-| `DATA_DIR` | `~/.kenobot/data` | Where sessions, memory, and logs are stored |
-| `SKILLS_DIR` | `~/.kenobot/config/skills` | Directory for skill plugins |
-| `MEMORY_DAYS` | `3` | How many days of recent notes to include in context |
+| `DATA_DIR` | `./data` | Where sessions, memory, and logs are stored |
+| `MEMORY_DAYS` | `3` | Days of recent notes to include in context |
+| `MEMORY_RETENTION_DAYS` | `30` | Days before memories are pruned |
+| `WORKING_MEMORY_STALE_DAYS` | `7` | Days before working memory entries go stale |
+| `SESSION_HISTORY_LIMIT` | `20` | Max messages per session in context |
 | `MAX_TOOL_ITERATIONS` | `20` | Safety limit for tool execution loops |
+| `FALLBACK_PROVIDER` | — | Provider to use when circuit breaker trips |
+| `WATCHDOG_INTERVAL` | `60000` | Health monitoring interval (ms) |
+| `CIRCUIT_BREAKER_THRESHOLD` | `5` | Failures before circuit opens |
+| `CIRCUIT_BREAKER_COOLDOWN` | `60000` | Cooldown before circuit closes (ms) |
 | `HTTP_ENABLED` | `false` | Enable HTTP webhook channel |
 | `HTTP_PORT` | `3000` | HTTP server port |
 | `HTTP_HOST` | `127.0.0.1` | HTTP server bind address |
 | `WEBHOOK_SECRET` | — | HMAC secret for webhook validation |
 | `HTTP_TIMEOUT` | `60000` | Webhook response timeout (ms) |
-| `PROJECTS_DIR` | — | Parent dir for `/dev` mode (enables workspace dev tool) |
+| `PROJECTS_DIR` | — | Parent dir for workspace dev mode |
 
-See [Configuration Reference](docs/configuration.md) for details.
+See [Configuration Reference](docs/reference/configuration.md) for details.
 
 ## Providers
 
@@ -121,9 +132,11 @@ See [Configuration Reference](docs/configuration.md) for details.
 |----------|------------|-------|------|
 | `claude-api` | Production, fastest responses | ~3s | Per-token (Anthropic billing) |
 | `claude-cli` | Using existing Claude CLI subscription | ~20s | CLI subscription |
+| `gemini-api` | Google AI alternative, production | ~3s | Per-token (Google billing) |
+| `gemini-cli` | Using existing Gemini CLI | ~15s | CLI subscription |
 | `mock` | Testing, development | Instant | Free |
 
-Switch providers by changing `PROVIDER` in `.env`. The agent loop doesn't know or care which provider it's using.
+Switch providers by changing `PROVIDER` in `.env`. The agent loop doesn't know or care which provider it's using. Circuit breaker protects against provider failures with automatic fallback.
 
 ## Multi-Instance
 
@@ -143,105 +156,147 @@ Each instance gets its own Telegram bot, identity file, data directory, and prov
 kenobot/                       # Engine (framework code, updatable)
   src/
     cli.js                     # CLI entry point (kenobot command)
-    paths.js                   # Path resolution (~/.kenobot/ or $KENOBOT_HOME)
-    index.js                   # Bot entry point, wires all components
-    bus.js                     # Singleton EventEmitter message bus
+    app.js                     # Composition root factory: { bus, agent, channels, cognitive, start(), stop() }
+    index.js                   # Bot entry point, signals, provider registration
     config.js                  # Env-based config with --config flag
+    paths.js                   # Path resolution (~/.kenobot/ or $KENOBOT_HOME)
     logger.js                  # Structured JSONL logger
     health.js                  # PID management + health status
+    watchdog.js                # Health monitoring
+    notifications.js           # Notification routing
+    events.js                  # Signal type constants
+    bus.js                     # Legacy MessageBus (backward compat)
     cli/                       # CLI subcommands
-      init.js                  # Scaffold ~/.kenobot/ directories
+      setup.js                 # Scaffold ~/.kenobot/ directories
       start.js                 # Start bot (foreground or daemon)
       stop.js                  # Stop daemon
       restart.js               # Restart daemon
       status.js                # Health check + uptime
       logs.js                  # Tail log files
-      backup.js                # Data backup with rotation
-      purge.js                 # Reset runtime data (3 levels)
-      doctor.js                # Diagnose common problems (10 checks)
-      utils.js                 # Shared CLI helpers (colors, exists, dirSize)
+      dev.js                   # Run with --watch
       config-cmd.js            # Show/edit config
-      update.js                # Update to latest release tag
-      migrate.js               # Migrate from old layout
-      audit.js                 # Security audit wrapper
-      install-service.js       # Generate systemd unit
+      init-cognitive.js        # Initialize cognitive system
+      reset.js                 # Reset cognitive system
+      doctor.js                # Diagnose common problems
+      update.js                # Update to latest release
       version.js               # Show version
       help.js                  # Usage help
+      utils.js                 # Shared CLI helpers
+    nervous/                   # Nervous System (bounded context)
+      index.js                 # NervousSystem facade (signal-aware bus)
+      signal.js                # Signal class (typed envelope)
+      signals.js               # Signal type constants
+      middleware.js             # Built-in middleware (trace, logging, dead-signal)
+      audit-trail.js           # JSONL signal persistence
+    cognitive/                 # Cognitive System (bounded context)
+      index.js                 # CognitiveSystem facade
+      memory/                  # 4-tier memory
+        memory-system.js       # Memory orchestrator
+        working-memory.js      # Short-term context
+        episodic-memory.js     # Conversation episodes
+        semantic-memory.js     # Factual knowledge
+        procedural-memory.js   # Learned patterns
+      identity/                # Identity system
+        identity-manager.js    # Identity orchestrator
+        core-loader.js         # Load SOUL + IDENTITY + USER files
+        bootstrap-orchestrator.js  # First-conversation onboarding
+        preferences-manager.js # User preference learning
+        profile-inferrer.js    # Infer user profile from context
+        rules-engine.js        # Identity rules evaluation
+      retrieval/               # Selective memory recall
+        retrieval-engine.js    # Retrieval orchestrator
+        keyword-matcher.js     # Keyword-based matching
+        confidence-scorer.js   # Relevance scoring
+      consolidation/           # Memory maintenance
+        consolidator.js        # Consolidation orchestrator
+        sleep-cycle.js         # Periodic consolidation
+        memory-pruner.js       # Prune old/irrelevant memories
+        error-analyzer.js      # Analyze errors for patterns
+      utils/                   # Cognitive utilities
+        cost-tracker.js        # Token/cost tracking
+        memory-health.js       # Memory health checks
+        message-batcher.js     # Batch message processing
+        transparency.js        # Transparency reporting
     agent/
-      loop.js                  # Core: message:in → context → provider → tool loop → message:out
-      context.js               # Prompt assembly: identity + tools + skills + memory + history
-      memory.js                # Daily logs + MEMORY.md management
-      memory-extractor.js      # Extracts <memory> tags from responses
-      user-extractor.js        # Extracts <user> tags for preference learning
-      bootstrap-extractor.js   # Detects <bootstrap-complete/> tag
-      identity.js              # Modular identity loader (SOUL + IDENTITY + USER + BOOTSTRAP)
+      loop.js                  # Core: message:in → context → provider → memory → message:out
+      context.js               # Prompt assembly: identity + memory + history
+      post-processors.js       # Response processing pipeline
+      typing-indicator.js      # Typing indicator middleware
+      identity.js              # Legacy identity loader
+      memory-extractor.js      # Extracts <memory> tags
+      chat-memory-extractor.js # Extracts <chat-memory> tags
+      working-memory-extractor.js  # Extracts <working-memory> tags
+      user-extractor.js        # Extracts <user> tags for preferences
+      bootstrap-extractor.js   # Detects <bootstrap-complete/>
     channels/
       base.js                  # BaseChannel: template method, deny-by-default auth
-      telegram.js              # grammy integration, HTML formatting, chunking
+      telegram.js              # Grammy integration, HTML formatting, chunking
       http.js                  # Webhook endpoint with HMAC validation + /health
     providers/
       base.js                  # BaseProvider: chat(messages, options) interface
-      claude-api.js            # Anthropic SDK direct
-      claude-cli.js            # Claude CLI subprocess wrapper
-      mock.js                  # Deterministic test provider
+      registry.js              # Self-registration pattern
+      circuit-breaker.js       # Failure protection with fallback
+      claude-api.js            # Anthropic SDK
+      claude-cli.js            # Claude CLI subprocess
+      gemini-api.js            # Google GenAI SDK
+      gemini-cli.js            # Gemini CLI subprocess
+      mock.js                  # Scriptable test provider
     storage/
       base.js                  # BaseStorage interface
       filesystem.js            # Append-only JSONL sessions + markdown memory
-    tools/
-      base.js                  # BaseTool: definition + execute + optional trigger
-      registry.js              # Tool registration and trigger matching
-      web-fetch.js             # Fetch URLs, extract text (10KB limit)
-      schedule.js              # Cron task management (add/list/remove)
-      dev.js                   # Workspace development mode (/dev)
-    skills/
-      loader.js                # Discover skills from directory, on-demand prompt loading
+      memory-store.js          # Memory persistence layer
     scheduler/
       scheduler.js             # Cron jobs with persistence
     format/
       telegram.js              # Markdown-to-Telegram HTML converter
+    utils/
+      safe-path.js             # Path traversal protection
   templates/                   # Default files copied by kenobot setup
     env.example                # Config template
     identities/kenobot/        # Default bot identity (SOUL.md, IDENTITY.md, USER.md, BOOTSTRAP.md)
-    HEARTBEAT.md               # Dev session continuity template
-    skills/weather/            # Example skill
-    skills/daily-summary/      # Example skill
     memory/MEMORY.md           # Starter memory file
+    HEARTBEAT.md               # Dev session continuity template
+    AGENTS.md                  # Workspace template
   bin/                         # Dev/ops scripts
-    release                    # Changelog generation + git tag
-    audit                      # Security audit
-  docs/                        # Documentation
+  docs/                        # Documentation (two-track: quickstart + reference)
   test/                        # Test suite (mirrors src/ structure)
 
 ~/.kenobot/                    # User home (persistent across updates)
   config/
     .env                       # Bot configuration
     identities/kenobot/        # Bot identity (SOUL.md, IDENTITY.md, USER.md)
-    skills/                    # User skill plugins
   data/
     sessions/                  # Per-chat JSONL history
-    memory/                    # Daily logs + MEMORY.md
+    memory/                    # Cognitive system memory store
     logs/                      # Structured JSONL logs
     scheduler/                 # Persistent task definitions
-  backups/                     # Backup archives
 ```
 
 ## Documentation
 
-- [Architecture](docs/architecture.md) — How the system works internally
-- [Configuration](docs/configuration.md) — Complete environment variable reference
+- [Getting Started](docs/quickstart/getting-started.md) — Step-by-step first-time setup
+- [Architecture](docs/reference/architecture.md) — How the system works internally
+- [Configuration](docs/reference/configuration.md) — Complete environment variable reference
+- [Events](docs/reference/events.md) — Signal schema and contracts
 - [Deployment](docs/deployment.md) — VPS setup, systemd, auto-recovery, backups
-- [Getting Started](docs/getting-started.md) — Step-by-step first-time setup
 - [Security](SECURITY.md) — Security model, best practices, deployment checklist
 
 ### Feature Guides
 
-- [Identity](docs/features/identity.md) — Modular identity files, bootstrap onboarding, user preference learning
-- [Memory](docs/features/memory.md) — Four-tier memory system (working, episodic, semantic, procedural)
+- [Nervous System](docs/features/nervous-system/) — Signal-aware event bus with middleware, tracing, and audit
+- [Cognitive System](docs/features/cognitive-system/) — Memory, identity, retrieval, and consolidation
+  - [Memory System](docs/features/cognitive-system/memory.md) — Four-tier memory architecture
+  - [Identity System](docs/features/cognitive-system/identity.md) — Modular identity, bootstrap, preferences
+
+### How-To Guides
+
+- [VPS Setup](docs/guides/vps-setup.md) — Deploy to a production server
+- [Cloudflare Tunnel](docs/guides/cloudflared.md) — Expose your bot securely
 
 ## Tech Stack
 
 - **Runtime**: Node.js 22+, pure ESM, no build step
-- **Runtime deps**: grammy, dotenv, @anthropic-ai/sdk, node-cron
+- **Runtime deps**: grammy, dotenv, @anthropic-ai/sdk, @google/genai, node-cron
 - **Testing**: Vitest 4.x
 - **Style**: `.editorconfig` (2-space indent, UTF-8, LF)
 
@@ -257,24 +312,18 @@ Contributions are welcome! We organize contribution opportunities by **impact le
 - Code comments and JSDoc
 
 **Tests** - Increase coverage, improve reliability:
-- Unit tests for tools, providers, utilities
+- Unit tests for providers, cognitive system, utilities
 - Integration tests for message flows
 - E2E tests for real-world scenarios
 
 **Examples** - Help new users get started:
-- Skill plugins ([templates/skills/](templates/skills/))
-- Tool examples with complete walkthroughs
+- Identity templates
 - Configuration examples for common setups
 
 ### 🟡 Medium-Risk Contributions (Familiar with Codebase)
 
-**Tools** - Extend bot capabilities:
-- New tools (see [docs/quickstart/your-first-tool.md](docs/quickstart/) for guide)
-- Tool improvements (error handling, validation, UX)
-- Test coverage for existing tools
-
 **Providers** - Add LLM support:
-- New providers (Gemini, Ollama, OpenAI)
+- New providers (Ollama, OpenAI)
 - Provider improvements (streaming, embeddings)
 - Contract tests for consistency
 
@@ -287,7 +336,8 @@ Contributions are welcome! We organize contribution opportunities by **impact le
 
 **Core Components** - Requires deep understanding:
 - Agent loop (`src/agent/loop.js`)
-- Message bus (`src/bus.js`)
+- Nervous System (`src/nervous/`)
+- Cognitive System (`src/cognitive/`)
 - Context builder (`src/agent/context.js`)
 - Storage layer (`src/storage/`)
 
@@ -303,8 +353,8 @@ We're actively looking for help with:
 
 1. **📝 Documentation** - Completing two-track docs (beginner/advanced)
 2. **🧪 Testing** - Reaching 90% code coverage
-3. **🔧 Tools** - Building more useful tools (email, calendar, notes, etc.)
-4. **🤖 Providers** - Adding Gemini, Ollama, OpenAI support
+3. **🤖 Providers** - Adding Ollama, OpenAI support
+4. **🧠 Cognitive System** - Improving memory consolidation and retrieval
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for commit conventions, testing guidelines, and branching strategy.
 

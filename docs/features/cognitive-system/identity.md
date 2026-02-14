@@ -1,6 +1,8 @@
 # Identity System
 
 > **A cognitive architecture for bot personality built on principles from psychology and neuroscience**
+>
+> *Sub-system of the [Cognitive System](README.md)*
 
 ## Table of Contents
 
@@ -58,7 +60,6 @@ KenoBot's identity is modeled after the **Big Five personality dimensions**:
 | **Agreeableness** | Medium-Low | **Honest > agreeable**. Direct feedback. |
 | **Neuroticism** | Low | Stable, not anxious. Calm under pressure. |
 
-**Source:** COGNITIVE_EXPERTS.md (Psychologist validation)
 
 ### Traits vs States
 
@@ -84,7 +85,6 @@ KenoBot's identity is modeled after the **Big Five personality dimensions**:
 - System instructions + few-shot examples guide contextual application
 - Forbidden patterns can be post-validated with regex
 
-**Source:** COGNITIVE_EXPERTS.md (Architect + LLM self-evaluation)
 
 ### Self-Schema Theory
 
@@ -95,7 +95,6 @@ KenoBot's identity is modeled after the **Big Five personality dimensions**:
 - "I live on a limited VPS (2vCPU/4GB), I design with constraints"
 - "I am autonomous but auditable"
 
-**Source:** COGNITIVE_ARCHITECTURE.md § Self-Schema
 
 ---
 
@@ -292,7 +291,6 @@ class RulesEngine {
 - System instructions + few-shot examples guide behavior
 - Forbidden patterns can be regex-checked post-generation
 
-**Source:** COGNITIVE_ARCHITECTURE.md § Behavioral Rules
 
 ### 4. PreferencesManager
 
@@ -366,7 +364,6 @@ class BootstrapOrchestrator {
 - `show_boundaries` - Ask about boundaries
 - `complete` - Bootstrap finished
 
-**Source:** COGNITIVE_ARCHITECTURE.md § Bootstrap Process
 
 ### 6. ProfileInferrer
 
@@ -397,7 +394,6 @@ class ProfileInferrer {
 }
 ```
 
-**Source:** COGNITIVE_ARCHITECTURE.md § Profile Inference
 
 ---
 
@@ -411,7 +407,6 @@ class ProfileInferrer {
 
 **Inspiration:** Attachment theory + critical period - first interactions establish relationship model.
 
-**Source:** COGNITIVE_EXPERTS.md (Psychologist validation)
 
 ### The Three Phases
 
@@ -762,7 +757,7 @@ test/cognitive/identity/
 
 **Additional:**
 ```
-test/agent/identity.test.js          (9 tests) ✓  [Legacy IdentityLoader]
+test/agent/identity.test.js          (9 tests) ✓  [IdentityLoader]
 test/e2e/features/identity.test.js   (7 tests) ✓  [End-to-end]
 ```
 
@@ -899,7 +894,6 @@ Bot detects it violated a pattern 3 times:
 → Rule added to rules.json
 ```
 
-**Source:** COGNITIVE_ARCHITECTURE.md § Self-Improvement
 
 ### Profile Re-Inference
 
@@ -947,11 +941,6 @@ KenoBot's identity system is a **cognitive architecture** built on:
 
 **Key Innovation:** Bootstrap through **observation + inference + natural checkpoints** instead of upfront forms.
 
-**Next Steps:**
-- Read [COGNITIVE_ARCHITECTURE.md](../../COGNITIVE_ARCHITECTURE.md) for full cognitive system design
-- Read [memory.md](./memory.md) for the memory system
-- Read [COGNITIVE_EXPERTS.md](../../COGNITIVE_EXPERTS.md) for expert validation
-
----
-
-**Archived:** Previous version archived to [`docs/features/archive/identity-2026-02-13.md`](./archive/identity-2026-02-13.md)
+**See also:**
+- [Cognitive System](README.md) — Parent bounded context
+- [Memory System](memory.md) — Four-tier memory architecture

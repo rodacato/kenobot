@@ -2,27 +2,6 @@
 
 > Running KenoBot on a VPS with systemd. Designed for a $4/month Hetzner server (2vCPU, 4GB RAM, 40GB disk).
 
-## One-Liner VPS Setup
-
-For a fresh Ubuntu/Debian VPS, install everything in one command:
-
-```bash
-curl -sSL https://raw.githubusercontent.com/rodacato/kenobot/master/install.sh | sudo bash
-```
-
-This automatically:
-- Creates a `kenobot` system user (non-root)
-- Installs Node.js 22, kenobot, n8n, cloudflared
-- Prompts for Telegram token, API key, and Cloudflare domain
-- Configures systemd user services for all three
-- Sets up UFW firewall (SSH only)
-
-After the script finishes, follow the printed checklist to create your n8n admin account and verify the bot.
-
-See the [install.sh source](../install.sh) for details.
-
----
-
 ## Requirements
 
 - Node.js 22+ (LTS recommended)
@@ -42,8 +21,6 @@ KenoBot has two deployment channels:
 | **Git remote** | HTTPS (read-only) or SSH | SSH (read+write for PRs) |
 
 ### Stable (recommended)
-
-The install script clones the repo and checks out the latest release tag:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/rodacato/kenobot/master/install.sh | sudo bash
@@ -126,13 +103,6 @@ kenobot restart        # Stop + start -d
 
 ### With systemd (recommended for VPS)
 
-Generate and enable a systemd user service:
-
-```bash
-```
-
-This creates `~/.config/systemd/user/kenobot.service` and enables it. Then:
-
 ```bash
 systemctl --user start kenobot     # Start
 systemctl --user status kenobot    # Check status
@@ -162,28 +132,14 @@ ln -sf ~/.kenobot/engine/src/cli.js ~/.npm-global/bin/kenobot
 # Configure
 kenobot setup
 kenobot config edit
-
-# Install systemd service
 ```
 
 ## Backups
 
-### Manual
-
-```bash
-```
-
-
-### Automated (cron)
-
-```cron
-# Daily backup at 2 AM
-```
-
 ### What's Backed Up
 
 ```
-~/.kenobot/config/        # .env, identities, skills
+~/.kenobot/config/        # .env, identities
 ~/.kenobot/data/
   sessions/               # Conversation history
   memory/                 # Daily logs + MEMORY.md
@@ -236,13 +192,6 @@ After updating, restart the bot:
 kenobot stop && kenobot start -d
 ```
 
-## Security Audit
-
-```bash
-```
-
-Checks for exposed secrets, file permissions, and common security issues.
-
 ## File Layout
 
 ```
@@ -250,7 +199,6 @@ Checks for exposed secrets, file permissions, and common security issues.
   config/
     .env                      # Bot configuration
     identities/kenobot/       # Bot identity (SOUL.md, IDENTITY.md, USER.md)
-    skills/                   # Skill plugins
   data/
     sessions/                 # Per-chat JSONL history
     memory/                   # MEMORY.md + daily logs
@@ -258,20 +206,6 @@ Checks for exposed secrets, file permissions, and common security issues.
     scheduler/                # Cron task definitions
     kenobot.pid               # PID file (when running)
 ```
-
-## Integrations
-
-KenoBot supports optional integrations for GitHub, n8n automation, Cloudflare tunnels, and Gmail.
-
-See **[Integrations Guide](integrations-guide.md)** for complete step-by-step setup of each integration.
-
-| Integration | What it does | Key env vars |
-|-------------|-------------|--------------|
-| **GitHub Workspace** | Bot's own repo for skills, workflows, notes | `WORKSPACE_DIR`, `KENOBOT_SSH_KEY` |
-| **n8n** | 400+ service integrations (Gmail, calendar, etc.) | `N8N_WEBHOOK_BASE`, `N8N_API_URL` |
-| **Cloudflare Tunnel** | Expose webhooks securely, no open ports | `HTTP_ENABLED`, `WEBHOOK_SECRET` |
-| **Gmail** | Email via n8n workflows | (uses n8n, no extra config) |
-| **Self-Improvement** | Bot creates its own skills/workflows | `SELF_IMPROVEMENT_ENABLED` |
 
 ## Firewall
 
@@ -287,7 +221,7 @@ sudo ufw deny 3000/tcp   # Block direct HTTP access
 sudo ufw enable
 ```
 
-For external webhook access, use a reverse proxy (Caddy, nginx) with TLS:
+For external webhook access, use a reverse proxy (Caddy, nginx) with TLS, or a [cloudflared tunnel](guides/cloudflared.md):
 
 ```
 # Caddyfile example
@@ -306,7 +240,7 @@ Run the doctor command to check for common problems:
 kenobot doctor
 ```
 
-Checks: directory structure, config file, provider readiness, skills validity, identity, stale PID, disk usage, backups, SSH key, and recent log errors.
+Checks: directory structure, config file, provider readiness, identity, stale PID, disk usage, and recent log errors.
 
 ### Bot not responding
 
@@ -323,19 +257,6 @@ Run `kenobot setup` to scaffold directories, then `kenobot config edit` to set r
 ### Claude CLI hanging
 
 The `claude-cli` provider uses `spawn()` with `stdio: ['ignore', 'pipe', 'pipe']` to prevent stdin hanging. If it still hangs, switch to `claude-api`.
-
-### Resetting state
-
-To start fresh without losing your configuration:
-
-```bash
-```
-
-Options:
-- `--yes` / `-y` — skip confirmation prompt
-- `--no-backup` — skip auto-backup before purge
-
-The bot must be stopped before purging. A backup is created automatically unless `--no-backup` is passed.
 
 ### High memory usage
 

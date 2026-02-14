@@ -107,7 +107,7 @@ sudo ufw allow ssh
 sudo ufw enable
 ```
 
-If you enable the HTTP channel for webhooks (n8n, Telegram webhook mode), **don't** open the port publicly. Use a [cloudflared tunnel](cloudflared.md) instead — it's more secure than exposing ports.
+If you enable the HTTP channel for webhooks, **don't** open the port publicly. Use a [cloudflared tunnel](cloudflared.md) instead — it's more secure than exposing ports.
 
 ## Next steps
 

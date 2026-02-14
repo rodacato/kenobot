@@ -1,18 +1,36 @@
-# Event Bus Schema
+# Signal Schema
 
-KenoBot uses an event-driven architecture based on Node.js EventEmitter. Components communicate through the central message bus, enabling loose coupling and extensibility.
+KenoBot uses an event-driven architecture powered by the **Nervous System** (`src/nervous/`). Components communicate through typed signals with automatic tracing, middleware, and audit capabilities.
 
-## Event Naming Convention
+The Nervous System extends Node.js `EventEmitter` — all existing `bus.on()` patterns work unchanged. The primary API for producers is `bus.fire()`, which wraps events in a Signal envelope before delivery.
 
-Events follow a `category:action` pattern (e.g., `message:in`, `health:degraded`).
+## Signal Envelope
 
-## Core Events
+Every signal fired through the Nervous System carries metadata:
+
+```javascript
+{
+  type: 'message:in',              // Signal type constant
+  payload: { text, chatId, ... },  // Raw event data (received by listeners)
+  source: 'telegram',              // Component that fired the signal
+  traceId: 'uuid-...',            // Correlation ID (auto-generated or propagated)
+  timestamp: 1707900000000         // When the signal was created
+}
+```
+
+Listeners receive only the `payload`. The full Signal is visible to middleware and the audit trail.
+
+## Signal Naming Convention
+
+Signals follow a `category:action` pattern (e.g., `message:in`, `health:degraded`).
+
+## Core Signals
 
 ### Message Flow
 
 #### `message:in`
 
-**Emitted by:** Channels (Telegram, HTTP)
+**Fired by:** Channels (Telegram, HTTP), Scheduler
 **Consumed by:** AgentLoop
 
 User message received from a channel.
@@ -27,22 +45,11 @@ User message received from a channel.
 }
 ```
 
-**Example:**
-```javascript
-bus.emit('message:in', {
-  text: 'Hello bot!',
-  chatId: 123456789,
-  userId: 123456789,
-  channel: 'telegram',
-  timestamp: Date.now()
-})
-```
-
 ---
 
 #### `message:out`
 
-**Emitted by:** AgentLoop
+**Fired by:** AgentLoop
 **Consumed by:** Channels (Telegram, HTTP)
 
 Bot response ready to send to user.
@@ -55,20 +62,11 @@ Bot response ready to send to user.
 }
 ```
 
-**Example:**
-```javascript
-bus.emit('message:out', {
-  text: 'Hello! How can I help you?',
-  chatId: 123456789,
-  channel: 'telegram'
-})
-```
-
 ---
 
 #### `thinking:start`
 
-**Emitted by:** AgentLoop (via TypingIndicator)
+**Fired by:** AgentLoop (via TypingIndicator)
 **Consumed by:** Telegram Channel
 
 Indicates the bot is processing a request (shows "typing..." indicator).
@@ -80,7 +78,9 @@ Indicates the bot is processing a request (shows "typing..." indicator).
 }
 ```
 
-**Behavior:** Emitted once when processing starts, then periodically every 5 seconds until response is sent.
+**Behavior:** Fired once when processing starts, then periodically every 4 seconds until response is sent.
+
+**Audit:** Excluded from audit trail by default (noisy).
 
 ---
 
@@ -88,25 +88,17 @@ Indicates the bot is processing a request (shows "typing..." indicator).
 
 #### `error`
 
-**Emitted by:** Any component
+**Fired by:** Any component
 **Consumed by:** App (central error handler)
 
 An error occurred during processing.
 
 ```typescript
 {
-  source: string,     // Component that emitted ('telegram', 'agent', 'provider', etc.)
+  source: string,     // Component that fired ('telegram', 'agent', 'provider', etc.)
   error: Error,       // Error object
   context?: object    // Optional additional context
 }
-```
-
-**Example:**
-```javascript
-bus.emit('error', {
-  source: 'telegram',
-  error: new Error('API rate limit exceeded')
-})
 ```
 
 ---
@@ -115,7 +107,7 @@ bus.emit('error', {
 
 #### `health:degraded`
 
-**Emitted by:** Watchdog
+**Fired by:** Watchdog
 **Consumed by:** Notification system
 
 System health is degraded but still functional.
@@ -131,7 +123,7 @@ System health is degraded but still functional.
 
 #### `health:unhealthy`
 
-**Emitted by:** Watchdog
+**Fired by:** Watchdog
 **Consumed by:** Notification system
 
 System is unhealthy and may not function correctly.
@@ -147,7 +139,7 @@ System is unhealthy and may not function correctly.
 
 #### `health:recovered`
 
-**Emitted by:** Watchdog
+**Fired by:** Watchdog
 **Consumed by:** Notification system
 
 System has recovered from unhealthy/degraded state.
@@ -165,68 +157,14 @@ System has recovered from unhealthy/degraded state.
 
 #### `config:changed`
 
-**Emitted by:** Post-processors (memory, preferences updates)
-**Consumed by:** ConfigSync
+**Fired by:** Post-processors (memory, preferences updates)
+**Consumed by:** Audit trail (logged automatically)
 
-Configuration files have changed and need to be backed up.
+Configuration or memory files have changed.
 
 ```typescript
 {
   reason: string      // Why config changed ('memory update', 'user preferences update', etc.)
-}
-```
-
-**Triggers:** Automatic git commit + push of config changes.
-
----
-
-### Approval System
-
-#### `approval:proposed`
-
-**Emitted by:** ApprovalManager
-**Consumed by:** Notification system
-
-A new approval request has been created.
-
-```typescript
-{
-  id: string,         // Approval ID
-  type: string,       // Approval type
-  name: string        // Human-readable name
-}
-```
-
----
-
-#### `approval:approved`
-
-**Emitted by:** ApprovalManager
-**Consumed by:** ConfigSync, tools
-
-An approval request was approved by the user.
-
-```typescript
-{
-  id: string,         // Approval ID
-  type: string,       // Approval type
-  data: object        // Approval payload
-}
-```
-
----
-
-#### `approval:rejected`
-
-**Emitted by:** ApprovalManager
-**Consumed by:** Tools
-
-An approval request was rejected by the user.
-
-```typescript
-{
-  id: string,         // Approval ID
-  type: string        // Approval type
 }
 ```
 
@@ -236,7 +174,7 @@ An approval request was rejected by the user.
 
 #### `notification`
 
-**Emitted by:** Any component
+**Fired by:** Notification system
 **Consumed by:** Telegram Channel (owner notifications)
 
 Send a notification to the bot owner.
@@ -248,18 +186,18 @@ Send a notification to the bot owner.
 }
 ```
 
-**Use cases:** Health alerts, approval requests, system events.
+**Use cases:** Health alerts, system events.
 
 ---
 
-## Event Flow Diagrams
+## Signal Flow Diagrams
 
 ### Message Processing Flow
 
 ```
 User → Telegram/HTTP
          ↓
-     [message:in]
+     [message:in]  ← middleware (trace, log, audit)
          ↓
       AgentLoop
          ↓
@@ -269,7 +207,7 @@ User → Telegram/HTTP
          ↓
       AgentLoop
          ↓
-     [message:out]
+     [message:out]  ← middleware (trace propagation links to original message:in)
          ↓
     Telegram/HTTP → User
 ```
@@ -279,54 +217,58 @@ User → Telegram/HTTP
 ```
 Any Component
      ↓
-  [error]
+  [error]  ← middleware (logged, audited)
      ↓
   App (logger)
      ↓
  [message:out] (user-facing error)
 ```
 
-### Config Change Flow
-
-```
-Post-processor
-     ↓
- [config:changed]
-     ↓
-  ConfigSync
-     ↓
- Git commit + push
-```
-
 ---
 
-## Versioning Strategy
+## Middleware
 
-**Additive only:** New fields can be added to payloads, but existing fields must not be changed or removed without a major version bump.
+Middleware functions intercept every signal before delivery. Registered via `bus.use(fn)` in the composition root (`src/app.js`).
 
-**Example:**
+Built-in middleware:
+- **Trace propagation**: Links `message:in` → `message:out` via shared traceId per chatId
+- **Logging**: Logs all signals through the structured logger (skips `thinking:start`)
+- **Dead signal detection**: Warns when a signal has zero listeners
+
+Custom middleware signature:
 ```javascript
-// ✅ ALLOWED: Adding optional field
-{ text, chatId, channel, metadata: {...} }  // metadata is new
-
-// ❌ BREAKING: Removing or renaming field
-{ message, chatId, channel }  // 'text' renamed to 'message'
+// Return void to allow delivery, return false to inhibit (block)
+bus.use((signal) => {
+  if (signal.type === 'message:in' && signal.payload.text.includes('spam')) {
+    return false  // Inhibit delivery
+  }
+})
 ```
 
 ---
 
-## Extending with Custom Events
+## Audit Trail
 
-To add custom events:
+All signals (except excluded types) are logged to JSONL files:
 
-1. Define constants in `src/events.js`:
+```
+{dataDir}/nervous/signals/YYYY-MM-DD.jsonl
+```
+
+One JSON line per signal. Queryable via `bus.getAuditTrail().query({ type, traceId, since, limit })`.
+
+---
+
+## Extending with Custom Signals
+
+1. Define constants in `src/events.js` (or `src/nervous/signals.js`):
    ```javascript
    export const MY_EVENT = 'my:event'
    ```
 
 2. Document payload shape in this file
 
-3. Emit with `bus.emit(MY_EVENT, payload)`
+3. Fire with `bus.fire(MY_EVENT, payload, { source: 'my-component' })`
 
 4. Subscribe with `bus.on(MY_EVENT, handler)`
 
@@ -334,4 +276,4 @@ To add custom events:
 - Use `category:action` naming
 - Document payload structure
 - Keep payloads minimal and focused
-- Use TypeScript-style JSDoc for autocomplete
+- Always provide a `source` when firing signals
