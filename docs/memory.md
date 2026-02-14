@@ -2,7 +2,7 @@
 
 > **A cognitive architecture for memory built on principles from neuroscience and cognitive psychology**
 >
-> *Sub-system of the [Cognitive System](README.md)*
+> *Sub-system of the [Cognitive System](architecture.md#cognitive-system)*
 
 ## Table of Contents
 
@@ -947,5 +947,5 @@ KenoBot's memory system is a **cognitive architecture** built on:
 **Key Innovation:** **Four-tier memory** (working, episodic, semantic, procedural) with **selective retrieval** and **staleness tracking**.
 
 **See also:**
-- [Cognitive System](README.md) — Parent bounded context
+- [Architecture](architecture.md) — System overview and cognitive system context
 - [Identity System](identity.md) — Bot personality and preferences

@@ -2,7 +2,7 @@
 
 > **A cognitive architecture for bot personality built on principles from psychology and neuroscience**
 >
-> *Sub-system of the [Cognitive System](README.md)*
+> *Sub-system of the [Cognitive System](architecture.md#cognitive-system)*
 
 ## Table of Contents
 
@@ -942,5 +942,5 @@ KenoBot's identity system is a **cognitive architecture** built on:
 **Key Innovation:** Bootstrap through **observation + inference + natural checkpoints** instead of upfront forms.
 
 **See also:**
-- [Cognitive System](README.md) — Parent bounded context
+- [Architecture](architecture.md) — System overview and cognitive system context
 - [Memory System](memory.md) — Four-tier memory architecture

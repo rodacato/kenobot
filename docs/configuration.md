@@ -14,7 +14,7 @@ kenobot start --config config/main.env     # Use alternate config file
 |----------|------|---------|----------|-------------|
 | `PROVIDER` | string | `claude-cli` | No | LLM provider: `claude-api`, `claude-cli`, `gemini-api`, `gemini-cli`, or `mock` |
 | `MODEL` | string | `sonnet` | No | Model name passed to provider: `sonnet`, `opus`, `haiku` |
-| `IDENTITY_FILE` | string | `identities/kenobot` | No | Path to bot identity directory or file (relative to config dir or absolute). Directory mode loads SOUL.md + IDENTITY.md + USER.md separately. See [Identity](../features/cognitive-system/identity.md). |
+| `IDENTITY_FILE` | string | `identities/kenobot` | No | Path to bot identity directory or file (relative to config dir or absolute). Directory mode loads SOUL.md + IDENTITY.md + USER.md separately. See [Identity](identity.md). |
 | `DATA_DIR` | string | `~/.kenobot/data` | No | Base directory for sessions, memory, logs, and scheduler data |
 
 ## Telegram

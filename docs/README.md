@@ -1,39 +1,24 @@
 # Documentation
 
-KenoBot documentation is organized in **two tracks** to serve different audiences:
-
-## Quickstart (For Beginners)
-
-**Start here if you're new to KenoBot or want step-by-step guides.**
+## Getting Started
 
 | Document | Description |
 |----------|-------------|
-| [Getting Started](quickstart/getting-started.md) | First-time setup and basic usage |
-| [Deployment Guide](deployment.md) | VPS setup, systemd, auto-recovery, backups |
+| [Getting Started](getting-started.md) | Setup, first run, VPS deployment, Cloudflare tunnel |
+| [Configuration](configuration.md) | All environment variables and settings |
 
-**Tutorials & How-Tos:**
-- [VPS Setup](guides/vps-setup.md) - Deploy to a production server
-- [Cloudflared Tunnel](guides/cloudflared.md) - Expose your bot securely
-
-## Reference (For Experienced Developers)
-
-**Technical documentation for understanding internals and extending the system.**
+## Architecture & Internals
 
 | Document | Description |
 |----------|-------------|
-| [Architecture](reference/architecture.md) | System components, message flow, design patterns |
-| [Configuration](reference/configuration.md) | Complete environment variable reference |
-| [Events](reference/events.md) | Signal schema and contracts |
-
-**Feature Documentation:**
-- [Nervous System](features/nervous-system/) - Signal-aware event bus with middleware, tracing, and audit trail
-- [Cognitive System](features/cognitive-system/) - Memory, identity, retrieval, and consolidation
-  - [Memory System](features/cognitive-system/memory.md) - Four-tier memory architecture (working, episodic, semantic, procedural)
-  - [Identity System](features/cognitive-system/identity.md) - Modular identity files, bootstrap onboarding, user preferences
+| [Architecture](architecture.md) | System design, Nervous System, Cognitive System, design patterns |
+| [Events](events.md) | Signal types and payload schemas |
+| [Memory](memory.md) | Four-tier memory system (working, episodic, semantic, procedural) |
+| [Identity](identity.md) | Bot personality, preferences, and bootstrap onboarding |
 
 ## Design & Research
 
-**Design rationale, research notes, and expert consultations behind KenoBot's architecture.**
+Design rationale, research notes, and expert consultations behind KenoBot's architecture.
 
 | Document | Description |
 |----------|-------------|

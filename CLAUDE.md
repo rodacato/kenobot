@@ -84,7 +84,7 @@ Coverage thresholds: lines 50%, functions 35%, branches 55%, statements 50%.
 - `gemini-api` uses `model` role instead of `assistant`, no function call IDs (synthetic IDs generated)
 - `BOOTSTRAP.md` in identity dir triggers first-conversation onboarding, auto-deleted when bot responds with `<bootstrap-complete/>`
 - Non-root devcontainer: runs as `node` user (uid=1000)
-- Cognitive System is always enabled (no toggle). Uses `MemoryStore` for persistence, `IdentityManager` for personality
+- Cognitive System is always enabled. Uses `MemoryStore` for persistence, `IdentityManager` for personality
 
 ## Deployment
 

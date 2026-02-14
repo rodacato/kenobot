@@ -61,7 +61,7 @@ User ← Telegram ← TelegramChannel ← bus.fire('message:out') ← AgentLoop 
 - **Retrieval Engine** (`retrieval/`): Keyword + confidence-based selective memory recall
 - **Consolidation** (`consolidation/`): Memory pruning, error analysis, sleep cycle
 
-For module details, interfaces, and design patterns → `docs/reference/architecture.md`
+For module details, interfaces, and design patterns → `docs/architecture.md`
 
 ## Tech Stack
 
@@ -187,12 +187,10 @@ When modifying `update.js` or `install.sh`, test both paths.
 - When you modify code, **update the relevant doc** in `docs/`.
 - Keep this file (`AGENTS.md`) in sync when adding new modules or conventions.
 - Reference docs, don't duplicate:
-  - Architecture details, module list, file structure → `docs/reference/architecture.md`
-  - Configuration and env vars → `docs/reference/configuration.md`
-  - Signal schema → `docs/reference/events.md`
-  - Deployment and operations → `docs/deployment.md`
-  - Nervous System → `docs/features/nervous-system/`
-  - Cognitive System → `docs/features/cognitive-system/`
-  - Memory System → `docs/features/cognitive-system/memory.md`
-  - Identity System → `docs/features/cognitive-system/identity.md`
+  - Architecture, Nervous System, Cognitive System → `docs/architecture.md`
+  - Configuration and env vars → `docs/configuration.md`
+  - Signal schema → `docs/events.md`
+  - Setup, deployment, operations → `docs/getting-started.md`
+  - Memory System → `docs/memory.md`
+  - Identity System → `docs/identity.md`
   - Design & Research → `docs/design/`
