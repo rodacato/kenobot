@@ -71,6 +71,17 @@ export function createApp(config, provider, options = {}) {
     })
   }
 
+  // Sleep cycle health check
+  watchdog.registerCheck('sleep-cycle', () => {
+    const state = sleepCycle.getState()
+    if (state.status === 'failed') return { status: 'warn', detail: `sleep failed: ${state.error}` }
+    if (sleepCycle.shouldRun()) {
+      const detail = state.lastRun ? 'overdue' : 'never run'
+      return { status: 'warn', detail: `sleep cycle ${detail}` }
+    }
+    return { status: 'ok', detail: `last run: ${state.lastRun || 'never'}` }
+  })
+
   // Notifications
   setupNotifications(bus, config)
 
@@ -82,6 +93,7 @@ export function createApp(config, provider, options = {}) {
   const memoryStore = new MemoryStore(config.dataDir, { logger })
   const cognitive = new CognitiveSystem(config, memoryStore, circuitBreaker, { logger })
   const memory = cognitive.getMemorySystem()
+  const sleepCycle = cognitive.getSleepCycle()
   logger.info('system', 'cognitive_system_ready')
   logger.info('system', 'nervous_system_ready', {
     middleware: bus._middleware.length,
@@ -120,6 +132,8 @@ export function createApp(config, provider, options = {}) {
   })
 
   // Lifecycle methods
+  let sleepInterval = null
+
   async function start() {
     await writePid()
 
@@ -129,9 +143,22 @@ export function createApp(config, provider, options = {}) {
     await agent.start()
     await Promise.all(channels.map(ch => ch.start()))
     watchdog.start()
+
+    // Sleep cycle: check every hour if it should run (default: 4am daily)
+    sleepInterval = setInterval(async () => {
+      if (sleepCycle.shouldRun()) {
+        logger.info('system', 'sleep_cycle_triggered')
+        try {
+          await sleepCycle.run()
+        } catch (error) {
+          logger.error('system', 'sleep_cycle_error', { error: error.message })
+        }
+      }
+    }, 60 * 60 * 1000) // Check every hour
   }
 
   async function stop() {
+    if (sleepInterval) clearInterval(sleepInterval)
     await removePid()
     watchdog.stop()
     scheduler.stop()
@@ -149,6 +176,7 @@ export function createApp(config, provider, options = {}) {
     storage,
     memory,
     cognitive,
+    sleepCycle,
     logger,
     start,
     stop,

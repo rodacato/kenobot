@@ -16,7 +16,12 @@ describe('MemoryHealthChecker', () => {
   let mockSleepCycle
 
   beforeEach(() => {
-    mockMemory = {}
+    mockMemory = {
+      getLongTermMemory: vi.fn().mockResolvedValue('Some facts'),
+      store: {
+        listWorkingMemorySessions: vi.fn().mockResolvedValue([])
+      }
+    }
     mockSleepCycle = {
       getState: vi.fn().mockReturnValue({
         status: 'success',
@@ -77,6 +82,42 @@ describe('MemoryHealthChecker', () => {
     })
   })
 
+  describe('checkWorkingMemory', () => {
+    it('should return ok when no stale sessions', async () => {
+      mockMemory.store.listWorkingMemorySessions.mockResolvedValue([
+        { sessionId: 'recent', updatedAt: Date.now() }
+      ])
+
+      const result = await healthChecker.checkWorkingMemory()
+
+      expect(result.status).toBe('ok')
+      expect(result.totalSessions).toBe(1)
+      expect(result.staleCount).toBe(0)
+    })
+
+    it('should return warning when many stale sessions', async () => {
+      const tenDaysAgo = Date.now() - 10 * 24 * 60 * 60 * 1000
+      const sessions = Array.from({ length: 15 }, (_, i) => ({
+        sessionId: `stale-${i}`,
+        updatedAt: tenDaysAgo
+      }))
+      mockMemory.store.listWorkingMemorySessions.mockResolvedValue(sessions)
+
+      const result = await healthChecker.checkWorkingMemory()
+
+      expect(result.status).toBe('warning')
+      expect(result.staleCount).toBe(15)
+    })
+
+    it('should handle missing store method', async () => {
+      healthChecker.memory = {}
+
+      const result = await healthChecker.checkWorkingMemory()
+
+      expect(result.status).toBe('ok')
+    })
+  })
+
   describe('checkSleepCycle', () => {
     it('should return ok when sleep cycle is healthy', async () => {
       const result = await healthChecker.checkSleepCycle()
@@ -120,6 +161,36 @@ describe('MemoryHealthChecker', () => {
 
       expect(result.status).toBe('warning')
       expect(result.message).toContain('overdue')
+    })
+  })
+
+  describe('checkMemorySize', () => {
+    it('should return ok for small memory', async () => {
+      mockMemory.getLongTermMemory.mockResolvedValue('Small content')
+
+      const result = await healthChecker.checkMemorySize()
+
+      expect(result.status).toBe('ok')
+      expect(result.totalSize).toBeGreaterThan(0)
+    })
+
+    it('should return warning for large memory (>1MB)', async () => {
+      const largeContent = 'x'.repeat(1024 * 1200) // ~1.2MB
+      mockMemory.getLongTermMemory.mockResolvedValue(largeContent)
+
+      const result = await healthChecker.checkMemorySize()
+
+      expect(result.status).toBe('warning')
+      expect(result.message).toContain('compaction')
+    })
+
+    it('should handle missing memory gracefully', async () => {
+      mockMemory.getLongTermMemory.mockRejectedValue(new Error('Not found'))
+
+      const result = await healthChecker.checkMemorySize()
+
+      expect(result.status).toBe('ok')
+      expect(result.totalSize).toBe(0)
     })
   })
 

@@ -1,6 +1,8 @@
 import MemorySystem from './memory/memory-system.js'
 import RetrievalEngine from './retrieval/retrieval-engine.js'
 import IdentityManager from './identity/identity-manager.js'
+import SleepCycle from './consolidation/sleep-cycle.js'
+import MetacognitionSystem from './metacognition/index.js'
 import defaultLogger from '../logger.js'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
@@ -8,10 +10,12 @@ import { homedir } from 'node:os'
 /**
  * CognitiveSystem - Main facade for cognitive architecture
  *
- * Orchestrates three sub-systems:
+ * Orchestrates five sub-systems:
  * - Memory System (4 types: working, episodic, semantic, procedural)
  * - Identity System (core personality, behavioral rules, learned preferences)
  * - Retrieval Engine (keyword + confidence-based memory recall)
+ * - Sleep Cycle (consolidation, error analysis, pruning, self-improvement)
+ * - Metacognition (self-monitoring, confidence estimation, reflection)
  *
  * Usage:
  *   const cognitive = new CognitiveSystem(config, memoryStore, provider, { logger })
@@ -32,10 +36,15 @@ export default class CognitiveSystem {
     this.useRetrieval = config.useRetrieval !== false // Default: true
 
     // Identity System
-    // Use config.identityFile if set, otherwise default to ~/.kenobot/memory/identity
     const identityPath = config.identityFile || join(homedir(), '.kenobot', 'memory', 'identity')
     this.identity = new IdentityManager(identityPath, provider, { logger })
     this.useIdentity = config.useIdentity !== false // Default: true
+
+    // Sleep Cycle (consolidation + self-improvement)
+    this.sleepCycle = new SleepCycle(this.memory, { logger, dataDir: config.dataDir })
+
+    // Metacognition (self-monitoring, confidence, reflection)
+    this.metacognition = new MetacognitionSystem({ logger })
   }
 
   /**
@@ -211,6 +220,30 @@ export default class CognitiveSystem {
    */
   getIdentityManager() {
     return this.identity
+  }
+
+  /**
+   * Get sleep cycle.
+   * @returns {SleepCycle}
+   */
+  getSleepCycle() {
+    return this.sleepCycle
+  }
+
+  /**
+   * Get metacognition system.
+   * @returns {MetacognitionSystem}
+   */
+  getMetacognition() {
+    return this.metacognition
+  }
+
+  /**
+   * Run sleep cycle (convenience method).
+   * @returns {Promise<Object>} Sleep cycle results
+   */
+  async runSleepCycle() {
+    return this.sleepCycle.run()
   }
 
   /**

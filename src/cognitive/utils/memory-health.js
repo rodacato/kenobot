@@ -74,12 +74,29 @@ export default class MemoryHealthChecker {
    * @returns {Promise<Object>} Check result
    */
   async checkWorkingMemory() {
-    // Phase 6: Placeholder - would need to enumerate all sessions
-    // For now, return healthy status
+    if (!this.memory.store?.listWorkingMemorySessions) {
+      return { status: 'ok', message: 'Working memory enumeration not available', staleCount: 0 }
+    }
+
+    const sessions = await this.memory.store.listWorkingMemorySessions()
+    const now = Date.now()
+    const staleThreshold = 7 * 24 * 60 * 60 * 1000 // 7 days
+    const staleCount = sessions.filter(s => now - s.updatedAt > staleThreshold).length
+
+    if (staleCount > 10) {
+      return {
+        status: 'warning',
+        message: `${staleCount} stale working memory sessions (>7 days)`,
+        staleCount,
+        totalSessions: sessions.length
+      }
+    }
+
     return {
       status: 'ok',
-      message: 'Working memory check not yet implemented',
-      staleCount: 0
+      message: `${sessions.length} working memory sessions (${staleCount} stale)`,
+      staleCount,
+      totalSessions: sessions.length
     }
   }
 
@@ -138,12 +155,30 @@ export default class MemoryHealthChecker {
    * @returns {Promise<Object>} Check result
    */
   async checkMemorySize() {
-    // Phase 6: Placeholder - would need to check file sizes
-    // For now, return healthy status
-    return {
-      status: 'ok',
-      message: 'Memory size check not yet implemented',
-      totalSize: 0
+    try {
+      const longTerm = await this.memory.getLongTermMemory()
+      const sizeBytes = Buffer.byteLength(longTerm || '', 'utf8')
+      const sizeKB = Math.floor(sizeBytes / 1024)
+
+      if (sizeKB > 1024) {
+        return {
+          status: 'warning',
+          message: `Long-term memory is ${sizeKB}KB (>1MB) — consider compaction`,
+          totalSize: sizeBytes
+        }
+      }
+
+      return {
+        status: 'ok',
+        message: `Long-term memory: ${sizeKB}KB`,
+        totalSize: sizeBytes
+      }
+    } catch {
+      return {
+        status: 'ok',
+        message: 'No long-term memory file found',
+        totalSize: 0
+      }
     }
   }
 
