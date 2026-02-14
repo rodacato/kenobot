@@ -14,7 +14,7 @@ describe('IdentityManager', () => {
   let identityManager
   const mockPath = '/mock/identity/path'
   const mockProvider = {
-    complete: vi.fn().mockResolvedValue({
+    chat: vi.fn().mockResolvedValue({
       content: JSON.stringify({
         tone: 'casual',
         verbosity: 'concise',
@@ -214,7 +214,7 @@ describe('IdentityManager', () => {
 
         await identityManager.processBootstrapMessage('Test', messages)
 
-        expect(mockProvider.complete).toHaveBeenCalled()
+        expect(mockProvider.chat).toHaveBeenCalled()
       })
     })
 

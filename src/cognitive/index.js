@@ -290,7 +290,9 @@ export default class CognitiveSystem {
   async _loadBootstrapState(sessionId) {
     try {
       const workingMemory = await this.memory.getWorkingMemory(sessionId)
-      return workingMemory?.bootstrapState || null
+      if (!workingMemory?.content) return null
+      const data = JSON.parse(workingMemory.content)
+      return data.bootstrapState || null
     } catch (error) {
       this.logger.warn('cognitive', 'bootstrap_state_load_failed', {
         error: error.message
@@ -305,10 +307,14 @@ export default class CognitiveSystem {
    */
   async _saveBootstrapState(sessionId, state) {
     try {
-      const currentMemory = await this.memory.getWorkingMemory(sessionId) || {}
-      currentMemory.bootstrapState = state
+      let data = {}
+      const workingMemory = await this.memory.getWorkingMemory(sessionId)
+      if (workingMemory?.content) {
+        try { data = JSON.parse(workingMemory.content) } catch { data = {} }
+      }
+      data.bootstrapState = state
 
-      await this.memory.replaceWorkingMemory(sessionId, JSON.stringify(currentMemory, null, 2))
+      await this.memory.replaceWorkingMemory(sessionId, JSON.stringify(data, null, 2))
 
       this.logger.info('cognitive', 'bootstrap_state_saved', {
         sessionId,

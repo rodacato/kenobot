@@ -16,7 +16,7 @@ describe('ProfileInferrer', () => {
 
   beforeEach(() => {
     mockProvider = {
-      complete: vi.fn().mockResolvedValue({
+      chat: vi.fn().mockResolvedValue({
         content: JSON.stringify({
           tone: 'casual',
           verbosity: 'concise',
@@ -39,7 +39,7 @@ describe('ProfileInferrer', () => {
       expect(profile).toHaveProperty('verbosity', 'concise')
       expect(profile).toHaveProperty('language', 'es')
       expect(profile).toHaveProperty('confidence', 0.0)
-      expect(mockProvider.complete).not.toHaveBeenCalled()
+      expect(mockProvider.chat).not.toHaveBeenCalled()
     })
 
     it('should infer profile from user messages', async () => {
@@ -51,7 +51,7 @@ describe('ProfileInferrer', () => {
 
       const profile = await inferrer.inferProfile(messages)
 
-      expect(mockProvider.complete).toHaveBeenCalled()
+      expect(mockProvider.chat).toHaveBeenCalled()
       expect(profile.tone).toBe('casual')
       expect(profile.verbosity).toBe('concise')
       expect(profile.language).toBe('es')
@@ -69,7 +69,7 @@ describe('ProfileInferrer', () => {
 
       await inferrer.inferProfile(messages)
 
-      const promptCall = mockProvider.complete.mock.calls[0][0][0].content
+      const promptCall = mockProvider.chat.mock.calls[0][0][0].content
       expect(promptCall).toContain('User message 1')
       expect(promptCall).toContain('User message 2')
       expect(promptCall).not.toContain('Assistant message')
@@ -77,7 +77,7 @@ describe('ProfileInferrer', () => {
     })
 
     it('should handle LLM error gracefully', async () => {
-      mockProvider.complete.mockRejectedValue(new Error('LLM failed'))
+      mockProvider.chat.mockRejectedValue(new Error('LLM failed'))
 
       const profile = await inferrer.inferProfile([
         { role: 'user', content: 'Test message' }
@@ -89,7 +89,7 @@ describe('ProfileInferrer', () => {
     })
 
     it('should handle malformed JSON response', async () => {
-      mockProvider.complete.mockResolvedValue({
+      mockProvider.chat.mockResolvedValue({
         content: 'This is not JSON'
       })
 
@@ -101,7 +101,7 @@ describe('ProfileInferrer', () => {
     })
 
     it('should extract JSON from text response', async () => {
-      mockProvider.complete.mockResolvedValue({
+      mockProvider.chat.mockResolvedValue({
         content: `Here is the analysis:
 
 {
@@ -155,7 +155,7 @@ Hope this helps!`
 
       await inferrer.inferProfile(messages)
 
-      const prompt = mockProvider.complete.mock.calls[0][0][0].content
+      const prompt = mockProvider.chat.mock.calls[0][0][0].content
 
       expect(prompt).toContain('Message 1')
       expect(prompt).toContain('Message 2')
@@ -171,7 +171,7 @@ Hope this helps!`
       const profile = await inferrer.inferProfile(null)
 
       expect(profile).toHaveProperty('confidence', 0.0)
-      expect(mockProvider.complete).not.toHaveBeenCalled()
+      expect(mockProvider.chat).not.toHaveBeenCalled()
     })
 
     it('should handle undefined messages', async () => {
@@ -189,13 +189,13 @@ Hope this helps!`
       const profile = await inferrer.inferProfile(messages)
 
       expect(profile).toHaveProperty('confidence', 0.0)
-      expect(mockProvider.complete).not.toHaveBeenCalled()
+      expect(mockProvider.chat).not.toHaveBeenCalled()
     })
   })
 
   describe('profile validation', () => {
     it('should validate required fields in parsed response', async () => {
-      mockProvider.complete.mockResolvedValue({
+      mockProvider.chat.mockResolvedValue({
         content: JSON.stringify({
           tone: 'casual',
           verbosity: 'concise'

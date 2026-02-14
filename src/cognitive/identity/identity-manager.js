@@ -227,19 +227,27 @@ export default class IdentityManager {
 
     // If bootstrap is complete, save preferences
     if (result.action === 'complete') {
-      await this._saveBootstrapPreferences()
+      await this.saveBootstrapPreferences()
     }
 
     return result
   }
 
   /**
+   * Check if preferences file exists and has content.
+   *
+   * @returns {Promise<boolean>}
+   */
+  async hasPreferences() {
+    return this.preferencesManager.hasPreferences()
+  }
+
+  /**
    * Save bootstrap preferences.
    * Does NOT delete BOOTSTRAP.md — the <bootstrap-complete/> post-processor
    * handles that when the LLM naturally wraps up the onboarding conversation.
-   * @private
    */
-  async _saveBootstrapPreferences() {
+  async saveBootstrapPreferences() {
     const preferencesContent = this.bootstrapOrchestrator.formatPreferences()
 
     // Write preferences.md

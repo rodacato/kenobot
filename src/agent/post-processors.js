@@ -76,7 +76,11 @@ export const defaultPostProcessors = [
     },
     async apply({ isComplete }, { cognitive, bus }) {
       if (!isComplete || !cognitive) return
-      await cognitive.getIdentityManager().deleteBootstrap()
+      const identityManager = cognitive.getIdentityManager()
+      if (!await identityManager.hasPreferences()) {
+        await identityManager.saveBootstrapPreferences()
+      }
+      await identityManager.deleteBootstrap()
       bus.fire(CONFIG_CHANGED, { reason: 'bootstrap complete' }, { source: 'post-processor' })
     }
   },

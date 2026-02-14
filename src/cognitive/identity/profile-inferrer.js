@@ -41,7 +41,7 @@ export default class ProfileInferrer {
     const prompt = this._buildInferencePrompt(userMessages)
 
     try {
-      const response = await this.provider.complete([
+      const response = await this.provider.chat([
         { role: 'user', content: prompt }
       ], {
         temperature: 0.3, // Low temperature for consistent analysis
