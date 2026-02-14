@@ -106,22 +106,22 @@ describe('working-memory processor', () => {
     expect(data.workingMemory).toBe('- Current topic')
   })
 
-  it('should call memory.writeWorkingMemory on apply', async () => {
-    const mockMemory = { writeWorkingMemory: vi.fn() }
+  it('should call memory.replaceWorkingMemory on apply', async () => {
+    const mockMemory = { replaceWorkingMemory: vi.fn() }
     const deps = { memory: mockMemory, sessionId: 'telegram-123' }
 
     await workingMemoryProcessor.apply({ workingMemory: '- Context notes' }, deps)
 
-    expect(mockMemory.writeWorkingMemory).toHaveBeenCalledWith('telegram-123', '- Context notes')
+    expect(mockMemory.replaceWorkingMemory).toHaveBeenCalledWith('telegram-123', '- Context notes')
   })
 
   it('should skip apply when no working memory extracted', async () => {
-    const mockMemory = { writeWorkingMemory: vi.fn() }
+    const mockMemory = { replaceWorkingMemory: vi.fn() }
     const deps = { memory: mockMemory, sessionId: 'telegram-123' }
 
     await workingMemoryProcessor.apply({ workingMemory: null }, deps)
 
-    expect(mockMemory.writeWorkingMemory).not.toHaveBeenCalled()
+    expect(mockMemory.replaceWorkingMemory).not.toHaveBeenCalled()
   })
 
   it('should skip apply when no memory manager', async () => {
@@ -132,11 +132,11 @@ describe('working-memory processor', () => {
   })
 
   it('should skip apply when no sessionId', async () => {
-    const mockMemory = { writeWorkingMemory: vi.fn() }
+    const mockMemory = { replaceWorkingMemory: vi.fn() }
     const deps = { memory: mockMemory, sessionId: null }
 
     await workingMemoryProcessor.apply({ workingMemory: '- notes' }, deps)
 
-    expect(mockMemory.writeWorkingMemory).not.toHaveBeenCalled()
+    expect(mockMemory.replaceWorkingMemory).not.toHaveBeenCalled()
   })
 })

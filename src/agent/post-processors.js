@@ -25,7 +25,7 @@ export const defaultPostProcessors = [
     },
     async apply({ memories }, { memory, bus }) {
       if (!memory || memories.length === 0) return
-      for (const entry of memories) await memory.appendDaily(entry)
+      for (const entry of memories) await memory.addFact(entry)
       bus.emit(CONFIG_CHANGED, { reason: 'memory update' })
     }
   },
@@ -37,7 +37,7 @@ export const defaultPostProcessors = [
     },
     async apply({ chatMemories }, { memory, bus, sessionId }) {
       if (!memory || chatMemories.length === 0) return
-      for (const entry of chatMemories) await memory.appendChatDaily(sessionId, entry)
+      for (const entry of chatMemories) await memory.addChatFact(sessionId, entry)
       bus.emit(CONFIG_CHANGED, { reason: 'chat memory update' })
     }
   },
@@ -49,7 +49,7 @@ export const defaultPostProcessors = [
     },
     async apply({ workingMemory }, { memory, sessionId }) {
       if (!memory || !workingMemory || !sessionId) return
-      await memory.writeWorkingMemory(sessionId, workingMemory)
+      await memory.replaceWorkingMemory(sessionId, workingMemory)
     }
   },
   {
