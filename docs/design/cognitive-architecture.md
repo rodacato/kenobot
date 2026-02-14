@@ -1717,14 +1717,33 @@ Replaced questionnaire bootstrap with natural conversation using observation and
 - CLI `reset` command for dev/testing (--memory, --identity, --all, --yes)
 - 30 tests passing
 
-### Integration Phase (Next Step)
+### Integration Phase -- COMPLETED
 
-All components are implemented and tested (261 tests passing), but not yet connected to the production message flow. Remaining work:
-1. Migrate file structure to `~/.kenobot/memory/`
-2. Connect CognitiveSystem with ContextBuilder for production use
-3. Integrate Telegram commands (/why, /memory-status, /forget, /new-topic)
-4. Configure scheduler for sleep cycle (4am cron)
-5. End-to-end integration tests
+Connected all components to the production message flow:
+- CognitiveSystem wired into app.js (composition root)
+- SleepCycle auto-triggered via hourly interval check (`shouldRun()`)
+- Sleep cycle health check registered with Watchdog
+- Metacognition post-processor evaluates every response (observe-only)
+- CLI commands: `kenobot sleep`, `kenobot memory`
+
+### Post-Integration: Consolidation Algorithms -- COMPLETED
+
+Completed all consolidation stubs with real heuristic-based implementations:
+- `Consolidator.run()`: Loads episodes from global + all chats, filters by salience, extracts facts and patterns
+- `ErrorAnalyzer.run()`: Scans for errors, classifies (internal/external/configuration), extracts lessons
+- `MemoryPruner.run()`: Deletes stale working memory, prunes low-confidence patterns, similarity grouping
+- `SelfImprover.run()`: Generates improvement proposals based on sleep cycle metrics
+- `ProceduralMemory`: Added disk persistence (lazy loading, auto-save) and keyword matching
+- `MemoryStore`: Added `readPatterns()`, `writePatterns()`, `listChatSessions()`, `listWorkingMemorySessions()`, `deleteWorkingMemory()`
+
+### Post-Integration: Metacognition System -- COMPLETED
+
+Added heuristic metacognitive capabilities (zero LLM cost):
+- `SelfMonitor`: Detects hedging, repetition, length anomalies, missing context
+- `ConfidenceEstimator`: Integrates with RetrievalEngine confidence scores
+- `ReflectionEngine`: Analyzes learning rate, error patterns, consolidation effectiveness
+- `MetacognitionSystem`: Facade orchestrating all three components
+- Wired as post-processor (observe-only: logs warnings for poor quality responses)
 
 ### Architecture Patterns Used
 
@@ -1750,16 +1769,20 @@ All components are implemented and tested (261 tests passing), but not yet conne
 ### Progress Overview
 
 ```
-Phase 1:   [########################] 100% -- COMPLETED (20 tests)
-Phase 2:   [########################] 100% -- COMPLETED (14 tests)
-Phase 3:   [########################] 100% -- COMPLETED (50 tests)
-Phase 4:   [########################] 100% -- COMPLETED (46 tests)
-Phase 5:   [########################] 100% -- COMPLETED (43 tests)
-Phase 6:   [########################] 100% -- COMPLETED (58 tests)
-Phase 6.5: [########################] 100% -- COMPLETED (30 tests)
-Phase 7:   [                        ]   0% (future)
+Phase 1:       [########################] 100% -- COMPLETED (20 tests)
+Phase 2:       [########################] 100% -- COMPLETED (14 tests)
+Phase 3:       [########################] 100% -- COMPLETED (50 tests)
+Phase 4:       [########################] 100% -- COMPLETED (46 tests)
+Phase 5:       [########################] 100% -- COMPLETED (43 tests)
+Phase 6:       [########################] 100% -- COMPLETED (58 tests)
+Phase 6.5:     [########################] 100% -- COMPLETED (30 tests)
+Integration:   [########################] 100% -- COMPLETED
+Consolidation: [########################] 100% -- COMPLETED (98 tests)
+Metacognition: [########################] 100% -- COMPLETED (46 tests)
+CLI:           [########################] 100% -- COMPLETED (7 tests)
+Phase 7:       [                        ]   0% (future)
 
-Total: 261 tests passing
+Total: 835 tests passing
 ```
 
 ### Future Phase 7 (After Validation -- 6+ Months of Use)

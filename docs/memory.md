@@ -77,11 +77,11 @@ LONG-TERM MEMORY
 - **Replay:** Reactivation of salient episodes (not all)
 - **Homeostatic:** Prune weak connections (forgetting is a feature)
 
-**KenoBot equivalent (Phase 2+):**
-- **Sleep cycle (4am):** Consolidate daily episodes → semantic facts
-- **Saliency filter:** Only process errors, successes, novel events (not all episodes)
-- **Pattern extraction:** Repeated behaviors → procedural patterns
-- **Memory pruning:** Archive old episodes, clear stale working memory
+**KenoBot implementation (4-phase sleep cycle):**
+- **Phase 1 — Consolidation:** Load recent episodes, filter by salience (errors, successes, corrections, novel content), extract facts and procedural patterns
+- **Phase 2 — Error Analysis:** Classify errors (internal/external/configuration), extract lessons from internal errors
+- **Phase 3 — Pruning:** Delete stale working memory (>7 days), remove low-confidence unused procedural patterns
+- **Phase 4 — Self-Improvement:** Generate heuristic improvement proposals, write to `data/sleep/proposals/`
 
 **Why not process everything?**
 - Humans only consolidate ~10-15% of daily experiences
@@ -344,18 +344,15 @@ Webhook returned 401 Unauthorized. We tried:
 └── 2026-02-13.md                 # Global daily episodes
 ```
 
-### Current State (Phase 1)
+### Current State
 
-**Active:**
-- `MEMORY.md` - Global long-term
+**All active:**
+- `MEMORY.md` - Global long-term facts
 - `YYYY-MM-DD.md` - Global daily logs
 - `chats/{sessionId}/MEMORY.md` - Chat long-term
 - `chats/{sessionId}/YYYY-MM-DD.md` - Chat daily logs
-- `working/{sessionId}.json` - Working memory
-
-**Placeholder (Phase 3+):**
-- `semantic/facts.md` - Will consolidate from daily logs
-- `procedural/patterns.json` - Will learn from episodes
+- `working/{sessionId}.json` - Working memory (7-day staleness)
+- `procedural/patterns.json` - Learned patterns (persisted, keyword-matched)
 
 ---
 
@@ -508,29 +505,28 @@ Description of what happened...
 
 ---
 
-### 5. ProceduralMemory (Phase 4)
+### 5. ProceduralMemory
 
-**Purpose:** Manages learned behavioral patterns.
+**Purpose:** Manages learned behavioral patterns with disk persistence.
 
 **API:**
 ```javascript
 class ProceduralMemory {
-  async getAll()                       // All patterns
-  async match(messageText)             // Find matching patterns (Phase 4)
-  async add(pattern)                   // Add new pattern
-  async remove(patternId)              // Remove pattern
+  async getAll()                       // All patterns (lazy-loaded from disk)
+  async match(messageText)             // Find matching patterns by keyword coverage
+  async add(pattern)                   // Add new pattern (persists to disk)
+  async remove(patternId)              // Remove pattern (persists to disk)
 }
 ```
 
-**Pattern Matching (Phase 4):**
+**Persistence:** Patterns are stored in `data/memory/procedural/patterns.json` via `MemoryStore.writePatterns()`. The memory is lazy-loaded on first access (`_ensureLoaded()` pattern) and persisted after every add/remove.
+
+**Pattern Matching:**
 ```javascript
 async match(messageText) {
-  const patterns = await this.getAll()
-
-  return patterns.filter(p => {
-    const terms = p.trigger.split('+').map(t => t.trim())
-    return terms.every(term => messageText.includes(term))
-  })
+  // For each pattern, split trigger into words (>2 chars)
+  // Calculate keyword coverage: (matched words / total trigger words) * confidence
+  // Return patterns sorted by score (descending)
 }
 ```
 
@@ -863,18 +859,19 @@ DATA_DIR=~/.kenobot/data           # Data directory (default)
 - **LLM-based** (Phase 2): Use Haiku to summarize + merge
 
 
-### Memory Pruning (Phase 3)
+### Memory Pruning
+
+Pruning runs as Phase 3 of the sleep cycle (see `MemoryPruner`):
 
 **Working Memory:**
-- Delete files older than 7 days
-- Or move to archive
+- Lists all sessions via `MemoryStore.listWorkingMemorySessions()`
+- Deletes sessions older than `staleThreshold` (default: 7 days)
+
+**Procedural Patterns:**
+- Removes patterns with `confidence < 0.3` and `usageCount === 0`
 
 **Episodic Memory:**
-- Compress episodes older than 30 days to summaries
-- Move to archive after 90 days
-
-**Semantic Memory:**
-- Human curation (no automatic deletion)
+- Episode compression (merging similar entries) is planned for future implementation
 
 ### Selective Retrieval with Embeddings (Phase 4)
 
@@ -897,6 +894,18 @@ return results.map(r => r.content)
 - Qdrant (self-hosted)
 - ChromaDB (embedded)
 
+
+### Memory Health
+
+`MemoryHealthChecker` runs three checks, available via `kenobot memory --health`:
+
+| Check | Method | Warning Condition |
+|-------|--------|-------------------|
+| Working memory | `checkWorkingMemory()` | >10 stale sessions (>7 days old) |
+| Memory size | `checkMemorySize()` | Long-term memory >1MB |
+| Sleep cycle | `checkSleepCycle()` | Failed or overdue |
+
+Returns `{ healthy, checks, warnings, errors }` — also available as HTTP-ready status via `getHttpStatus()`.
 
 ### Multi-Chat Memory Sharing
 

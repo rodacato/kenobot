@@ -653,10 +653,18 @@ The Cognitive System (`src/cognitive/`) orchestrates everything the bot knows, r
 │  ┌──────────────┐  ┌──────────────────────┐ │
 │  │  Retrieval    │  │  Consolidation       │ │
 │  │  Engine       │  │                      │ │
-│  │               │  │  sleep cycle         │ │
-│  │  keyword      │  │  memory pruning      │ │
+│  │               │  │  sleep cycle (4ph)   │ │
+│  │  keyword      │  │  consolidation       │ │
 │  │  confidence   │  │  error analysis      │ │
-│  └──────────────┘  └──────────────────────┘ │
+│  └──────────────┘  │  pruning             │ │
+│                     │  self-improvement    │ │
+│  ┌──────────────┐  └──────────────────────┘ │
+│  │ Metacognition │                           │
+│  │               │                           │
+│  │ self-monitor  │                           │
+│  │ confidence    │                           │
+│  │ reflection    │                           │
+│  └──────────────┘                            │
 └─────────────────────────────────────────────┘
 ```
 
@@ -665,7 +673,8 @@ The Cognitive System (`src/cognitive/`) orchestrates everything the bot knows, r
 - **Modular identity** — Core personality, behavioral rules, learned user preferences
 - **Selective retrieval** — Keyword + confidence-based memory recall
 - **Conversational bootstrap** — Natural onboarding through observation
-- **Memory consolidation** — Sleep cycle, pruning, error analysis
+- **Memory consolidation** — 4-phase sleep cycle (consolidation, error analysis, pruning, self-improvement)
+- **Metacognition** — Heuristic self-monitoring, confidence estimation, reflection (zero LLM cost)
 
 ### Conceptual Foundations
 
@@ -739,10 +748,17 @@ CognitiveSystem (Facade)
 │   ├── KeywordMatcher         — Extract and match keywords
 │   └── ConfidenceScorer       — Score retrieval quality
 │
-└── Consolidation (Maintenance)
-    ├── SleepCycle             — Scheduled memory consolidation
-    ├── MemoryPruner           — Clean stale data
-    └── ErrorAnalyzer          — Learn from errors
+├── Consolidation (Maintenance)
+│   ├── SleepCycle             — 4-phase scheduled consolidation
+│   ├── Consolidator           — Extract facts/patterns from episodes
+│   ├── ErrorAnalyzer          — Classify errors, extract lessons
+│   ├── MemoryPruner           — Clean stale data, prune patterns
+│   └── SelfImprover           — Generate improvement proposals
+│
+└── Metacognition (Self-awareness)
+    ├── SelfMonitor            — Heuristic response quality gate
+    ├── ConfidenceEstimator    — Retrieval confidence assessment
+    └── ReflectionEngine       — Sleep-cycle pattern analysis
 ```
 
 #### Isolation Guarantees
@@ -792,13 +808,28 @@ Selective memory recall to avoid loading everything on every message:
 - **Limits** — Configurable max facts, episodes, and procedures
 - **Fallback** — Full memory load when retrieval is disabled
 
-#### Consolidation
+#### Consolidation (Sleep Cycle)
 
-Background maintenance (runs on schedule, not per-message):
+Background maintenance via a **4-phase sleep cycle** (runs hourly via `setInterval`, executes when overdue):
 
-- **Sleep cycle** — Consolidates daily episodes into semantic facts
-- **Memory pruning** — Cleans stale working memory, archives old episodes
-- **Error analysis** — Extracts learnings from repeated errors
+| Phase | Component | What it does |
+|-------|-----------|--------------|
+| 1. Consolidation | `Consolidator` | Loads recent episodes, filters by salience (errors, successes, corrections, novel content), extracts facts and procedural patterns |
+| 2. Error Analysis | `ErrorAnalyzer` | Scans for error-like entries, classifies (internal/external/configuration), extracts lessons from internal errors |
+| 3. Pruning | `MemoryPruner` | Deletes stale working memory (>7 days), removes low-confidence unused patterns |
+| 4. Self-Improvement | `SelfImprover` | Heuristic-based proposal generator — detects idle systems, recurring errors, heavy pruning; writes proposals to `data/sleep/proposals/` |
+
+**CLI access:** `kenobot sleep` (run manually), `kenobot sleep --status`, `kenobot sleep --proposals`
+
+#### Metacognition
+
+Heuristic self-awareness system (zero LLM cost, zero latency):
+
+- **SelfMonitor** — Evaluates response quality: detects hedging, repetition, length anomalies, missing context. Runs as a post-processor on every response (observe-only, logs warnings for poor quality).
+- **ConfidenceEstimator** — Integrates with RetrievalEngine confidence scores, adjusts based on result counts.
+- **ReflectionEngine** — Runs during sleep cycle; analyzes learning rate, error patterns, consolidation effectiveness, memory churn.
+
+**Design decision:** All evaluation is heuristic-based. No second LLM call = zero additional cost and zero latency per message.
 
 ### File Structure
 
@@ -823,10 +854,16 @@ src/cognitive/
     keyword-matcher.js              — Keyword extraction
     confidence-scorer.js            — Retrieval quality scoring
   consolidation/
-    sleep-cycle.js                  — Scheduled consolidation
-    memory-pruner.js                — Stale data cleanup
-    error-analyzer.js               — Error pattern learning
-    consolidator.js                 — Core consolidation logic
+    sleep-cycle.js                  — 4-phase scheduled consolidation
+    consolidator.js                 — Salience filter, fact/pattern extraction
+    error-analyzer.js               — Error classification, lesson extraction
+    memory-pruner.js                — Stale data cleanup, pattern pruning
+    self-improver.js                — Heuristic improvement proposals
+  metacognition/
+    index.js                        — MetacognitionSystem facade
+    self-monitor.js                 — Heuristic response quality gate
+    confidence-estimator.js         — Retrieval confidence assessment
+    reflection-engine.js            — Sleep-cycle pattern analysis
   utils/
     cost-tracker.js                 — LLM cost tracking
     memory-health.js                — Memory health checks
@@ -933,6 +970,18 @@ Access the Memory System sub-system directly.
 ##### `getIdentityManager() -> IdentityManager`
 
 Access the Identity System sub-system directly.
+
+##### `getSleepCycle() -> SleepCycle`
+
+Access the Sleep Cycle sub-system directly.
+
+##### `getMetacognition() -> MetacognitionSystem`
+
+Access the Metacognition sub-system directly.
+
+##### `runSleepCycle() -> Promise<Object>`
+
+Run the sleep cycle (convenience method). Returns results from all 4 phases.
 
 ##### `processBootstrapIfActive(sessionId, message, history) -> Promise<Object|null>`
 
