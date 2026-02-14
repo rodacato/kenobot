@@ -31,18 +31,21 @@ export default class ContextBuilder {
    * Build context for a provider call.
    * @param {string} sessionId - e.g. "telegram-123456789"
    * @param {Object} message - Incoming message { text, chatId, userId, ... }
+   * @param {Object} [options]
+   * @param {Object} [options.bootstrapAction] - Bootstrap orchestration result (checkpoint, boundaries, etc.)
+   * @param {Array} [options.history] - Pre-loaded session history (avoids double load)
    * @returns {{ system: string, messages: Array<{role: string, content: string}> }}
    */
-  async build(sessionId, message) {
-    // Build system prompt: identity + memory
-    const system = await this._buildSystemPrompt(message.text, sessionId)
+  async build(sessionId, message, { bootstrapAction, history } = {}) {
+    // Build system prompt: identity + memory + bootstrap action
+    const system = await this._buildSystemPrompt(message.text, sessionId, bootstrapAction)
 
-    // Load session history
+    // Use pre-loaded history or load fresh
     const historyLimit = this.config.sessionHistoryLimit ?? 20
-    const history = await this.storage.loadSession(sessionId, historyLimit)
+    const loadedHistory = history || await this.storage.loadSession(sessionId, historyLimit)
 
     // Map history to provider format (strip timestamps)
-    const messages = history.map(({ role, content }) => ({ role, content }))
+    const messages = loadedHistory.map(({ role, content }) => ({ role, content }))
 
     // Append current user message
     messages.push({ role: 'user', content: message.text })
@@ -53,8 +56,11 @@ export default class ContextBuilder {
   /**
    * Assemble system prompt from identity + memory.
    * @private
+   * @param {string} messageText
+   * @param {string|null} sessionId
+   * @param {Object|null} bootstrapAction - Bootstrap orchestration result
    */
-  async _buildSystemPrompt(messageText = '', sessionId = null) {
+  async _buildSystemPrompt(messageText = '', sessionId = null, bootstrapAction = null) {
     const parts = []
 
     // Identity: Load from CognitiveSystem IdentityManager (if available)
@@ -74,6 +80,12 @@ export default class ContextBuilder {
           message: 'First conversation - skipping preferences and memory'
         })
         parts.push('\n---\n\n## First Conversation — Bootstrap\n' + bootstrap)
+
+        // Inject bootstrap action (checkpoint, boundaries, completion) if present
+        const actionSection = this._formatBootstrapAction(bootstrapAction)
+        if (actionSection) {
+          parts.push('\n' + actionSection)
+        }
       } else if (!isBootstrapping && preferences) {
         // Normal mode: Load preferences
         parts.push('\n---\n\n## Preferences\n' + preferences)
@@ -163,6 +175,43 @@ export default class ContextBuilder {
     }
 
     return { label: 'Memory', content: lines.join('\n') }
+  }
+
+  /**
+   * Format bootstrap action for injection into system prompt.
+   * @private
+   * @param {Object|null} action - Result from processBootstrapIfActive()
+   * @returns {string|null} Formatted instruction or null
+   */
+  _formatBootstrapAction(action) {
+    if (!action || action.action === 'continue') return null
+
+    if (action.action === 'show_checkpoint') {
+      return `## Bootstrap Action — Checkpoint
+IMPORTANT: Include the following checkpoint naturally in your response, weaving it into whatever else you're discussing. Present it as your own observation, not as a system message:
+
+${action.checkpointMessage}
+
+Wait for the user's response before proceeding to the next phase.`
+    }
+
+    if (action.action === 'show_boundaries') {
+      return `## Bootstrap Action — Boundaries
+IMPORTANT: Include the following boundaries question naturally in your response:
+
+${action.boundariesMessage}
+
+Wait for the user's response. Their answer defines your operational limits.`
+    }
+
+    if (action.action === 'complete') {
+      return `## Bootstrap Action — Complete
+The user has completed the onboarding process. Their preferences have been saved.
+Wrap up the bootstrap naturally — acknowledge that you've learned their preferences and are ready to work together.
+Include \`<bootstrap-complete/>\` at the end of your response to finalize.`
+    }
+
+    return null
   }
 
   /**

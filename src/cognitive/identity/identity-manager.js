@@ -234,7 +234,9 @@ export default class IdentityManager {
   }
 
   /**
-   * Save bootstrap preferences and mark complete.
+   * Save bootstrap preferences.
+   * Does NOT delete BOOTSTRAP.md — the <bootstrap-complete/> post-processor
+   * handles that when the LLM naturally wraps up the onboarding conversation.
    * @private
    */
   async _saveBootstrapPreferences() {
@@ -246,9 +248,6 @@ export default class IdentityManager {
     const preferencesPath = join(this.identityPath, 'preferences.md')
 
     await writeFile(preferencesPath, preferencesContent, 'utf-8')
-
-    // Delete BOOTSTRAP.md to mark as complete
-    await this.deleteBootstrap()
 
     this.logger.info('identity-manager', 'bootstrap_preferences_saved', {
       path: preferencesPath

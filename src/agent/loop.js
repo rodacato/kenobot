@@ -60,8 +60,20 @@ export default class AgentLoop {
       await withTypingIndicator(this.bus, typingPayload, async () => {
         const start = Date.now()
 
-        // Build context with identity + history
-        const context = await this.contextBuilder.build(sessionId, message)
+        // Load history (needed for bootstrap profile inference)
+        const historyLimit = this.contextBuilder.config?.sessionHistoryLimit ?? 20
+        const history = await this.storage.loadSession(sessionId, historyLimit)
+
+        // Process bootstrap if active (before building context)
+        let bootstrapAction = null
+        if (this.contextBuilder.cognitive) {
+          bootstrapAction = await this.contextBuilder.cognitive.processBootstrapIfActive(
+            sessionId, message.text, history
+          )
+        }
+
+        // Build context with identity + history + bootstrap action
+        const context = await this.contextBuilder.build(sessionId, message, { bootstrapAction, history })
 
         // Build chat options
         const chatOptions = { system: context.system }

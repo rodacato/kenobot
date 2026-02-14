@@ -15,9 +15,10 @@ import { createTestApp } from '../harness.js'
 
 // --- User preferences ---
 
-// SKIPPED: Tag extraction features (<user>, <memory>) are not implemented yet
-// These tests are for planned but unimplemented functionality
-// See IMPLEMENTATION_PLAN.md Phase 1b for Cognitive System archival
+// SKIPPED: These tests use the legacy IdentityLoader (<user> tags, SOUL.md).
+// The current CognitiveSystem uses <user-update> tags, core.md, rules.json,
+// and preferences.md. Enabling requires updating the e2e harness to scaffold
+// CognitiveSystem identity files (core.md, rules.json, preferences.md).
 describe.skip('Feature: User preferences', () => {
   let harness
   let userMdPath
@@ -64,7 +65,10 @@ describe.skip('Feature: User preferences', () => {
 
 // --- Bootstrap lifecycle ---
 
-// SKIPPED: Bootstrap lifecycle testing depends on unimplemented tag extraction
+// SKIPPED: These tests use the legacy harness (SOUL.md paths, no rules.json).
+// The bootstrap orchestration is now wired (AgentLoop → processBootstrapIfActive)
+// and covered by unit tests in test/agent/bootstrap-integration.test.js.
+// Enabling requires updating the e2e harness for CognitiveSystem identity files.
 describe.skip('Feature: Bootstrap lifecycle', () => {
   let harness
   let bootstrapPath
