@@ -274,7 +274,7 @@ async function checkDiskUsage(paths) {
     return {
       status: 'warn',
       label: `Disk usage — ${biggest.name} is ${formatBytes(biggest.bytes)} (total: ${formatBytes(total)})`,
-      fix: `Manually remove old files from ${biggest.name}`,
+      fix: `Run 'kenobot reset --all' or manually remove old files from ${biggest.name}`,
     }
   }
 
@@ -343,37 +343,6 @@ async function analyzeLogFile(logFile, dateLabel) {
   }
 }
 
-async function checkN8n(paths) {
-  let env = {}
-  try {
-    const content = await readFile(paths.envFile, 'utf8')
-    env = parseEnvFile(content)
-  } catch {
-    return { status: 'skip', label: 'n8n (no config file)' }
-  }
-
-  const apiUrl = env.N8N_API_URL
-  const webhookBase = env.N8N_WEBHOOK_BASE
-
-  if (!apiUrl && !webhookBase) {
-    return { status: 'skip', label: 'n8n (not configured)' }
-  }
-
-  // Try to reach n8n via API URL first, then webhook base
-  const url = apiUrl || webhookBase
-  try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(5000) })
-    // Any response means n8n is reachable (even 401/404)
-    return { status: 'ok', label: `n8n (reachable at ${new URL(url).host})` }
-  } catch {
-    return {
-      status: 'warn',
-      label: `n8n — unreachable at ${url}`,
-      fix: 'Check that n8n is running. See: docs/guides/n8n.md',
-    }
-  }
-}
-
 // --- Main ---
 
 export default async function doctor(args, paths) {
@@ -387,7 +356,6 @@ export default async function doctor(args, paths) {
     await checkIdentity(paths),
     await checkPidFile(paths),
     await checkDiskUsage(paths),
-    await checkN8n(paths),
     await checkRecentLogs(paths),
   ]
 

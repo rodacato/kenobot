@@ -3,10 +3,7 @@ import { join } from 'node:path'
 
 /**
  * Single source of truth for the directory structure.
- * Used by init (create), doctor (check), and purge (clean).
- *
- * purge tag:  'always' = base purge, 'memory' = --memory, 'all' = --all
- *             undefined = never purged (config dirs)
+ * Used by setup (create) and doctor (check).
  */
 export function requiredDirs(paths) {
   return [
@@ -14,11 +11,11 @@ export function requiredDirs(paths) {
     { path: join(paths.home, 'memory'), label: 'memory/' },
     { path: join(paths.home, 'memory', 'identity'), label: 'memory/identity/' },
     { path: paths.data, label: 'data/' },
-    { path: join(paths.data, 'sessions'), label: 'data/sessions/', purge: 'always' },
-    { path: join(paths.data, 'memory'), label: 'data/memory/', purge: 'memory' },
-    { path: join(paths.data, 'logs'), label: 'data/logs/', purge: 'always' },
-    { path: join(paths.data, 'scheduler'), label: 'data/scheduler/', purge: 'always' },
-    { path: paths.backups, label: 'backups/', purge: 'all' },
+    { path: join(paths.data, 'sessions'), label: 'data/sessions/' },
+    { path: join(paths.data, 'memory'), label: 'data/memory/' },
+    { path: join(paths.data, 'logs'), label: 'data/logs/' },
+    { path: join(paths.data, 'scheduler'), label: 'data/scheduler/' },
+    { path: paths.backups, label: 'backups/' },
   ]
 }
 
