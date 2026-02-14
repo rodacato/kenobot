@@ -39,10 +39,13 @@ export default class Consolidator {
     // 2. Filter salient episodes
     const salient = episodes.filter(ep => this.scoreSalience(ep) >= this.salienceThreshold)
 
-    // 3. Extract facts from salient episodes
+    // 3. Extract facts from salient episodes, deduplicate against MEMORY.md
     const facts = this.extractFacts(salient)
-    for (const fact of facts) {
-      await this.memory.addFact(fact)
+    const existingMemory = (await this.memory.getLongTermMemory()).toLowerCase()
+    const newFacts = facts.filter(f => !existingMemory.includes(f.toLowerCase()))
+
+    if (newFacts.length > 0) {
+      await this._appendToLongTerm(newFacts)
     }
 
     // 4. Extract patterns from error+resolution episodes
@@ -54,11 +57,24 @@ export default class Consolidator {
     const result = {
       episodesProcessed: episodes.length,
       patternsAdded: patterns.length,
-      factsAdded: facts.length
+      factsAdded: newFacts.length
     }
 
     this.logger.info('consolidator', 'completed', result)
     return result
+  }
+
+  /**
+   * Append new facts to MEMORY.md (long-term semantic memory).
+   * Reads existing content, appends facts as bullet points under a dated section.
+   * @private
+   */
+  async _appendToLongTerm(facts) {
+    const existing = await this.memory.getLongTermMemory()
+    const date = new Date().toISOString().slice(0, 10)
+    const section = `\n## Consolidated — ${date}\n${facts.map(f => `- ${f}`).join('\n')}\n`
+    await this.memory.writeLongTermMemory(existing.trimEnd() + '\n' + section)
+    this.logger.info('consolidator', 'facts_written_to_long_term', { count: facts.length, date })
   }
 
   /**

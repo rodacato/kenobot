@@ -18,6 +18,8 @@ describe('Consolidator', () => {
     mockMemory = {
       getRecentDays: vi.fn().mockResolvedValue(''),
       getChatRecentDays: vi.fn().mockResolvedValue(''),
+      getLongTermMemory: vi.fn().mockResolvedValue(''),
+      writeLongTermMemory: vi.fn().mockResolvedValue(undefined),
       addFact: vi.fn().mockResolvedValue(undefined),
       getPatterns: vi.fn().mockResolvedValue([]),
       store: {
@@ -72,7 +74,7 @@ describe('Consolidator', () => {
       const result = await consolidator.run()
 
       expect(result.factsAdded).toBeGreaterThan(0)
-      expect(mockMemory.addFact).toHaveBeenCalled()
+      expect(mockMemory.writeLongTermMemory).toHaveBeenCalled()
     })
 
     it('should extract patterns from error+resolution episodes', async () => {
