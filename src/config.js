@@ -1,7 +1,5 @@
 import { config as loadEnv } from 'dotenv'
 import { parseArgs } from 'node:util'
-import { join } from 'node:path'
-import { homedir } from 'node:os'
 import logger from './logger.js'
 
 /**
@@ -68,15 +66,6 @@ export function createConfig(env = process.env) {
 
     selfImprovementEnabled: env.SELF_IMPROVEMENT_ENABLED === 'true',
     approvalRequired: env.APPROVAL_REQUIRED !== 'false',
-    configRepo: env.CONFIG_REPO || '',
-    workspaceDir: env.WORKSPACE_DIR || '',
-    projectsDir: env.PROJECTS_DIR || '',
-    sshKeyPath: env.KENOBOT_SSH_KEY || join(homedir(), '.ssh', 'kenobot_ed25519'),
-    github: {
-      token: env.GITHUB_TOKEN || '',
-      repo: env.GITHUB_REPO || ''
-    },
-
     watchdogInterval: int('WATCHDOG_INTERVAL', 60000, { min: 5000 }),
     fallbackProvider: env.FALLBACK_PROVIDER || '',
 

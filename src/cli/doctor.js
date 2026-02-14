@@ -1,6 +1,5 @@
-import { readFile, readdir, writeFile, unlink } from 'node:fs/promises'
+import { readFile, writeFile, unlink } from 'node:fs/promises'
 import { join, basename } from 'node:path'
-import { homedir } from 'node:os'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { checkPid } from '../health.js'
@@ -233,53 +232,6 @@ async function checkIdentity(paths) {
   return { status: 'ok', label: `Identity (memory/identity/)${hasBootstrap ? ' [bootstrap pending]' : ''}` }
 }
 
-async function checkTemplateIntegrity(paths) {
-  const tplDir = paths.templates
-  if (!await exists(tplDir)) {
-    return {
-      status: 'fail',
-      label: 'Templates — directory not found (engine corrupt)',
-      fix: 'Reinstall kenobot: npm install -g github:rodacato/kenobot',
-    }
-  }
-
-  const missing = []
-
-  // Check config/.env exists
-  if (!await exists(paths.envFile)) {
-    missing.push('config/.env')
-  }
-
-  // Check identity files match template
-  const tplIdentityDir = join(tplDir, 'identity')
-  if (await exists(tplIdentityDir)) {
-    const tplFiles = await readdir(tplIdentityDir)
-    const identityDir = join(paths.home, 'memory', 'identity')
-    for (const file of tplFiles) {
-      if (!await exists(join(identityDir, file))) {
-        missing.push(`memory/identity/${file}`)
-      }
-    }
-  }
-
-  // Check memory template
-  const memoryFile = join(paths.data, 'memory', 'MEMORY.md')
-  if (!await exists(memoryFile)) {
-    missing.push('data/memory/MEMORY.md')
-  }
-
-  if (missing.length > 0) {
-    return {
-      status: 'warn',
-      label: `Template integrity — ${missing.length} file${missing.length > 1 ? 's' : ''} missing`,
-      fix: "Run 'kenobot setup' to restore missing files",
-      details: missing,
-    }
-  }
-
-  return { status: 'ok', label: 'Template integrity' }
-}
-
 async function checkPidFile(paths) {
   if (!await exists(paths.pidFile)) {
     return { status: 'ok', label: 'PID file (no stale process)' }
@@ -322,37 +274,11 @@ async function checkDiskUsage(paths) {
     return {
       status: 'warn',
       label: `Disk usage — ${biggest.name} is ${formatBytes(biggest.bytes)} (total: ${formatBytes(total)})`,
-      fix: "Run 'kenobot purge' to clear old data",
+      fix: `Manually remove old files from ${biggest.name}`,
     }
   }
 
   return { status: 'ok', label: `Disk usage (${formatBytes(total)} total)` }
-}
-
-async function checkSSHKey(paths) {
-  let env = {}
-  try {
-    const content = await readFile(paths.envFile, 'utf8')
-    env = parseEnvFile(content)
-  } catch {
-    // use defaults
-  }
-
-  // Only relevant if config-sync or workspace is configured
-  if (!env.CONFIG_REPO && !env.WORKSPACE_DIR) {
-    return { status: 'skip', label: 'SSH key (not needed, no CONFIG_REPO or WORKSPACE_DIR)' }
-  }
-
-  const keyPath = env.KENOBOT_SSH_KEY || join(homedir(), '.ssh', 'kenobot_ed25519')
-  if (await exists(keyPath)) {
-    return { status: 'ok', label: 'SSH key' }
-  }
-
-  return {
-    status: 'warn',
-    label: `SSH key — not found at ${keyPath}`,
-    fix: "Run 'kenobot setup' to generate SSH key",
-  }
 }
 
 async function checkRecentLogs(paths) {
@@ -458,11 +384,9 @@ export default async function doctor(args, paths) {
     await checkDirs(paths),
     await checkConfig(paths),
     await checkProvider(paths),
-    await checkTemplateIntegrity(paths),
     await checkIdentity(paths),
     await checkPidFile(paths),
     await checkDiskUsage(paths),
-    await checkSSHKey(paths),
     await checkN8n(paths),
     await checkRecentLogs(paths),
   ]

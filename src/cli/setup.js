@@ -1,11 +1,10 @@
 import { mkdir, cp, readdir, readFile, writeFile, appendFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
-import { execFile, exec } from 'node:child_process'
+import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
 import { GREEN, RED, YELLOW, NC, exists, requiredDirs } from './utils.js'
 
-const execFileAsync = promisify(execFile)
 const execAsync = promisify(exec)
 
 const info = (msg) => console.log(`${GREEN}[✓]${NC} ${msg}`)
@@ -123,9 +122,6 @@ export default async function init(args, paths) {
     'data/memory/MEMORY.md'
   )
 
-  // Generate SSH keypair for Git operations
-  await generateSSHKey()
-
   console.log(`\nNext steps:`)
   console.log(`  kenobot config edit     # Set your tokens and provider`)
   console.log(`  kenobot start           # Start the bot`)
@@ -213,33 +209,5 @@ async function configurePATH() {
   } else if (process.env.SHELL?.includes('zsh')) {
     await writeFile(zshrc, pathExport)
     info('Created ~/.zshrc with PATH configuration')
-  }
-}
-
-async function generateSSHKey() {
-  const sshDir = join(homedir(), '.ssh')
-  const keyPath = join(sshDir, 'kenobot_ed25519')
-
-  if (await exists(keyPath)) {
-    skip('SSH key ~/.ssh/kenobot_ed25519 (already exists)')
-    return
-  }
-
-  await mkdir(sshDir, { recursive: true, mode: 0o700 })
-
-  try {
-    await execFileAsync('ssh-keygen', [
-      '-t', 'ed25519',
-      '-C', 'kenobot',
-      '-f', keyPath,
-      '-N', ''
-    ])
-    info('SSH key ~/.ssh/kenobot_ed25519')
-
-    const pubKey = await readFile(`${keyPath}.pub`, 'utf8')
-    console.log(`\n  Public key (add to GitHub):`)
-    console.log(`  ${pubKey.trim()}\n`)
-  } catch (error) {
-    skip(`SSH key generation failed: ${error.message}`)
   }
 }
