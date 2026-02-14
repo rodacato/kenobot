@@ -127,8 +127,8 @@ export default class ContextBuilder {
     const staleDays = this.config.workingMemoryStaleThreshold ?? 7
     const workingMemory = this._filterWorkingMemory(workingMemoryResult, staleDays)
 
-    if (!longTerm && !recentNotes && !chatLongTerm && !chatRecent && !workingMemory) return null
-
+    // Always include memory tag instructions so the bot knows how to save memories,
+    // even when no memories exist yet (avoids chicken-and-egg bootstrap problem)
     const lines = [
       '### Memory tags',
       'Include these in your response when something is worth remembering:\n',
