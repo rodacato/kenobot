@@ -156,13 +156,13 @@ export default class HTTPChannel extends BaseChannel {
 
       this._pendingRequests.set(requestId, { resolve, reject, timeout, chatId })
 
-      this.bus.emit(MESSAGE_IN, {
+      this.bus.fire(MESSAGE_IN, {
         text,
         chatId,
         userId: 'webhook',
         channel: this.name,
         timestamp: Date.now()
-      })
+      }, { source: 'http' })
     })
   }
 

@@ -13,7 +13,7 @@ export function setupNotifications(bus, config) {
   const ownerChat = config.telegram.allowedUsers?.[0] || config.telegram.allowedChatIds?.[0]
   if (!ownerChat) return
 
-  const notify = (text) => bus.emit(NOTIFICATION, { chatId: ownerChat, text })
+  const notify = (text) => bus.fire(NOTIFICATION, { chatId: ownerChat, text }, { source: 'notifications' })
 
   bus.on(HEALTH_DEGRADED, ({ detail }) => notify(`Health degraded: ${detail}`))
   bus.on(HEALTH_UNHEALTHY, ({ detail }) => notify(`UNHEALTHY: ${detail}`))

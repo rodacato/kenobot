@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import EventEmitter from 'node:events'
 
 vi.mock('../../src/logger.js', () => ({
   default: {
@@ -9,6 +8,7 @@ vi.mock('../../src/logger.js', () => ({
   }
 }))
 
+import { NervousSystem } from '../../src/nervous/index.js'
 import logger from '../../src/logger.js'
 import BaseChannel from '../../src/channels/base.js'
 import { MESSAGE_IN } from '../../src/events.js'
@@ -24,7 +24,7 @@ describe('BaseChannel', () => {
   let bus
 
   beforeEach(() => {
-    bus = new EventEmitter()
+    bus = new NervousSystem()
     vi.clearAllMocks()
   })
 

@@ -67,7 +67,7 @@ describe('createApp', () => {
     expect(typeof app.stop).toBe('function')
   })
 
-  it('should create a fresh MessageBus per instance', () => {
+  it('should create a fresh NervousSystem per instance', () => {
     const app1 = createApp(config, provider)
     const app2 = createApp(config, provider)
 

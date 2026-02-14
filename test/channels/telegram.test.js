@@ -1,13 +1,18 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+
+vi.mock('../../src/logger.js', () => ({
+  default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+}))
+
 import TelegramChannel from '../../src/channels/telegram.js'
-import { EventEmitter } from 'node:events'
+import { NervousSystem } from '../../src/nervous/index.js'
 
 describe('TelegramChannel', () => {
   let channel
   let bus
 
   beforeEach(() => {
-    bus = new EventEmitter()
+    bus = new NervousSystem()
     // Don't start the bot in tests, just instantiate for testing methods
     channel = new TelegramChannel(bus, {
       token: 'fake_token_for_testing',

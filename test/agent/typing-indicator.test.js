@@ -1,13 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import EventEmitter from 'node:events'
+import { NervousSystem } from '../../src/nervous/index.js'
 import { withTypingIndicator } from '../../src/agent/typing-indicator.js'
 import { THINKING_START } from '../../src/events.js'
+
+vi.mock('../../src/logger.js', () => ({
+  default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+}))
 
 describe('withTypingIndicator', () => {
   let bus
 
   beforeEach(() => {
-    bus = new EventEmitter()
+    bus = new NervousSystem()
     vi.useFakeTimers()
   })
 

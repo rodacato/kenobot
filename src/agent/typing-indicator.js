@@ -15,8 +15,8 @@ const DEFAULT_INTERVAL_MS = 4000
  * @returns {Promise<*>} Result of fn()
  */
 export async function withTypingIndicator(bus, payload, fn, intervalMs = DEFAULT_INTERVAL_MS) {
-  bus.emit(THINKING_START, payload)
-  const interval = setInterval(() => bus.emit(THINKING_START, payload), intervalMs)
+  bus.fire(THINKING_START, payload, { source: 'agent' })
+  const interval = setInterval(() => bus.fire(THINKING_START, payload, { source: 'agent' }), intervalMs)
   try {
     return await fn()
   } finally {

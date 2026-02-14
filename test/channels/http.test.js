@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { EventEmitter } from 'node:events'
 import crypto from 'node:crypto'
 import http from 'node:http'
+import { NervousSystem } from '../../src/nervous/index.js'
 import HTTPChannel from '../../src/channels/http.js'
 
 vi.mock('../../src/logger.js', () => ({
@@ -53,7 +53,7 @@ describe('HTTPChannel', () => {
   let port
 
   beforeEach(async () => {
-    bus = new EventEmitter()
+    bus = new NervousSystem()
     // Use port 0 to let OS assign a random available port
     channel = new HTTPChannel(bus, {
       port: 0,

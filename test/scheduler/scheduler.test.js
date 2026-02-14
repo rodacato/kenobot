@@ -22,7 +22,8 @@ describe('Scheduler', () => {
   beforeEach(async () => {
     dataDir = await mkdtemp(join(tmpdir(), 'scheduler-test-'))
     mockBus = {
-      emit: vi.fn()
+      emit: vi.fn(),
+      fire: vi.fn()
     }
     scheduler = new Scheduler(mockBus, dataDir)
   })
@@ -256,22 +257,22 @@ describe('Scheduler', () => {
       expect(entry).toBeDefined()
       expect(entry.job).toBeDefined()
 
-      // Emit manually to verify the event shape
-      scheduler.bus.emit('message:in', {
+      // Fire manually to verify the event shape
+      scheduler.bus.fire('message:in', {
         text: task.message,
         chatId: task.chatId,
         userId: task.userId,
         channel: task.channel,
         scheduled: true
-      })
+      }, { source: 'scheduler' })
 
-      expect(mockBus.emit).toHaveBeenCalledWith('message:in', {
+      expect(mockBus.fire).toHaveBeenCalledWith('message:in', {
         text: 'test fire',
         chatId: '123',
         userId: '456',
         channel: 'telegram',
         scheduled: true
-      })
+      }, { source: 'scheduler' })
     })
   })
 

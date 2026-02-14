@@ -79,10 +79,10 @@ export default class BaseChannel extends EventEmitter {
     }
 
     // Publish to bus with channel info
-    this.bus.emit(MESSAGE_IN, {
+    this.bus.fire(MESSAGE_IN, {
       ...message,
       channel: this.name
-    })
+    }, { source: this.name })
   }
 
   /**
@@ -104,7 +104,7 @@ export default class BaseChannel extends EventEmitter {
       await this.send(chatId, text, options)
     } catch (error) {
       this.logger.error('channel', 'send_failed', { channel: this.name, chatId, error: error.message })
-      this.bus.emit(ERROR, { source: this.name, error })
+      this.bus.fire(ERROR, { source: this.name, error }, { source: this.name })
     }
   }
 

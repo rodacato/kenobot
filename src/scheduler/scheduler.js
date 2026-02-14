@@ -115,13 +115,13 @@ export default class Scheduler {
   _startJob(task) {
     const job = cron.schedule(task.cronExpr, () => {
       this.logger.info('scheduler', 'task_fired', { id: task.id, description: task.description })
-      this.bus.emit(MESSAGE_IN, {
+      this.bus.fire(MESSAGE_IN, {
         text: task.message,
         chatId: task.chatId,
         userId: task.userId,
         channel: task.channel,
         scheduled: true
-      })
+      }, { source: 'scheduler' })
     })
     this.tasks.set(task.id, { ...task, job })
   }

@@ -96,12 +96,12 @@ export default class AgentLoop {
           { role: 'assistant', content: cleanText, timestamp: now }
         ])
 
-        // Emit response (clean text without memory tags)
-        this.bus.emit(MESSAGE_OUT, {
+        // Fire response signal (clean text without memory tags)
+        this.bus.fire(MESSAGE_OUT, {
           chatId: message.chatId,
           text: cleanText,
           channel: message.channel
-        })
+        }, { source: 'agent' })
       })
     } catch (error) {
       this.logger.error('agent', 'message_failed', {
@@ -109,11 +109,11 @@ export default class AgentLoop {
         error: error.message
       })
 
-      this.bus.emit(MESSAGE_OUT, {
+      this.bus.fire(MESSAGE_OUT, {
         chatId: message.chatId,
         text: `Error: ${error.message}`,
         channel: message.channel
-      })
+      }, { source: 'agent' })
     }
   }
 }

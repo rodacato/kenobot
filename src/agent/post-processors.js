@@ -26,7 +26,7 @@ export const defaultPostProcessors = [
     async apply({ memories }, { memory, bus }) {
       if (!memory || memories.length === 0) return
       for (const entry of memories) await memory.addFact(entry)
-      bus.emit(CONFIG_CHANGED, { reason: 'memory update' })
+      bus.fire(CONFIG_CHANGED, { reason: 'memory update' }, { source: 'post-processor' })
     }
   },
   {
@@ -38,7 +38,7 @@ export const defaultPostProcessors = [
     async apply({ chatMemories }, { memory, bus, sessionId }) {
       if (!memory || chatMemories.length === 0) return
       for (const entry of chatMemories) await memory.addChatFact(sessionId, entry)
-      bus.emit(CONFIG_CHANGED, { reason: 'chat memory update' })
+      bus.fire(CONFIG_CHANGED, { reason: 'chat memory update' }, { source: 'post-processor' })
     }
   },
   {
@@ -65,7 +65,7 @@ export const defaultPostProcessors = [
       for (const update of updates) {
         await identityManager.updatePreference('learned', update)
       }
-      bus.emit(CONFIG_CHANGED, { reason: 'user preferences update' })
+      bus.fire(CONFIG_CHANGED, { reason: 'user preferences update' }, { source: 'post-processor' })
     }
   },
   {
@@ -77,7 +77,7 @@ export const defaultPostProcessors = [
     async apply({ isComplete }, { cognitive, bus }) {
       if (!isComplete || !cognitive) return
       await cognitive.getIdentityManager().deleteBootstrap()
-      bus.emit(CONFIG_CHANGED, { reason: 'bootstrap complete' })
+      bus.fire(CONFIG_CHANGED, { reason: 'bootstrap complete' }, { source: 'post-processor' })
     }
   }
 ]

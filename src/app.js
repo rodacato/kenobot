@@ -1,7 +1,8 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { MessageBus } from './bus.js'
 import { Logger } from './logger.js'
+import NervousSystem from './nervous/index.js'
+import { createTraceMiddleware, createLoggingMiddleware, createDeadSignalMiddleware } from './nervous/middleware.js'
 import TelegramChannel from './channels/telegram.js'
 import HTTPChannel from './channels/http.js'
 import FilesystemStorage from './storage/filesystem.js'
@@ -14,7 +15,7 @@ import CircuitBreakerProvider from './providers/circuit-breaker.js'
 import Watchdog from './watchdog.js'
 import { writePid, removePid } from './health.js'
 import { setupNotifications } from './notifications.js'
-import { CONFIG_CHANGED, APPROVAL_APPROVED, ERROR } from './events.js'
+import { ERROR } from './events.js'
 
 /**
  * Create a fully wired KenoBot application instance.
@@ -28,11 +29,15 @@ import { CONFIG_CHANGED, APPROVAL_APPROVED, ERROR } from './events.js'
  * @param {Object} [options.logger] - Logger instance (default: new Logger per instance)
  */
 export function createApp(config, provider, options = {}) {
-  const bus = new MessageBus()
-
   // Per-instance logger (isolates log output between createApp() calls)
   const logger = options.logger || new Logger()
   logger.configure({ dataDir: config.dataDir })
+
+  // Nervous System: signal-aware event bus with middleware and audit
+  const bus = new NervousSystem({ logger, dataDir: config.dataDir })
+  bus.use(createTraceMiddleware())
+  bus.use(createLoggingMiddleware(logger))
+  bus.use(createDeadSignalMiddleware(bus, logger))
 
   // Wrap provider with circuit breaker
   const circuitBreaker = new CircuitBreakerProvider(provider, { ...config.circuitBreaker, logger })
@@ -78,6 +83,10 @@ export function createApp(config, provider, options = {}) {
   const cognitive = new CognitiveSystem(config, memoryStore, circuitBreaker, { logger })
   const memory = cognitive.getMemorySystem()
   logger.info('system', 'cognitive_system_ready')
+  logger.info('system', 'nervous_system_ready', {
+    middleware: bus._middleware.length,
+    audit: !!bus.getAuditTrail()
+  })
 
   // ContextBuilder: Uses Cognitive System for identity and memory
   const contextBuilder = new ContextBuilder(config, storage, cognitive, { logger })
@@ -102,9 +111,9 @@ export function createApp(config, provider, options = {}) {
     channels.push(httpChannel)
   }
 
-  // Bus error handler
+  // Error handler
   bus.on(ERROR, ({ source, error }) => {
-    logger.error('bus', 'event_error', {
+    logger.error('nervous', 'signal_error', {
       source,
       error: typeof error === 'string' ? error : error?.message || String(error)
     })

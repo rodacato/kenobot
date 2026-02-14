@@ -14,7 +14,7 @@ describe('Watchdog', () => {
 
   beforeEach(() => {
     vi.useFakeTimers()
-    bus = { emit: vi.fn() }
+    bus = { emit: vi.fn(), fire: vi.fn() }
     watchdog = new Watchdog(bus, { interval: 1000 })
   })
 
@@ -48,7 +48,7 @@ describe('Watchdog', () => {
       await watchdog._runChecks()
 
       expect(watchdog.state).toBe('HEALTHY')
-      expect(bus.emit).not.toHaveBeenCalled()
+      expect(bus.fire).not.toHaveBeenCalled()
     })
 
     it('should transition to DEGRADED on non-critical failure', async () => {
@@ -58,9 +58,9 @@ describe('Watchdog', () => {
       await watchdog._runChecks()
 
       expect(watchdog.state).toBe('DEGRADED')
-      expect(bus.emit).toHaveBeenCalledWith('health:degraded', expect.objectContaining({
+      expect(bus.fire).toHaveBeenCalledWith('health:degraded', expect.objectContaining({
         previous: 'HEALTHY'
-      }))
+      }), { source: 'watchdog' })
     })
 
     it('should transition to DEGRADED on warning', async () => {
@@ -69,7 +69,7 @@ describe('Watchdog', () => {
       await watchdog._runChecks()
 
       expect(watchdog.state).toBe('DEGRADED')
-      expect(bus.emit).toHaveBeenCalledWith('health:degraded', expect.anything())
+      expect(bus.fire).toHaveBeenCalledWith('health:degraded', expect.anything(), { source: 'watchdog' })
     })
 
     it('should transition to UNHEALTHY on critical failure', async () => {
@@ -78,9 +78,9 @@ describe('Watchdog', () => {
       await watchdog._runChecks()
 
       expect(watchdog.state).toBe('UNHEALTHY')
-      expect(bus.emit).toHaveBeenCalledWith('health:unhealthy', expect.objectContaining({
+      expect(bus.fire).toHaveBeenCalledWith('health:unhealthy', expect.objectContaining({
         previous: 'HEALTHY'
-      }))
+      }), { source: 'watchdog' })
     })
 
     it('should emit recovered when returning to HEALTHY', async () => {
@@ -97,9 +97,9 @@ describe('Watchdog', () => {
       await watchdog._runChecks()
 
       expect(watchdog.state).toBe('HEALTHY')
-      expect(bus.emit).toHaveBeenCalledWith('health:recovered', expect.objectContaining({
+      expect(bus.fire).toHaveBeenCalledWith('health:recovered', expect.objectContaining({
         previous: 'DEGRADED'
-      }))
+      }), { source: 'watchdog' })
     })
 
     it('should not emit when state unchanged', async () => {
@@ -109,7 +109,7 @@ describe('Watchdog', () => {
       await watchdog._runChecks()
 
       // No emissions because state stayed HEALTHY (initial state)
-      expect(bus.emit).not.toHaveBeenCalled()
+      expect(bus.fire).not.toHaveBeenCalled()
     })
 
     it('should handle check function that throws', async () => {

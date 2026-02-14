@@ -89,13 +89,13 @@ export default class Watchdog {
 
       if (newState === 'HEALTHY' && (previous === 'DEGRADED' || previous === 'UNHEALTHY')) {
         this.logger.info('watchdog', 'recovered', { previous })
-        this.bus.emit(HEALTH_RECOVERED, { previous, detail })
+        this.bus.fire(HEALTH_RECOVERED, { previous, detail }, { source: 'watchdog' })
       } else if (newState === 'DEGRADED') {
         this.logger.warn('watchdog', 'degraded', { previous, detail })
-        this.bus.emit(HEALTH_DEGRADED, { previous, detail })
+        this.bus.fire(HEALTH_DEGRADED, { previous, detail }, { source: 'watchdog' })
       } else if (newState === 'UNHEALTHY') {
         this.logger.error('watchdog', 'unhealthy', { previous, detail })
-        this.bus.emit(HEALTH_UNHEALTHY, { previous, detail })
+        this.bus.fire(HEALTH_UNHEALTHY, { previous, detail }, { source: 'watchdog' })
       }
     }
   }
