@@ -7,7 +7,6 @@ Commands:
                       --install-gemini   Install Gemini CLI
                       --install-n8n      Install n8n workflow automation
                       --install-all      Install all of the above
-  init-cognitive      Initialize cognitive architecture in ~/.kenobot/memory/
   dev                 Start with auto-reload (uses ~/.kenobot/ paths)
   start [-d]          Start the bot (foreground, or -d for daemon)
   stop                Stop the daemon

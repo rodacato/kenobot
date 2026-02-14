@@ -23,7 +23,7 @@ import { homedir } from 'node:os'
  *   await cognitive.saveMemory(sessionId, memoryTags)
  */
 export default class CognitiveSystem {
-  constructor(config, memoryStore, provider, { logger = defaultLogger } = {}) {
+  constructor(config, memoryStore, provider, { logger = defaultLogger, identityPath: optIdentityPath } = {}) {
     this.config = config
     this.provider = provider
     this.logger = logger
@@ -36,7 +36,7 @@ export default class CognitiveSystem {
     this.useRetrieval = config.useRetrieval !== false // Default: true
 
     // Identity System
-    const identityPath = config.identityFile || join(homedir(), '.kenobot', 'memory', 'identity')
+    const identityPath = optIdentityPath || join(homedir(), '.kenobot', 'memory', 'identity')
     this.identity = new IdentityManager(identityPath, provider, { logger })
     this.useIdentity = config.useIdentity !== false // Default: true
 

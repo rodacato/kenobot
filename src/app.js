@@ -91,7 +91,11 @@ export function createApp(config, provider, options = {}) {
 
   // Cognitive System: Memory System + Identity System
   const memoryStore = new MemoryStore(config.dataDir, { logger })
-  const cognitive = new CognitiveSystem(config, memoryStore, circuitBreaker, { logger })
+  const cognitiveOpts = { logger }
+  if (options.homePath) {
+    cognitiveOpts.identityPath = join(options.homePath, 'memory', 'identity')
+  }
+  const cognitive = new CognitiveSystem(config, memoryStore, circuitBreaker, cognitiveOpts)
   const memory = cognitive.getMemorySystem()
   const sleepCycle = cognitive.getSleepCycle()
   logger.info('system', 'cognitive_system_ready')

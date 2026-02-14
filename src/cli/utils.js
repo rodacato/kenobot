@@ -11,7 +11,8 @@ import { join } from 'node:path'
 export function requiredDirs(paths) {
   return [
     { path: paths.config, label: 'config/' },
-    { path: paths.identities, label: 'config/identities/' },
+    { path: join(paths.home, 'memory'), label: 'memory/' },
+    { path: join(paths.home, 'memory', 'identity'), label: 'memory/identity/' },
     { path: paths.data, label: 'data/' },
     { path: join(paths.data, 'sessions'), label: 'data/sessions/', purge: 'always' },
     { path: join(paths.data, 'memory'), label: 'data/memory/', purge: 'memory' },

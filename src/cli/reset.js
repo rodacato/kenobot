@@ -90,7 +90,7 @@ export default async function reset(args, paths) {
       recreate: [
         {
           path: join(paths.home, 'memory', 'identity', 'BOOTSTRAP.md'),
-          template: join(paths.templates, 'identities', 'kenobot', 'BOOTSTRAP.md')
+          template: join(paths.templates, 'identity', 'BOOTSTRAP.md')
         }
       ]
     })

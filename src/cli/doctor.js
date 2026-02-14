@@ -204,28 +204,17 @@ async function checkProvider(paths) {
 }
 
 async function checkIdentity(paths) {
-  let env = {}
-  try {
-    const content = await readFile(paths.envFile, 'utf8')
-    env = parseEnvFile(content)
-  } catch {
-    // use defaults
-  }
-
-  const identityName = env.IDENTITY_FILE || 'identities/kenobot'
-  const identityDir = identityName.startsWith('/')
-    ? identityName
-    : join(paths.config, identityName)
+  const identityDir = join(paths.home, 'memory', 'identity')
 
   if (!await exists(identityDir)) {
     return {
       status: 'fail',
-      label: `Identity — directory not found: ${identityName}`,
+      label: 'Identity — directory not found: memory/identity/',
       fix: "Run 'kenobot setup' to restore default identity",
     }
   }
 
-  const expectedFiles = ['SOUL.md', 'IDENTITY.md', 'USER.md']
+  const expectedFiles = ['core.md', 'rules.json']
   const missing = []
   for (const file of expectedFiles) {
     if (!await exists(join(identityDir, file))) missing.push(file)
@@ -236,12 +225,12 @@ async function checkIdentity(paths) {
       status: 'warn',
       label: `Identity — missing: ${missing.join(', ')}`,
       fix: "Run 'kenobot setup' to restore default identity files",
-      details: missing.map(f => `${identityName}/${f}`),
+      details: missing.map(f => `memory/identity/${f}`),
     }
   }
 
-  const name = basename(identityDir)
-  return { status: 'ok', label: `Identity (${name})` }
+  const hasBootstrap = await exists(join(identityDir, 'BOOTSTRAP.md'))
+  return { status: 'ok', label: `Identity (memory/identity/)${hasBootstrap ? ' [bootstrap pending]' : ''}` }
 }
 
 async function checkTemplateIntegrity(paths) {
@@ -262,13 +251,13 @@ async function checkTemplateIntegrity(paths) {
   }
 
   // Check identity files match template
-  const tplIdentityDir = join(tplDir, 'identities', 'kenobot')
+  const tplIdentityDir = join(tplDir, 'identity')
   if (await exists(tplIdentityDir)) {
     const tplFiles = await readdir(tplIdentityDir)
-    const identityDir = join(paths.identities, 'kenobot')
+    const identityDir = join(paths.home, 'memory', 'identity')
     for (const file of tplFiles) {
       if (!await exists(join(identityDir, file))) {
-        missing.push(`config/identities/kenobot/${file}`)
+        missing.push(`memory/identity/${file}`)
       }
     }
   }

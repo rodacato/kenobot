@@ -19,9 +19,6 @@ export default async function start(args, paths) {
   // Set env vars from resolved paths BEFORE importing index.js
   process.env.KENOBOT_CONFIG = paths.envFile
   if (!process.env.DATA_DIR) process.env.DATA_DIR = paths.data
-  if (!process.env.IDENTITY_FILE) {
-    process.env.IDENTITY_FILE = join(paths.identities, 'kenobot')
-  }
   process.env.KENOBOT_PID_FILE = paths.pidFile
 
   if (values.daemon) {

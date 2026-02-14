@@ -63,7 +63,7 @@ function httpRequest(port, { method = 'POST', path = '/webhook', body, headers =
 export async function createTestApp(overrides = {}, { setup } = {}) {
   // Create temp directories
   const dataDir = await mkdtemp(join(tmpdir(), 'kenobot-e2e-'))
-  const identityDir = join(dataDir, 'identities', 'test')
+  const identityDir = join(dataDir, 'memory', 'identity')
   const skillsDir = join(dataDir, 'skills')
   const sessionsDir = join(dataDir, 'sessions')
 
@@ -71,9 +71,9 @@ export async function createTestApp(overrides = {}, { setup } = {}) {
   await mkdir(skillsDir, { recursive: true })
   await mkdir(sessionsDir, { recursive: true })
 
-  // Write minimal identity file
-  await writeFile(join(identityDir, 'SOUL.md'), '# Test Bot\nYou are a test bot.')
-  await writeFile(join(identityDir, 'IDENTITY.md'), '# Identity\nTest identity.')
+  // Write minimal cognitive identity files
+  await writeFile(join(identityDir, 'core.md'), '# Test Bot\nYou are a test bot.')
+  await writeFile(join(identityDir, 'rules.json'), JSON.stringify({ rules: [] }, null, 2))
 
   // Optional pre-start setup (e.g. create skill dirs, BOOTSTRAP.md)
   if (setup) {
@@ -85,7 +85,6 @@ export async function createTestApp(overrides = {}, { setup } = {}) {
     PROVIDER: 'mock',
     MODEL: 'test',
     DATA_DIR: dataDir,
-    IDENTITY_FILE: identityDir,
     SKILLS_DIR: skillsDir,
     TELEGRAM_BOT_TOKEN: 'fake-token',
     TELEGRAM_ALLOWED_USERS: 'e2e-user',

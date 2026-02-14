@@ -27,7 +27,6 @@ describe('createApp', () => {
       provider: 'mock',
       model: 'test',
       dataDir: '/tmp/kenobot-test',
-      identityFile: 'identities/test',
       skillsDir: './skills',
       maxToolIterations: 5,
       watchdogInterval: 60000,

@@ -45,8 +45,6 @@ export function createConfig(env = process.env) {
   const config = {
     provider: env.PROVIDER || 'claude-cli',
     model: env.MODEL || 'sonnet',
-    identityFile: env.IDENTITY_FILE || 'identities/kenobot',
-
     telegram: {
       token: env.TELEGRAM_BOT_TOKEN,
       allowedUsers: env.TELEGRAM_ALLOWED_USERS?.split(',').map(id => id.trim()) || [],

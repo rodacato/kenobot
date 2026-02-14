@@ -18,7 +18,6 @@ const paths = {
   // Config files (user-owned, never overwritten by updates)
   config: join(home, 'config'),
   envFile: join(home, 'config', '.env'),
-  identities: join(home, 'config', 'identities'),
 
   // Runtime data
   data: join(home, 'data'),

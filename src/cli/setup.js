@@ -108,11 +108,13 @@ export default async function init(args, paths) {
     'config/.env'
   )
 
-  // Sync identity template (restores missing files without overwriting)
+  // Sync identity templates to memory/identity/
+  const identityDir = join(paths.home, 'memory', 'identity')
+  await mkdir(identityDir, { recursive: true })
   await syncDir(
-    join(tpl, 'identities', 'kenobot'),
-    join(paths.identities, 'kenobot'),
-    'config/identities/kenobot/'
+    join(tpl, 'identity'),
+    identityDir,
+    'memory/identity/'
   )
 
   await copyIfMissing(

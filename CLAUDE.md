@@ -63,7 +63,7 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `ci`, `perf`
 
 **Code style**: 2-space indent, UTF-8, LF endings. Pure ESM with `.js` extensions on all imports. No TypeScript, no ESLint/Prettier.
 
-**Identity files**: `templates/identities/kenobot/` contains the bot's identity templates (SOUL.md, IDENTITY.md, USER.md, BOOTSTRAP.md). At runtime, identity loads from `~/.kenobot/memory/identity/`. This is the bot's system prompt, not developer instructions.
+**Identity files**: `templates/identity/` contains the bot's identity templates (core.md, rules.json, BOOTSTRAP.md). At runtime, identity loads from `~/.kenobot/memory/identity/`. This is the bot's system prompt, not developer instructions.
 
 ## Testing
 
