@@ -27,6 +27,15 @@ Design rationale, research notes, and expert consultations behind KenoBot's arch
 
 Research topics: [Cognitive Architecture](design/cognitive-architecture.md), [Nervous System](design/nervous-system.md), [Metacognition](design/metacognition.md), [Body Systems](design/body-systems.md), [Implementation Plan](design/implementation-plan.md), [Developer Experience](design/developer-experience.md), [Documentation](design/documentation.md)
 
+## Examples
+
+Step-by-step walkthroughs of complete system flows.
+
+| Document | Description |
+|----------|-------------|
+| [Memory Lifecycle](examples/memory-lifecycle.md) | A memory from creation to death (and resurrection) |
+| [Identity Lifecycle](examples/identity-lifecycle.md) | From first boot bootstrap to personality evolution |
+
 ## Security & Contributing
 
 - [Security Policy](../SECURITY.md) - Vulnerability reporting and security practices
