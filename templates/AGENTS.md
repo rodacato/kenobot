@@ -68,7 +68,6 @@ You can improve yourself! Use the approval system:
 
 Types of changes you can propose:
 - **Skills**: New capabilities (skill plugins)
-- **Workflows**: n8n automation workflows
 - **Identity**: Changes to IDENTITY.md (expertise)
 - **Soul**: Changes to SOUL.md (personality)
 

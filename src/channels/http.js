@@ -12,7 +12,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const pkg = JSON.parse(await readFile(join(__dirname, '..', '..', 'package.json'), 'utf8'))
 
 /**
- * HTTPChannel - Webhook endpoint for external integrations (n8n, curl, etc.)
+ * HTTPChannel - Webhook endpoint for external integrations (curl, scripts, etc.)
  *
  * Receives POST /webhook with HMAC-SHA256 signature validation.
  * Returns agent response synchronously in the HTTP response body.

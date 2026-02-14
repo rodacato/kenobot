@@ -36,10 +36,6 @@ describe('createApp', () => {
         allowedUsers: ['123'],
         allowedChatIds: [],
       },
-      n8n: {},
-      configRepo: '',
-      sshKeyPath: '',
-      workspaceDir: '',
       http: { enabled: false },
     }
 

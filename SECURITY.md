@@ -73,7 +73,6 @@ Every POST to `/webhook` must include an `X-Webhook-Signature` header with a val
 ### Tool Execution
 
 - **web_fetch**: 15-second timeout, 10KB response limit, follows redirects
-- **n8n_trigger**: 30-second timeout, only calls the configured `N8N_WEBHOOK_BASE`
 - **schedule**: Creates cron jobs that emit bus events, no shell execution
 - **Tool loop safety**: Maximum 20 tool iterations per message (configurable via `MAX_TOOL_ITERATIONS`)
 

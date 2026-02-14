@@ -59,18 +59,6 @@ export function createApp(config, provider, options = {}) {
     return { status: 'ok', detail: `${mb}MB RSS` }
   })
 
-  if (config.n8n?.apiUrl) {
-    watchdog.registerCheck('n8n', async () => {
-      try {
-        const res = await fetch(`${config.n8n.apiUrl}/healthz`, { signal: AbortSignal.timeout(5000) })
-        if (res.ok) return { status: 'ok', detail: 'n8n reachable' }
-        return { status: 'fail', detail: `n8n returned ${res.status}` }
-      } catch (error) {
-        return { status: 'fail', detail: `n8n unreachable: ${error.message}` }
-      }
-    })
-  }
-
   // Sleep cycle health check
   watchdog.registerCheck('sleep-cycle', () => {
     const state = sleepCycle.getState()

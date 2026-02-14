@@ -58,12 +58,6 @@ export function createConfig(env = process.env) {
     sessionHistoryLimit: int('SESSION_HISTORY_LIMIT', 20, { min: 1 }),
     maxToolIterations: int('MAX_TOOL_ITERATIONS', 20, { min: 1, max: 100 }),
 
-    n8n: {
-      webhookBase: env.N8N_WEBHOOK_BASE || '',
-      apiUrl: env.N8N_API_URL || '',
-      apiKey: env.N8N_API_KEY || ''
-    },
-
     selfImprovementEnabled: env.SELF_IMPROVEMENT_ENABLED === 'true',
     approvalRequired: env.APPROVAL_REQUIRED !== 'false',
     watchdogInterval: int('WATCHDOG_INTERVAL', 60000, { min: 5000 }),
