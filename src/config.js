@@ -58,6 +58,9 @@ export function createConfig(env = process.env) {
     sessionHistoryLimit: int('SESSION_HISTORY_LIMIT', 20, { min: 1 }),
     maxToolIterations: int('MAX_TOOL_ITERATIONS', 20, { min: 1, max: 100 }),
 
+    enableScheduler: env.ENABLE_SCHEDULER !== 'false',
+    timezone: env.TIMEZONE || '',
+
     selfImprovementEnabled: env.SELF_IMPROVEMENT_ENABLED === 'true',
     approvalRequired: env.APPROVAL_REQUIRED !== 'false',
     watchdogInterval: int('WATCHDOG_INTERVAL', 60000, { min: 5000 }),

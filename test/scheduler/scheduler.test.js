@@ -291,6 +291,18 @@ describe('Scheduler', () => {
     })
   })
 
+  describe('timezone', () => {
+    it('should store timezone option', () => {
+      const tz = new Scheduler(mockBus, dataDir, { timezone: 'America/Mexico_City' })
+      expect(tz.timezone).toBe('America/Mexico_City')
+      tz.stop()
+    })
+
+    it('should default to empty timezone', () => {
+      expect(scheduler.timezone).toBe('')
+    })
+  })
+
   describe('size', () => {
     it('should return 0 when empty', () => {
       expect(scheduler.size).toBe(0)

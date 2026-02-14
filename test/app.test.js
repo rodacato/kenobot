@@ -134,4 +134,21 @@ describe('createApp', () => {
     expect(app.storage.logger).toBe(app.logger)
     expect(app.memory.logger).toBe(app.logger)
   })
+
+  it('should use null-object scheduler when enableScheduler is false', () => {
+    config.enableScheduler = false
+    const app = createApp(config, provider)
+
+    expect(app.scheduler.size).toBe(0)
+    expect(app.scheduler.list()).toEqual([])
+    expect(typeof app.scheduler.stop).toBe('function')
+    expect(typeof app.scheduler.loadTasks).toBe('function')
+  })
+
+  it('should create real scheduler by default (enableScheduler unset)', () => {
+    const app = createApp(config, provider)
+
+    // Real scheduler has a logger property
+    expect(app.scheduler.logger).toBe(app.logger)
+  })
 })

@@ -74,7 +74,9 @@ export function createApp(config, provider, options = {}) {
   setupNotifications(bus, config)
 
   // Core components
-  const scheduler = new Scheduler(bus, config.dataDir, { logger })
+  const scheduler = config.enableScheduler === false
+    ? { loadTasks: async () => {}, stop() {}, list: () => [], get size() { return 0 } }
+    : new Scheduler(bus, config.dataDir, { timezone: config.timezone, logger })
   const storage = new FilesystemStorage(config, { logger })
 
   // Cognitive System: Memory System + Identity System

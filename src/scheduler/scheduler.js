@@ -17,11 +17,12 @@ import defaultLogger from '../logger.js'
 const DEFAULT_MAX_TASKS = 50
 
 export default class Scheduler {
-  constructor(bus, dataDir, { maxTasks = DEFAULT_MAX_TASKS, logger = defaultLogger } = {}) {
+  constructor(bus, dataDir, { maxTasks = DEFAULT_MAX_TASKS, timezone = '', logger = defaultLogger } = {}) {
     this.bus = bus
     this.tasksFile = join(dataDir, 'scheduler', 'tasks.json')
     this.tasks = new Map()
     this.maxTasks = maxTasks
+    this.timezone = timezone
     this.logger = logger
   }
 
@@ -113,6 +114,7 @@ export default class Scheduler {
 
   /** @private Start a cron job for a task */
   _startJob(task) {
+    const opts = this.timezone ? { timezone: this.timezone } : {}
     const job = cron.schedule(task.cronExpr, () => {
       this.logger.info('scheduler', 'task_fired', { id: task.id, description: task.description })
       this.bus.fire(MESSAGE_IN, {
@@ -122,7 +124,7 @@ export default class Scheduler {
         channel: task.channel,
         scheduled: true
       }, { source: 'scheduler' })
-    })
+    }, opts)
     this.tasks.set(task.id, { ...task, job })
   }
 
