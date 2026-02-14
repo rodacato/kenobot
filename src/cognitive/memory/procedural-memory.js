@@ -3,9 +3,6 @@ import defaultLogger from '../../logger.js'
 /**
  * ProceduralMemory - Learned behavioral patterns
  *
- * Phase 3: Placeholder (patterns.json structure defined)
- * Phase 4: Will be populated by SleepCycle consolidation
- *
  * Patterns:
  * - Trigger: Condition to activate ("n8n + 401 error")
  * - Response: Suggested action ("Check ?token= query param first")
@@ -13,45 +10,90 @@ import defaultLogger from '../../logger.js'
  * - Usage count: How often used
  * - Learned from: Source episode
  *
- * Future file: memory/procedural/patterns.json
+ * Persisted at: data/memory/procedural/patterns.json
  */
 export default class ProceduralMemory {
   constructor(memoryStore, { logger = defaultLogger } = {}) {
     this.store = memoryStore
     this.logger = logger
-    this.patterns = [] // In-memory cache
+    this.patterns = []
+    this._loaded = false
+  }
+
+  /**
+   * Load patterns from store on first access.
+   * @private
+   */
+  async _ensureLoaded() {
+    if (this._loaded) return
+    if (this.store.readPatterns) {
+      this.patterns = await this.store.readPatterns()
+    }
+    this._loaded = true
+  }
+
+  /**
+   * Persist current patterns to store.
+   * @private
+   */
+  async _persist() {
+    if (this.store.writePatterns) {
+      await this.store.writePatterns(this.patterns)
+    }
   }
 
   /**
    * Get all learned patterns.
-   * Phase 3: Returns empty array (not implemented yet)
-   * Phase 4: Will load from patterns.json
    *
    * @returns {Promise<Array<{id: string, trigger: string, response: string, confidence: number}>>}
    */
   async getAll() {
-    // Phase 4: Load from store
+    await this._ensureLoaded()
     return this.patterns
   }
 
   /**
    * Match patterns against message text.
-   * Phase 3: Returns empty array (not implemented yet)
-   * Phase 4: Will use pattern matching logic
+   * Returns patterns whose trigger keywords appear in the message.
    *
    * @param {string} messageText
-   * @returns {Promise<Array<{id: string, trigger: string, response: string, confidence: number}>>}
+   * @returns {Promise<Array<{id: string, trigger: string, response: string, confidence: number, score: number}>>}
    */
   async match(messageText) {
-    // Phase 4: Implement pattern matching
-    // For now, return empty
-    return []
+    await this._ensureLoaded()
+    if (!messageText || this.patterns.length === 0) return []
+
+    const messageLower = messageText.toLowerCase()
+    const matched = []
+
+    for (const pattern of this.patterns) {
+      const triggerWords = pattern.trigger
+        .toLowerCase()
+        .split(/[\s+,]+/)
+        .filter(w => w.length > 2)
+
+      let score = 0
+      for (const word of triggerWords) {
+        if (messageLower.includes(word)) {
+          score += 1
+        }
+      }
+
+      if (score > 0 && triggerWords.length > 0) {
+        const coverage = score / triggerWords.length
+        matched.push({
+          ...pattern,
+          score: coverage * pattern.confidence
+        })
+      }
+    }
+
+    return matched
+      .sort((a, b) => b.score - a.score)
   }
 
   /**
    * Add a new learned pattern.
-   * Phase 3: No-op (store in memory only)
-   * Phase 4: Will persist to patterns.json
    *
    * @param {Object} pattern
    * @param {string} pattern.id
@@ -62,7 +104,6 @@ export default class ProceduralMemory {
    * @returns {Promise<void>}
    */
   async add(pattern) {
-    // Validate pattern
     if (!pattern.id || !pattern.trigger || !pattern.response) {
       throw new Error('Pattern must have id, trigger, and response')
     }
@@ -71,19 +112,20 @@ export default class ProceduralMemory {
       throw new Error('Pattern confidence must be a number between 0 and 1')
     }
 
-    // Add to in-memory cache
+    await this._ensureLoaded()
+
     this.patterns.push({
       ...pattern,
       usageCount: pattern.usageCount || 0,
       createdAt: new Date().toISOString()
     })
 
+    await this._persist()
+
     this.logger.info('procedural-memory', 'pattern_added', {
       id: pattern.id,
       trigger: pattern.trigger.slice(0, 50)
     })
-
-    // Phase 4: Persist to patterns.json
   }
 
   /**
@@ -93,15 +135,15 @@ export default class ProceduralMemory {
    * @returns {Promise<boolean>} True if removed, false if not found
    */
   async remove(id) {
-    const index = this.patterns.findIndex(p => p.id === id)
+    await this._ensureLoaded()
 
+    const index = this.patterns.findIndex(p => p.id === id)
     if (index === -1) return false
 
     this.patterns.splice(index, 1)
+    await this._persist()
 
     this.logger.info('procedural-memory', 'pattern_removed', { id })
-
-    // Phase 4: Persist changes
     return true
   }
 }

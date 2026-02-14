@@ -6,10 +6,11 @@ import defaultLogger from '../logger.js'
  * MemoryStore - Persistence layer for the Memory System
  *
  * Filesystem-backed storage for all memory types:
- *   data/memory/MEMORY.md          — global long-term facts
- *   data/memory/YYYY-MM-DD.md      — global daily logs
- *   data/memory/chats/{id}/        — per-chat memory
- *   data/memory/working/{id}.md    — session scratchpad
+ *   data/memory/MEMORY.md                  — global long-term facts
+ *   data/memory/YYYY-MM-DD.md              — global daily logs
+ *   data/memory/chats/{id}/                — per-chat memory
+ *   data/memory/working/{id}.md            — session scratchpad
+ *   data/memory/procedural/patterns.json   — learned behavioral patterns
  *
  * Consumed by MemorySystem (via cognitive sub-classes).
  */
@@ -119,6 +120,83 @@ export default class MemoryStore {
     } catch {
       return null
     }
+  }
+
+  // --- Procedural memory ---
+
+  /**
+   * Read procedural patterns from JSON file.
+   * @returns {Promise<Array<Object>>} Stored patterns or empty array
+   */
+  async readPatterns() {
+    try {
+      const filepath = join(this.memoryDir, 'procedural', 'patterns.json')
+      const content = await readFile(filepath, 'utf8')
+      return JSON.parse(content)
+    } catch {
+      return []
+    }
+  }
+
+  /**
+   * Write procedural patterns to JSON file.
+   * @param {Array<Object>} patterns - Patterns to persist
+   */
+  async writePatterns(patterns) {
+    const dir = join(this.memoryDir, 'procedural')
+    await mkdir(dir, { recursive: true })
+    const filepath = join(dir, 'patterns.json')
+    await writeFile(filepath, JSON.stringify(patterns, null, 2), 'utf8')
+    this.logger.info('memory-store', 'patterns_written', { count: patterns.length })
+  }
+
+  // --- Enumeration ---
+
+  /**
+   * List all chat session IDs.
+   * @returns {Promise<string[]>} Session IDs
+   */
+  async listChatSessions() {
+    try {
+      const chatDir = join(this.memoryDir, 'chats')
+      const entries = await readdir(chatDir, { withFileTypes: true })
+      return entries.filter(e => e.isDirectory()).map(e => e.name)
+    } catch {
+      return []
+    }
+  }
+
+  /**
+   * List all working memory session IDs.
+   * @returns {Promise<Array<{sessionId: string, updatedAt: number}>>}
+   */
+  async listWorkingMemorySessions() {
+    try {
+      const { stat } = await import('node:fs/promises')
+      const dir = join(this.memoryDir, 'working')
+      const files = await readdir(dir)
+      const sessions = []
+      for (const file of files) {
+        if (!file.endsWith('.md')) continue
+        const sessionId = file.replace('.md', '')
+        const fileStat = await stat(join(dir, file))
+        sessions.push({ sessionId, updatedAt: fileStat.mtimeMs })
+      }
+      return sessions
+    } catch {
+      return []
+    }
+  }
+
+  /**
+   * Delete working memory for a session.
+   * @param {string} sessionId
+   */
+  async deleteWorkingMemory(sessionId) {
+    const { unlink } = await import('node:fs/promises')
+    const filepath = join(this.memoryDir, 'working', `${sessionId}.md`)
+    await unlink(filepath)
+    this.logger.info('memory-store', 'working_memory_deleted', { sessionId })
   }
 
   // --- Compaction ---

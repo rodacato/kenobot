@@ -16,7 +16,10 @@ describe('ProceduralMemory', () => {
   let mockStore
 
   beforeEach(() => {
-    mockStore = {}
+    mockStore = {
+      readPatterns: vi.fn().mockResolvedValue([]),
+      writePatterns: vi.fn().mockResolvedValue(undefined)
+    }
     proceduralMemory = new ProceduralMemory(mockStore)
     vi.clearAllMocks()
   })
@@ -26,6 +29,27 @@ describe('ProceduralMemory', () => {
       const result = await proceduralMemory.getAll()
 
       expect(result).toEqual([])
+    })
+
+    it('should load patterns from store on first access', async () => {
+      const storedPatterns = [
+        { id: 'p1', trigger: 'test', response: 'action', confidence: 0.8, usageCount: 0, createdAt: '2025-01-01' }
+      ]
+      mockStore.readPatterns.mockResolvedValue(storedPatterns)
+
+      const result = await proceduralMemory.getAll()
+
+      expect(result).toEqual(storedPatterns)
+      expect(mockStore.readPatterns).toHaveBeenCalledOnce()
+    })
+
+    it('should only load from store once', async () => {
+      mockStore.readPatterns.mockResolvedValue([])
+
+      await proceduralMemory.getAll()
+      await proceduralMemory.getAll()
+
+      expect(mockStore.readPatterns).toHaveBeenCalledOnce()
     })
 
     it('should return added patterns', async () => {
@@ -46,18 +70,100 @@ describe('ProceduralMemory', () => {
         confidence: 0.8
       })
     })
-  })
 
-  describe('match', () => {
-    it('should return empty array (not implemented)', async () => {
-      const result = await proceduralMemory.match('some message text')
+    it('should work with a store that has no readPatterns method', async () => {
+      const basicStore = {}
+      const pm = new ProceduralMemory(basicStore)
 
+      const result = await pm.getAll()
       expect(result).toEqual([])
     })
   })
 
+  describe('match', () => {
+    it('should return empty array when no patterns', async () => {
+      const result = await proceduralMemory.match('some message text')
+
+      expect(result).toEqual([])
+    })
+
+    it('should return empty array for empty message', async () => {
+      await proceduralMemory.add({
+        id: 'p1',
+        trigger: 'n8n webhook error',
+        response: 'Check token param',
+        confidence: 0.9
+      })
+
+      const result = await proceduralMemory.match('')
+
+      expect(result).toEqual([])
+    })
+
+    it('should match patterns by trigger keywords', async () => {
+      await proceduralMemory.add({
+        id: 'p1',
+        trigger: 'n8n webhook error',
+        response: 'Check token param',
+        confidence: 0.9
+      })
+
+      const result = await proceduralMemory.match('I got an error with n8n webhook')
+
+      expect(result).toHaveLength(1)
+      expect(result[0].id).toBe('p1')
+      expect(result[0].score).toBeGreaterThan(0)
+    })
+
+    it('should not match when no keywords overlap', async () => {
+      await proceduralMemory.add({
+        id: 'p1',
+        trigger: 'n8n webhook error',
+        response: 'Check token param',
+        confidence: 0.9
+      })
+
+      const result = await proceduralMemory.match('How is the weather today?')
+
+      expect(result).toEqual([])
+    })
+
+    it('should rank matches by score (coverage * confidence)', async () => {
+      await proceduralMemory.add({
+        id: 'p1',
+        trigger: 'n8n webhook error',
+        response: 'Check token param',
+        confidence: 0.9
+      })
+      await proceduralMemory.add({
+        id: 'p2',
+        trigger: 'telegram bot error',
+        response: 'Check bot token',
+        confidence: 0.8
+      })
+
+      const result = await proceduralMemory.match('I got an error with n8n webhook')
+
+      expect(result[0].id).toBe('p1')
+      expect(result[0].score).toBeGreaterThan(result[1].score)
+    })
+
+    it('should be case-insensitive', async () => {
+      await proceduralMemory.add({
+        id: 'p1',
+        trigger: 'N8N Webhook',
+        response: 'Check token',
+        confidence: 0.8
+      })
+
+      const result = await proceduralMemory.match('n8n webhook issue')
+
+      expect(result).toHaveLength(1)
+    })
+  })
+
   describe('add', () => {
-    it('should add a valid pattern', async () => {
+    it('should add a valid pattern and persist', async () => {
       await proceduralMemory.add({
         id: 'pattern-1',
         trigger: 'n8n webhook',
@@ -77,6 +183,7 @@ describe('ProceduralMemory', () => {
         usageCount: 0
       })
       expect(patterns[0].createdAt).toBeDefined()
+      expect(mockStore.writePatterns).toHaveBeenCalled()
     })
 
     it('should throw error if missing required fields', async () => {
@@ -125,7 +232,7 @@ describe('ProceduralMemory', () => {
   })
 
   describe('remove', () => {
-    it('should remove existing pattern', async () => {
+    it('should remove existing pattern and persist', async () => {
       await proceduralMemory.add({
         id: 'pattern-1',
         trigger: 'test',
@@ -133,11 +240,13 @@ describe('ProceduralMemory', () => {
         confidence: 0.5
       })
 
+      vi.clearAllMocks()
       const removed = await proceduralMemory.remove('pattern-1')
 
       expect(removed).toBe(true)
       const patterns = await proceduralMemory.getAll()
       expect(patterns).toHaveLength(0)
+      expect(mockStore.writePatterns).toHaveBeenCalled()
     })
 
     it('should return false for non-existent pattern', async () => {
@@ -165,6 +274,27 @@ describe('ProceduralMemory', () => {
       const patterns = await proceduralMemory.getAll()
       expect(patterns).toHaveLength(1)
       expect(patterns[0].id).toBe('pattern-2')
+    })
+  })
+
+  describe('persistence', () => {
+    it('should load patterns from store and merge with runtime adds', async () => {
+      const storedPatterns = [
+        { id: 'stored-1', trigger: 'old pattern', response: 'old action', confidence: 0.7, usageCount: 5, createdAt: '2025-01-01' }
+      ]
+      mockStore.readPatterns.mockResolvedValue(storedPatterns)
+
+      await proceduralMemory.add({
+        id: 'new-1',
+        trigger: 'new pattern',
+        response: 'new action',
+        confidence: 0.6
+      })
+
+      const all = await proceduralMemory.getAll()
+      expect(all).toHaveLength(2)
+      expect(all[0].id).toBe('stored-1')
+      expect(all[1].id).toBe('new-1')
     })
   })
 })
