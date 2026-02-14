@@ -4,11 +4,10 @@ import defaultLogger from '../../logger.js'
  * Consolidator - Converts episodic memories to semantic facts and procedural patterns
  *
  * Process:
- * 1. Load recent episodes (last 24h)
+ * 1. Load recent episodes (last 24h) from all chats + global
  * 2. Filter salient episodes (errors, successes, novel events)
- * 3. Cluster similar episodes
+ * 3. Extract facts → SemanticMemory
  * 4. Extract patterns → ProceduralMemory
- * 5. Extract facts → SemanticMemory
  *
  * Phase 4: Simple extraction based on keywords and frequency
  * Phase 6: Use embeddings for semantic clustering
@@ -28,28 +27,82 @@ export default class Consolidator {
   async run() {
     this.logger.info('consolidator', 'started', {})
 
-    // Phase 4: Placeholder implementation
-    // TODO: Load episodes, filter salient, extract patterns/facts
+    // 1. Load recent episodes
+    const episodes = await this._loadRecentEpisodes()
+
+    if (episodes.length === 0) {
+      const result = { episodesProcessed: 0, patternsAdded: 0, factsAdded: 0 }
+      this.logger.info('consolidator', 'completed', result)
+      return result
+    }
+
+    // 2. Filter salient episodes
+    const salient = episodes.filter(ep => this.scoreSalience(ep) >= this.salienceThreshold)
+
+    // 3. Extract facts from salient episodes
+    const facts = this.extractFacts(salient)
+    for (const fact of facts) {
+      await this.memory.addFact(fact)
+    }
+
+    // 4. Extract patterns from error+resolution episodes
+    const patterns = this.extractPatterns(salient)
+    for (const pattern of patterns) {
+      await this.memory.procedural.add(pattern)
+    }
 
     const result = {
-      episodesProcessed: 0,
-      patternsAdded: 0,
-      factsAdded: 0
+      episodesProcessed: episodes.length,
+      patternsAdded: patterns.length,
+      factsAdded: facts.length
     }
 
     this.logger.info('consolidator', 'completed', result)
-
     return result
   }
 
   /**
+   * Load recent episodes from all sources.
+   * @private
+   * @returns {Promise<string[]>} Individual episode entries
+   */
+  async _loadRecentEpisodes() {
+    const entries = []
+
+    // Load global daily logs (last 1 day)
+    const globalRecent = await this.memory.getRecentDays(1)
+    if (globalRecent) {
+      entries.push(...this._parseEntries(globalRecent))
+    }
+
+    // Load per-chat episodes (last 1 day)
+    if (this.memory.store?.listChatSessions) {
+      const sessions = await this.memory.store.listChatSessions()
+      for (const sessionId of sessions) {
+        const chatRecent = await this.memory.getChatRecentDays(sessionId, 1)
+        if (chatRecent) {
+          entries.push(...this._parseEntries(chatRecent))
+        }
+      }
+    }
+
+    return entries
+  }
+
+  /**
+   * Parse markdown-formatted episode text into individual entries.
+   * Entries are separated by "## HH:MM —" headers.
+   * @private
+   */
+  _parseEntries(text) {
+    if (!text) return []
+    return text.split(/(?=## \d{2}:\d{2} —)/)
+      .map(e => e.trim())
+      .filter(e => e.length > 0)
+  }
+
+  /**
    * Determine if an episode is salient (worth consolidating).
-   *
-   * Salient episodes include:
-   * - Errors or failures
-   * - Successes or achievements
-   * - Novel situations
-   * - User corrections
    *
    * @param {string} episode - Episode text
    * @returns {number} Salience score (0.0 - 1.0)
@@ -83,34 +136,88 @@ export default class Consolidator {
   }
 
   /**
-   * Extract patterns from a cluster of similar episodes.
+   * Extract semantic facts from salient episodes.
+   * Looks for declarative statements about preferences, states, and knowledge.
    *
-   * Pattern format:
-   * {
-   *   trigger: "condition that activates pattern",
-   *   response: "suggested action",
-   *   confidence: 0.0-1.0,
-   *   learnedFrom: "episode-id"
-   * }
+   * @param {Array<string>} episodes - Salient episodes
+   * @returns {Array<string>} Extracted facts
+   */
+  extractFacts(episodes) {
+    const facts = []
+    const factIndicators = ['prefers', 'likes', 'always', 'never', 'wants', 'uses', 'needs']
+
+    for (const episode of episodes) {
+      const lines = episode.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+
+      for (const line of lines) {
+        // Skip section headers (### date) but not timestamp entries (## HH:MM —)
+        if (line.startsWith('#') && !/^## \d{2}:\d{2} —/.test(line)) continue
+
+        const cleaned = line.replace(/^## \d{2}:\d{2} — /, '').trim()
+        const lower = cleaned.toLowerCase()
+        const hasFact = factIndicators.some(indicator => lower.includes(indicator))
+
+        if (hasFact && cleaned.length > 10) {
+          facts.push(cleaned)
+        }
+      }
+    }
+
+    return facts
+  }
+
+  /**
+   * Extract procedural patterns from episodes containing error+resolution pairs.
+   *
+   * @param {Array<string>} episodes - Salient episodes
+   * @returns {Array<Object>} Extracted patterns
+   */
+  extractPatterns(episodes) {
+    const patterns = []
+
+    for (const episode of episodes) {
+      const lower = episode.toLowerCase()
+
+      // Look for error + resolution pattern
+      const hasError = lower.includes('error') || lower.includes('fail')
+      const hasResolution = lower.includes('solved') || lower.includes('fixed') ||
+        lower.includes('solution') || lower.includes('resolved')
+
+      if (hasError && hasResolution) {
+        const lines = episode.split('\n').map(l => l.trim()).filter(l =>
+          l.length > 0 && (!l.startsWith('#') || /^## \d{2}:\d{2} —/.test(l))
+        )
+
+        const errorLines = lines.filter(l => l.toLowerCase().includes('error') || l.toLowerCase().includes('fail'))
+        const resolutionLines = lines.filter(l =>
+          l.toLowerCase().includes('solved') || l.toLowerCase().includes('fixed') ||
+          l.toLowerCase().includes('solution') || l.toLowerCase().includes('resolved')
+        )
+
+        if (errorLines.length > 0 && resolutionLines.length > 0) {
+          patterns.push({
+            id: `pattern-${Date.now()}-${patterns.length}`,
+            trigger: errorLines[0].replace(/^## \d{2}:\d{2} — /, '').slice(0, 100),
+            response: resolutionLines[0].replace(/^## \d{2}:\d{2} — /, '').slice(0, 200),
+            confidence: 0.6,
+            learnedFrom: 'consolidation'
+          })
+        }
+      }
+    }
+
+    return patterns
+  }
+
+  /**
+   * Extract a single pattern from a cluster of similar episodes.
+   * @deprecated Use extractPatterns() instead
    *
    * @param {Array<string>} episodes - Cluster of similar episodes
    * @returns {Object|null} Extracted pattern or null
    */
   extractPattern(episodes) {
-    // Phase 4: Placeholder
-    // TODO: Implement pattern extraction logic
-    return null
-  }
-
-  /**
-   * Extract semantic facts from episodes.
-   *
-   * @param {Array<string>} episodes - Episodes to extract from
-   * @returns {Array<string>} Extracted facts
-   */
-  extractFacts(episodes) {
-    // Phase 4: Placeholder
-    // TODO: Implement fact extraction logic
-    return []
+    const patterns = this.extractPatterns(episodes)
+    return patterns.length > 0 ? patterns[0] : null
   }
 }

@@ -15,7 +15,16 @@ describe('MemoryPruner', () => {
   let mockMemory
 
   beforeEach(() => {
-    mockMemory = {}
+    mockMemory = {
+      getPatterns: vi.fn().mockResolvedValue([]),
+      store: {
+        listWorkingMemorySessions: vi.fn().mockResolvedValue([]),
+        deleteWorkingMemory: vi.fn().mockResolvedValue(undefined)
+      },
+      procedural: {
+        remove: vi.fn().mockResolvedValue(true)
+      }
+    }
     pruner = new MemoryPruner(mockMemory)
     vi.clearAllMocks()
   })
@@ -45,10 +54,65 @@ describe('MemoryPruner', () => {
       expect(result).toHaveProperty('episodesCompressed')
       expect(result).toHaveProperty('patternsPruned')
     })
+
+    it('should delegate to sub-methods', async () => {
+      // Setup stale working memory
+      const tenDaysAgo = Date.now() - 10 * 24 * 60 * 60 * 1000
+      mockMemory.store.listWorkingMemorySessions.mockResolvedValue([
+        { sessionId: 'old-session', updatedAt: tenDaysAgo }
+      ])
+
+      // Setup low-confidence pattern
+      mockMemory.getPatterns.mockResolvedValue([
+        { id: 'p1', confidence: 0.1, usageCount: 0 }
+      ])
+
+      const result = await pruner.run()
+
+      expect(result.workingPruned).toBe(1)
+      expect(result.patternsPruned).toBe(1)
+    })
   })
 
   describe('pruneWorkingMemory', () => {
-    it('should return 0 for placeholder', async () => {
+    it('should return 0 when no stale sessions', async () => {
+      mockMemory.store.listWorkingMemorySessions.mockResolvedValue([
+        { sessionId: 'recent', updatedAt: Date.now() }
+      ])
+
+      const count = await pruner.pruneWorkingMemory()
+
+      expect(count).toBe(0)
+    })
+
+    it('should delete stale sessions', async () => {
+      const tenDaysAgo = Date.now() - 10 * 24 * 60 * 60 * 1000
+      mockMemory.store.listWorkingMemorySessions.mockResolvedValue([
+        { sessionId: 'stale-1', updatedAt: tenDaysAgo },
+        { sessionId: 'recent', updatedAt: Date.now() }
+      ])
+
+      const count = await pruner.pruneWorkingMemory()
+
+      expect(count).toBe(1)
+      expect(mockMemory.store.deleteWorkingMemory).toHaveBeenCalledWith('stale-1')
+    })
+
+    it('should return 0 when store has no listWorkingMemorySessions', async () => {
+      const basicPruner = new MemoryPruner({ store: {}, getPatterns: vi.fn().mockResolvedValue([]) })
+
+      const count = await basicPruner.pruneWorkingMemory()
+
+      expect(count).toBe(0)
+    })
+
+    it('should handle delete errors gracefully', async () => {
+      const tenDaysAgo = Date.now() - 10 * 24 * 60 * 60 * 1000
+      mockMemory.store.listWorkingMemorySessions.mockResolvedValue([
+        { sessionId: 'stale-1', updatedAt: tenDaysAgo }
+      ])
+      mockMemory.store.deleteWorkingMemory.mockRejectedValue(new Error('Permission denied'))
+
       const count = await pruner.pruneWorkingMemory()
 
       expect(count).toBe(0)
@@ -56,7 +120,7 @@ describe('MemoryPruner', () => {
   })
 
   describe('compressEpisodes', () => {
-    it('should return 0 for placeholder', async () => {
+    it('should return 0 (Phase 6 placeholder)', async () => {
       const count = await pruner.compressEpisodes()
 
       expect(count).toBe(0)
@@ -64,7 +128,39 @@ describe('MemoryPruner', () => {
   })
 
   describe('prunePatterns', () => {
-    it('should return 0 for placeholder', async () => {
+    it('should return 0 when no patterns', async () => {
+      const count = await pruner.prunePatterns()
+
+      expect(count).toBe(0)
+    })
+
+    it('should remove low-confidence unused patterns', async () => {
+      mockMemory.getPatterns.mockResolvedValue([
+        { id: 'p1', confidence: 0.1, usageCount: 0 },
+        { id: 'p2', confidence: 0.8, usageCount: 3 }
+      ])
+
+      const count = await pruner.prunePatterns()
+
+      expect(count).toBe(1)
+      expect(mockMemory.procedural.remove).toHaveBeenCalledWith('p1')
+    })
+
+    it('should keep low-confidence patterns that have been used', async () => {
+      mockMemory.getPatterns.mockResolvedValue([
+        { id: 'p1', confidence: 0.2, usageCount: 5 }
+      ])
+
+      const count = await pruner.prunePatterns()
+
+      expect(count).toBe(0)
+    })
+
+    it('should keep high-confidence unused patterns', async () => {
+      mockMemory.getPatterns.mockResolvedValue([
+        { id: 'p1', confidence: 0.9, usageCount: 0 }
+      ])
+
       const count = await pruner.prunePatterns()
 
       expect(count).toBe(0)
@@ -72,8 +168,36 @@ describe('MemoryPruner', () => {
   })
 
   describe('findSimilarEpisodes', () => {
-    it('should return empty array for placeholder', () => {
-      const groups = pruner.findSimilarEpisodes(['ep1', 'ep2', 'ep3'])
+    it('should return empty array for empty input', () => {
+      expect(pruner.findSimilarEpisodes([])).toEqual([])
+    })
+
+    it('should return empty array for single episode', () => {
+      expect(pruner.findSimilarEpisodes(['one episode'])).toEqual([])
+    })
+
+    it('should group similar episodes together', () => {
+      const episodes = [
+        'The user asked about the weather in New York today',
+        'The user asked about the weather in New York tomorrow',
+        'A completely different topic about programming in Python'
+      ]
+
+      const groups = pruner.findSimilarEpisodes(episodes)
+
+      expect(groups.length).toBeGreaterThan(0)
+      expect(groups[0]).toContain(0)
+      expect(groups[0]).toContain(1)
+    })
+
+    it('should not group dissimilar episodes', () => {
+      const episodes = [
+        'Discussing quantum physics and particle interactions',
+        'Cooking recipes for Italian pasta dishes',
+        'JavaScript programming and web development'
+      ]
+
+      const groups = pruner.findSimilarEpisodes(episodes)
 
       expect(groups).toEqual([])
     })

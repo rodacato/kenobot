@@ -15,7 +15,10 @@ describe('ErrorAnalyzer', () => {
   let mockMemory
 
   beforeEach(() => {
-    mockMemory = {}
+    mockMemory = {
+      getRecentDays: vi.fn().mockResolvedValue(''),
+      addFact: vi.fn().mockResolvedValue(undefined)
+    }
     errorAnalyzer = new ErrorAnalyzer(mockMemory)
     vi.clearAllMocks()
   })
@@ -27,77 +30,140 @@ describe('ErrorAnalyzer', () => {
       expect(result).toHaveProperty('errorsFound')
       expect(result).toHaveProperty('lessonsExtracted')
     })
+
+    it('should return zeros when no episodes exist', async () => {
+      const result = await errorAnalyzer.run()
+
+      expect(result.errorsFound).toBe(0)
+      expect(result.lessonsExtracted).toBe(0)
+    })
+
+    it('should find errors in episode text', async () => {
+      mockMemory.getRecentDays.mockResolvedValue(
+        '## 10:00 — An internal error occurred in processing pipeline\n\n' +
+        '## 11:00 — Regular conversation about weather'
+      )
+
+      const result = await errorAnalyzer.run()
+
+      expect(result.errorsFound).toBe(1)
+    })
+
+    it('should extract lessons from internal errors', async () => {
+      mockMemory.getRecentDays.mockResolvedValue(
+        '## 10:00 — An internal error occurred: memory allocation failed during batch processing'
+      )
+
+      const result = await errorAnalyzer.run()
+
+      expect(result.errorsFound).toBe(1)
+      expect(result.lessonsExtracted).toBe(1)
+      expect(mockMemory.addFact).toHaveBeenCalled()
+    })
+
+    it('should extract lessons from configuration errors', async () => {
+      mockMemory.getRecentDays.mockResolvedValue(
+        '## 10:00 — Config error: missing API_KEY in configuration settings'
+      )
+
+      const result = await errorAnalyzer.run()
+
+      expect(result.lessonsExtracted).toBe(1)
+    })
+
+    it('should not extract lessons from external errors', async () => {
+      mockMemory.getRecentDays.mockResolvedValue(
+        '## 10:00 — Network timeout error while connecting to external API'
+      )
+
+      const result = await errorAnalyzer.run()
+
+      expect(result.errorsFound).toBe(1)
+      expect(result.lessonsExtracted).toBe(0)
+    })
   })
 
   describe('classifyError', () => {
     it('should classify network errors as external', () => {
-      const category = errorAnalyzer.classifyError('Network timeout occurred')
-
-      expect(category).toBe('external')
+      expect(errorAnalyzer.classifyError('Network timeout occurred')).toBe('external')
     })
 
     it('should classify connection errors as external', () => {
-      const category = errorAnalyzer.classifyError('ECONNREFUSED: connection refused')
-
-      expect(category).toBe('external')
+      expect(errorAnalyzer.classifyError('ECONNREFUSED: connection refused')).toBe('external')
     })
 
     it('should classify config errors as configuration', () => {
-      const category = errorAnalyzer.classifyError('Missing API_KEY configuration')
-
-      expect(category).toBe('configuration')
+      expect(errorAnalyzer.classifyError('Missing API_KEY configuration')).toBe('configuration')
     })
 
     it('should classify undefined errors as configuration', () => {
-      const category = errorAnalyzer.classifyError('Cannot read property of undefined')
-
-      expect(category).toBe('configuration')
+      expect(errorAnalyzer.classifyError('Cannot read property of undefined')).toBe('configuration')
     })
 
     it('should classify invalid input as user error', () => {
-      const category = errorAnalyzer.classifyError('Invalid parameter provided')
-
-      expect(category).toBe('user')
+      expect(errorAnalyzer.classifyError('Invalid parameter provided')).toBe('user')
     })
 
     it('should classify unknown errors as internal', () => {
-      const category = errorAnalyzer.classifyError('Something went wrong')
-
-      expect(category).toBe('internal')
+      expect(errorAnalyzer.classifyError('Something went wrong')).toBe('internal')
     })
   })
 
   describe('extractLesson', () => {
-    it('should return null for placeholder', () => {
-      const lesson = errorAnalyzer.extractLesson('Error message', 'context')
+    it('should extract lesson from error entry', () => {
+      const lesson = errorAnalyzer.extractLesson(
+        '## 10:00 — An error occurred in the memory system during consolidation phase',
+        'internal'
+      )
+
+      expect(lesson).toBeTruthy()
+      expect(lesson).toContain('Error encountered')
+      expect(lesson).toContain('learned')
+    })
+
+    it('should format configuration lessons differently', () => {
+      const lesson = errorAnalyzer.extractLesson(
+        '## 10:00 — Config error: missing DATABASE_URL in configuration',
+        'configuration'
+      )
+
+      expect(lesson).toContain('Configuration issue')
+    })
+
+    it('should return null when no error line found', () => {
+      const lesson = errorAnalyzer.extractLesson(
+        'Just a regular message with no issues',
+        'internal'
+      )
 
       expect(lesson).toBeNull()
+    })
+
+    it('should strip timestamp prefix from lesson', () => {
+      const lesson = errorAnalyzer.extractLesson(
+        '## 10:00 — Critical error in the processing pipeline',
+        'internal'
+      )
+
+      expect(lesson).not.toMatch(/^## \d{2}:\d{2}/)
     })
   })
 
   describe('isRecoverable', () => {
     it('should mark timeout errors as recoverable', () => {
-      const recoverable = errorAnalyzer.isRecoverable('Request timeout')
-
-      expect(recoverable).toBe(true)
+      expect(errorAnalyzer.isRecoverable('Request timeout')).toBe(true)
     })
 
     it('should mark temporary errors as recoverable', () => {
-      const recoverable = errorAnalyzer.isRecoverable('Temporary failure')
-
-      expect(recoverable).toBe(true)
+      expect(errorAnalyzer.isRecoverable('Temporary failure')).toBe(true)
     })
 
     it('should mark fatal errors as not recoverable', () => {
-      const recoverable = errorAnalyzer.isRecoverable('Fatal error occurred')
-
-      expect(recoverable).toBe(false)
+      expect(errorAnalyzer.isRecoverable('Fatal error occurred')).toBe(false)
     })
 
     it('should default to recoverable for unknown errors', () => {
-      const recoverable = errorAnalyzer.isRecoverable('Unknown issue')
-
-      expect(recoverable).toBe(true)
+      expect(errorAnalyzer.isRecoverable('Unknown issue')).toBe(true)
     })
   })
 })
