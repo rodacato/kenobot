@@ -79,6 +79,32 @@ export const defaultPostProcessors = [
       await cognitive.getIdentityManager().deleteBootstrap()
       bus.fire(CONFIG_CHANGED, { reason: 'bootstrap complete' }, { source: 'post-processor' })
     }
+  },
+  {
+    name: 'metacognition',
+    extract(text) {
+      // Observe-only: no tags to extract, pass text through unchanged
+      return { cleanText: text, data: { responseText: text } }
+    },
+    async apply({ responseText }, { cognitive, userMessage, logger }) {
+      if (!cognitive) return
+      const metacognition = cognitive.getMetacognition()
+      if (!metacognition) return
+
+      const evaluation = metacognition.evaluateResponse(responseText, {
+        userMessage,
+        hadMemory: true
+      })
+
+      if (evaluation.quality === 'poor') {
+        const log = logger || defaultLogger
+        log.warn('metacognition', 'poor_response_quality', {
+          quality: evaluation.quality,
+          score: evaluation.score,
+          signals: evaluation.signals
+        })
+      }
+    }
   }
 ]
 
