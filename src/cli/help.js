@@ -5,7 +5,6 @@ Commands:
   setup [opts]        Scaffold ~/.kenobot/ directories and config
                       --install-claude   Install Claude Code CLI + configure PATH
                       --install-gemini   Install Gemini CLI
-                      --install-n8n      Install n8n workflow automation
                       --install-all      Install all of the above
   dev                 Start with auto-reload (uses ~/.kenobot/ paths)
   start [-d]          Start the bot (foreground, or -d for daemon)
@@ -18,7 +17,6 @@ Commands:
                       --memory    Reset episodes/facts/working memory
                       --identity  Force re-bootstrap (keep memory)
                       --all       Reset everything (fresh start)
-                      --yes       Skip confirmation
   sleep [opts]        Run sleep cycle (memory consolidation)
                       --status      Show last run info
                       --proposals   Show recent improvement proposals

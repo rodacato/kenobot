@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { rm, mkdir, writeFile, copyFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, basename } from 'node:path'
 import { createInterface } from 'node:readline'
 import { checkPid } from '../health.js'
 import { GREEN, RED, YELLOW, BOLD, NC, exists } from './utils.js'
@@ -40,7 +40,6 @@ export default async function reset(args, paths) {
   const resetMemory = flags.has('--memory') || flags.has('--all')
   const resetIdentity = flags.has('--identity') || flags.has('--all')
   const resetAll = flags.has('--all')
-  const skipConfirm = flags.has('--yes') || flags.has('-y')
 
   if (!resetMemory && !resetIdentity) {
     error('Must specify what to reset: --memory, --identity, or --all')
@@ -73,9 +72,17 @@ export default async function reset(args, paths) {
         join(paths.home, 'memory', 'episodic'),
         join(paths.home, 'memory', 'semantic'),
         join(paths.home, 'memory', 'working'),
-        join(paths.home, 'memory', 'procedural')
+        join(paths.home, 'memory', 'procedural'),
+        join(paths.home, 'data', 'memory', 'working'),
+        join(paths.home, 'data', 'memory', 'MEMORY.md')
       ],
-      description: 'All episodes, facts, working memory, and learned patterns'
+      description: 'All episodes, facts, working memory, and learned patterns',
+      recreate: [
+        {
+          path: join(paths.home, 'data', 'memory', 'MEMORY.md'),
+          template: join(paths.templates, 'memory', 'MEMORY.md')
+        }
+      ]
     })
   }
 
@@ -116,14 +123,12 @@ export default async function reset(args, paths) {
   console.log('  Core identity files (core.md, rules.json)')
   console.log('  Configuration (.env)')
 
-  // Confirm
-  if (!skipConfirm) {
-    console.log()
-    const yes = await confirm(`${YELLOW}Proceed with reset?${NC} [y/N] `)
-    if (!yes) {
-      console.log('Aborted.')
-      return
-    }
+  // Confirm (always required — reset is destructive)
+  console.log()
+  const yes = await confirm(`${YELLOW}Proceed with reset?${NC} [y/N] `)
+  if (!yes) {
+    console.log('Aborted.')
+    return
   }
 
   console.log()
@@ -140,9 +145,9 @@ export default async function reset(args, paths) {
       }
     }
 
-    // Recreate directories
+    // Recreate directories (skip files like preferences.md, MEMORY.md)
     for (const path of op.paths) {
-      if (path.endsWith('/') || !path.includes('.')) {
+      if (!basename(path).includes('.')) {
         await mkdir(path, { recursive: true })
         ok(`Recreated ${path.replace(paths.home + '/', '')}`)
       }
@@ -207,8 +212,6 @@ ${BOLD}OPTIONS${NC}
   ${BOLD}--all${NC}         Reset everything (memory + identity)
                  Fresh start, bot learns from scratch
 
-  ${BOLD}--yes, -y${NC}     Skip confirmation prompt
-
   ${BOLD}--help, -h${NC}    Show this help
 
 ${BOLD}EXAMPLES${NC}
@@ -220,9 +223,6 @@ ${BOLD}EXAMPLES${NC}
 
   # Complete reset (fresh start)
   kenobot reset --all
-
-  # Skip confirmation
-  kenobot reset --memory --yes
 
 ${BOLD}NOTES${NC}
   - Bot must be stopped before reset
