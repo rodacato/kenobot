@@ -11,12 +11,33 @@ vi.mock('../../../src/logger.js', () => ({
 
 import SleepCycle from '../../../src/cognitive/consolidation/sleep-cycle.js'
 
+/**
+ * Create a mock MemorySystem with all methods needed by consolidation components.
+ */
+function createMockMemory() {
+  return {
+    getRecentDays: vi.fn().mockResolvedValue(''),
+    getChatRecentDays: vi.fn().mockResolvedValue(''),
+    addFact: vi.fn().mockResolvedValue(undefined),
+    getPatterns: vi.fn().mockResolvedValue([]),
+    store: {
+      listChatSessions: vi.fn().mockResolvedValue([]),
+      listWorkingMemorySessions: vi.fn().mockResolvedValue([]),
+      deleteWorkingMemory: vi.fn().mockResolvedValue(undefined)
+    },
+    procedural: {
+      add: vi.fn().mockResolvedValue(undefined),
+      remove: vi.fn().mockResolvedValue(true)
+    }
+  }
+}
+
 describe('SleepCycle', () => {
   let sleepCycle
   let mockMemory
 
   beforeEach(() => {
-    mockMemory = {}
+    mockMemory = createMockMemory()
     sleepCycle = new SleepCycle(mockMemory)
     vi.clearAllMocks()
   })
@@ -35,6 +56,7 @@ describe('SleepCycle', () => {
       expect(sleepCycle.consolidator).toBeDefined()
       expect(sleepCycle.errorAnalyzer).toBeDefined()
       expect(sleepCycle.pruner).toBeDefined()
+      expect(sleepCycle.selfImprover).toBeDefined()
     })
   })
 
@@ -46,6 +68,7 @@ describe('SleepCycle', () => {
       expect(result.phases).toHaveProperty('consolidation')
       expect(result.phases).toHaveProperty('errorAnalysis')
       expect(result.phases).toHaveProperty('pruning')
+      expect(result.phases).toHaveProperty('selfImprovement')
       expect(result.duration).toBeGreaterThanOrEqual(0)
     })
 

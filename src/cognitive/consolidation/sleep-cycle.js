@@ -1,6 +1,7 @@
 import Consolidator from './consolidator.js'
 import ErrorAnalyzer from './error-analyzer.js'
 import MemoryPruner from './memory-pruner.js'
+import SelfImprover from './self-improver.js'
 import defaultLogger from '../../logger.js'
 
 /**
@@ -10,12 +11,13 @@ import defaultLogger from '../../logger.js'
  * 1. Consolidate episodic → semantic/procedural
  * 2. Analyze errors and extract lessons
  * 3. Prune stale/redundant memory
+ * 4. Generate self-improvement proposals
  *
  * Phase 4: Basic orchestration with resilience
  * Phase 6: ML-based consolidation (embeddings, clustering)
  */
 export default class SleepCycle {
-  constructor(memorySystem, { logger = defaultLogger } = {}) {
+  constructor(memorySystem, { logger = defaultLogger, dataDir } = {}) {
     this.memory = memorySystem
     this.logger = logger
 
@@ -23,6 +25,7 @@ export default class SleepCycle {
     this.consolidator = new Consolidator(memorySystem, { logger })
     this.errorAnalyzer = new ErrorAnalyzer(memorySystem, { logger })
     this.pruner = new MemoryPruner(memorySystem, { logger })
+    this.selfImprover = new SelfImprover(memorySystem, { logger, dataDir })
 
     this.state = {
       lastRun: null,
@@ -46,7 +49,8 @@ export default class SleepCycle {
     const results = {
       consolidation: null,
       errorAnalysis: null,
-      pruning: null
+      pruning: null,
+      selfImprovement: null
     }
 
     try {
@@ -64,6 +68,11 @@ export default class SleepCycle {
       this.state.currentPhase = 'pruning'
       this.logger.info('sleep-cycle', 'phase_start', { phase: 'pruning' })
       results.pruning = await this.pruner.run()
+
+      // Phase 4: Self-Improvement Proposals
+      this.state.currentPhase = 'self-improvement'
+      this.logger.info('sleep-cycle', 'phase_start', { phase: 'self-improvement' })
+      results.selfImprovement = await this.selfImprover.run(results)
 
       // Success
       this.state.status = 'success'
