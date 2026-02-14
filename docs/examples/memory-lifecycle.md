@@ -94,6 +94,7 @@ ContextBuilder._buildSystemPrompt(messageText, sessionId)
                 │   → ["webhooks", "n8n", "query", "params", "autenticación", "headers"]
                 ├─ _retrieveFacts(keywords, 10)       → search MEMORY.md
                 ├─ _retrieveProcedures(keywords, 5)   → search patterns.json
+                │   (Note: returns empty until patterns are populated by consolidation)
                 └─ _retrieveEpisodes(keywords, 3)     → search daily logs
 ```
 

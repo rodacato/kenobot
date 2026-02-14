@@ -113,10 +113,14 @@ Adrian sends his first Telegram message:
 TelegramChannel → bus.fire('message:in', {...})
         ↓
 AgentLoop._handleMessage(message)
+  ├─ Load session history from storage
+  ├─ cognitive.processBootstrapIfActive(sessionId, message, history)
+  │   → isBootstrapping? YES → orchestrator processes message
+  │   → message 1 → action: "continue" (no injection needed)
+  │
+  └─ ContextBuilder.build(sessionId, message, { bootstrapAction, history })
         ↓
-ContextBuilder.build("telegram-123456789", message)
-        ↓
-ContextBuilder._buildSystemPrompt(messageText, sessionId)
+ContextBuilder._buildSystemPrompt(messageText, sessionId, bootstrapAction)
         ↓
 IdentityManager.buildContext()
   │
@@ -318,7 +322,7 @@ _generateCheckpointMessage()
 }
 ```
 
-The LLM sees this checkpoint message and weaves it naturally into the response about Gemini roles, ending with the confirmation question.
+AgentLoop passes this as `bootstrapAction` to ContextBuilder, which appends a "Bootstrap Action — Checkpoint" section to the system prompt. The LLM sees the checkpoint message and weaves it naturally into the response about Gemini roles, ending with the confirmation question.
 
 ---
 
@@ -399,10 +403,17 @@ IdentityManager._saveBootstrapPreferences()
   │   - Completed: 2026-02-14
   │   - Messages until checkpoint: 8
   │
-  ├─ writeFile(preferences.md, content)     ← WRITES preferences
-  │
-  └─ deleteBootstrap()
-      └─ unlink(BOOTSTRAP.md)              ← DELETES bootstrap file
+  └─ writeFile(preferences.md, content)     ← WRITES preferences
+     (BOOTSTRAP.md NOT deleted yet — post-processor handles it)
+```
+
+**Then ContextBuilder injects completion instruction:**
+```
+ContextBuilder._buildSystemPrompt(messageText, sessionId, bootstrapAction)
+  → bootstrapAction.action === 'complete'
+  → Appends: "Bootstrap Action — Complete:
+     The user has completed onboarding. Wrap up naturally
+     and include <bootstrap-complete/> in your response."
 ```
 
 ---
