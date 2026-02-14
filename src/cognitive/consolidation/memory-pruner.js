@@ -29,8 +29,9 @@ export default class MemoryPruner {
     const workingPruned = await this.pruneWorkingMemory()
     const patternsPruned = await this.prunePatterns()
     const episodesCompressed = await this.compressEpisodes()
+    const factsDeduped = await this.compactLongTermMemory()
 
-    const result = { workingPruned, episodesCompressed, patternsPruned }
+    const result = { workingPruned, episodesCompressed, patternsPruned, factsDeduped }
     this.logger.info('memory-pruner', 'completed', result)
     return result
   }
@@ -64,14 +65,78 @@ export default class MemoryPruner {
   }
 
   /**
-   * Compress old episodic memories.
-   * Phase 6: Will merge old daily logs into summaries.
+   * Delete daily logs older than archiveThreshold.
+   * These have already been processed by the Consolidator, so they're safe to remove.
    *
-   * @returns {Promise<number>} Number of episodes compressed
+   * @returns {Promise<number>} Number of daily logs deleted
    */
   async compressEpisodes() {
-    // Phase 6: Implement daily log compression for episodes older than archiveThreshold
-    return 0
+    if (!this.memory.store?.deleteDailyLog) return 0
+
+    const dailyLogs = await this.memory.listDailyLogs()
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - this.archiveThreshold)
+    const cutoffStr = cutoff.toISOString().slice(0, 10)
+    let compressed = 0
+
+    for (const filename of dailyLogs) {
+      const date = filename.replace('.md', '')
+      if (date < cutoffStr) {
+        try {
+          await this.memory.store.deleteDailyLog(filename)
+          compressed++
+          this.logger.info('memory-pruner', 'daily_log_deleted', { filename })
+        } catch (error) {
+          this.logger.warn('memory-pruner', 'daily_log_delete_failed', { filename, error: error.message })
+        }
+      }
+    }
+
+    return compressed
+  }
+
+  /**
+   * Deduplicate facts in MEMORY.md using Jaccard similarity.
+   * Removes near-duplicate facts (>70% word overlap), keeping the first occurrence.
+   *
+   * @returns {Promise<number>} Number of duplicate facts removed
+   */
+  async compactLongTermMemory() {
+    const content = await this.memory.getLongTermMemory()
+    if (!content) return 0
+
+    const lines = content.split('\n')
+    const factLines = []
+    const factIndices = []
+
+    // Identify fact lines (bullet points starting with "- ")
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].startsWith('- ')) {
+        factLines.push(lines[i].slice(2))
+        factIndices.push(i)
+      }
+    }
+
+    if (factLines.length < 2) return 0
+
+    // Find similar groups using existing Jaccard method
+    const groups = this.findSimilarEpisodes(factLines)
+    if (groups.length === 0) return 0
+
+    // Mark duplicates for removal (keep first in each group)
+    const toRemove = new Set()
+    for (const group of groups) {
+      for (let i = 1; i < group.length; i++) {
+        toRemove.add(factIndices[group[i]])
+      }
+    }
+
+    // Rebuild content without duplicates
+    const newLines = lines.filter((_, i) => !toRemove.has(i))
+    await this.memory.writeLongTermMemory(newLines.join('\n'))
+
+    this.logger.info('memory-pruner', 'long_term_compacted', { removed: toRemove.size })
+    return toRemove.size
   }
 
   /**

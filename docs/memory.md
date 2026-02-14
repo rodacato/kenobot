@@ -870,8 +870,16 @@ Pruning runs as Phase 3 of the sleep cycle (see `MemoryPruner`):
 **Procedural Patterns:**
 - Removes patterns with `confidence < 0.3` and `usageCount === 0`
 
-**Episodic Memory:**
-- Episode compression (merging similar entries) is planned for future implementation
+**Daily Logs (Episodic):**
+- Deletes daily log files older than `archiveThreshold` (default: 30 days)
+- Safe to delete because the Consolidator has already extracted facts from them
+
+**MEMORY.md (Long-Term Deduplication):**
+- Extracts fact lines (starting with `- `) from MEMORY.md
+- Uses Jaccard similarity (>70% word overlap) to detect near-duplicates
+- Keeps first occurrence, removes duplicates
+- Rewrites MEMORY.md without duplicates
+- Idempotent: running multiple times produces the same result
 
 ### Selective Retrieval with Embeddings (Phase 4)
 

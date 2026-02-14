@@ -51,7 +51,8 @@ export default async function sleep(args, paths) {
   const prune = phases.pruning || {}
   console.log(`  Working pruned:     ${prune.workingPruned || 0}`)
   console.log(`  Patterns pruned:    ${prune.patternsPruned || 0}`)
-  console.log(`  Episodes compressed:${prune.episodesCompressed || 0}`)
+  console.log(`  Old logs deleted:   ${prune.episodesCompressed || 0}`)
+  console.log(`  Facts deduped:      ${prune.factsDeduped || 0}`)
 
   console.log(`\n${BOLD}Self-Improvement${NC}`)
   const si = phases.selfImprovement || {}

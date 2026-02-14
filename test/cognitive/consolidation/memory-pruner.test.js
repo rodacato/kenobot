@@ -17,9 +17,13 @@ describe('MemoryPruner', () => {
   beforeEach(() => {
     mockMemory = {
       getPatterns: vi.fn().mockResolvedValue([]),
+      listDailyLogs: vi.fn().mockResolvedValue([]),
+      getLongTermMemory: vi.fn().mockResolvedValue(''),
+      writeLongTermMemory: vi.fn().mockResolvedValue(undefined),
       store: {
         listWorkingMemorySessions: vi.fn().mockResolvedValue([]),
-        deleteWorkingMemory: vi.fn().mockResolvedValue(undefined)
+        deleteWorkingMemory: vi.fn().mockResolvedValue(undefined),
+        deleteDailyLog: vi.fn().mockResolvedValue(undefined)
       },
       procedural: {
         remove: vi.fn().mockResolvedValue(true)
@@ -53,6 +57,7 @@ describe('MemoryPruner', () => {
       expect(result).toHaveProperty('workingPruned')
       expect(result).toHaveProperty('episodesCompressed')
       expect(result).toHaveProperty('patternsPruned')
+      expect(result).toHaveProperty('factsDeduped')
     })
 
     it('should delegate to sub-methods', async () => {
@@ -120,10 +125,123 @@ describe('MemoryPruner', () => {
   })
 
   describe('compressEpisodes', () => {
-    it('should return 0 (Phase 6 placeholder)', async () => {
+    it('should return 0 when no old daily logs', async () => {
+      mockMemory.listDailyLogs.mockResolvedValue(['2026-02-14.md'])
+
       const count = await pruner.compressEpisodes()
 
       expect(count).toBe(0)
+    })
+
+    it('should delete daily logs older than archiveThreshold', async () => {
+      mockMemory.listDailyLogs.mockResolvedValue([
+        '2025-12-01.md', // >30 days old
+        '2025-12-15.md', // >30 days old
+        '2026-02-14.md'  // recent
+      ])
+
+      const count = await pruner.compressEpisodes()
+
+      expect(count).toBe(2)
+      expect(mockMemory.store.deleteDailyLog).toHaveBeenCalledWith('2025-12-01.md')
+      expect(mockMemory.store.deleteDailyLog).toHaveBeenCalledWith('2025-12-15.md')
+      expect(mockMemory.store.deleteDailyLog).not.toHaveBeenCalledWith('2026-02-14.md')
+    })
+
+    it('should handle delete errors gracefully', async () => {
+      mockMemory.listDailyLogs.mockResolvedValue(['2025-01-01.md'])
+      mockMemory.store.deleteDailyLog.mockRejectedValue(new Error('Permission denied'))
+
+      const count = await pruner.compressEpisodes()
+
+      expect(count).toBe(0)
+    })
+
+    it('should return 0 when store has no deleteDailyLog', async () => {
+      const basicPruner = new MemoryPruner({
+        store: {},
+        getPatterns: vi.fn().mockResolvedValue([]),
+        listDailyLogs: vi.fn().mockResolvedValue([]),
+        getLongTermMemory: vi.fn().mockResolvedValue(''),
+        writeLongTermMemory: vi.fn()
+      })
+
+      const count = await basicPruner.compressEpisodes()
+
+      expect(count).toBe(0)
+    })
+  })
+
+  describe('compactLongTermMemory', () => {
+    it('should return 0 when MEMORY.md is empty', async () => {
+      mockMemory.getLongTermMemory.mockResolvedValue('')
+
+      const count = await pruner.compactLongTermMemory()
+
+      expect(count).toBe(0)
+    })
+
+    it('should return 0 when fewer than 2 facts', async () => {
+      mockMemory.getLongTermMemory.mockResolvedValue('# Memory\n- single fact\n')
+
+      const count = await pruner.compactLongTermMemory()
+
+      expect(count).toBe(0)
+    })
+
+    it('should remove near-duplicate facts', async () => {
+      mockMemory.getLongTermMemory.mockResolvedValue([
+        '# Long-Term Memory',
+        '',
+        '## Consolidated — 2026-02-14',
+        '- Adrian favorite programming languages JavaScript and Ruby',
+        '',
+        '## Consolidated — 2026-02-15',
+        '- Adrian favorite programming languages are JavaScript and Ruby',
+        '- User timezone is UTC-6'
+      ].join('\n'))
+
+      const count = await pruner.compactLongTermMemory()
+
+      expect(count).toBe(1)
+      expect(mockMemory.writeLongTermMemory).toHaveBeenCalled()
+      const written = mockMemory.writeLongTermMemory.mock.calls[0][0]
+      expect(written).toContain('Adrian favorite programming languages JavaScript and Ruby')
+      expect(written).toContain('User timezone is UTC-6')
+    })
+
+    it('should not remove dissimilar facts', async () => {
+      mockMemory.getLongTermMemory.mockResolvedValue([
+        '# Memory',
+        '- Adrian likes JavaScript',
+        '- User prefers dark mode for editing',
+        '- Deployment runs on Hetzner VPS'
+      ].join('\n'))
+
+      const count = await pruner.compactLongTermMemory()
+
+      expect(count).toBe(0)
+    })
+
+    it('should be idempotent — running twice gives same result', async () => {
+      const content = [
+        '# Memory',
+        '- Adrian favorite languages JavaScript Ruby',
+        '- Adrian favorite languages are JavaScript and Ruby',
+        '- User lives in Costa Rica'
+      ].join('\n')
+      mockMemory.getLongTermMemory.mockResolvedValue(content)
+
+      await pruner.compactLongTermMemory()
+      const firstWrite = mockMemory.writeLongTermMemory.mock.calls[0][0]
+
+      // Simulate second run with the result from first
+      mockMemory.getLongTermMemory.mockResolvedValue(firstWrite)
+      mockMemory.writeLongTermMemory.mockClear()
+
+      const count2 = await pruner.compactLongTermMemory()
+
+      expect(count2).toBe(0) // no more duplicates
     })
   })
 

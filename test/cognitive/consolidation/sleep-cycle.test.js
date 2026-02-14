@@ -18,12 +18,16 @@ function createMockMemory() {
   return {
     getRecentDays: vi.fn().mockResolvedValue(''),
     getChatRecentDays: vi.fn().mockResolvedValue(''),
+    getLongTermMemory: vi.fn().mockResolvedValue(''),
+    writeLongTermMemory: vi.fn().mockResolvedValue(undefined),
     addFact: vi.fn().mockResolvedValue(undefined),
     getPatterns: vi.fn().mockResolvedValue([]),
+    listDailyLogs: vi.fn().mockResolvedValue([]),
     store: {
       listChatSessions: vi.fn().mockResolvedValue([]),
       listWorkingMemorySessions: vi.fn().mockResolvedValue([]),
-      deleteWorkingMemory: vi.fn().mockResolvedValue(undefined)
+      deleteWorkingMemory: vi.fn().mockResolvedValue(undefined),
+      deleteDailyLog: vi.fn().mockResolvedValue(undefined)
     },
     procedural: {
       add: vi.fn().mockResolvedValue(undefined),

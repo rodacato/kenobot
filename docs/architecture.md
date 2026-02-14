@@ -816,7 +816,7 @@ Background maintenance via a **4-phase sleep cycle** (runs hourly via `setInterv
 |-------|-----------|--------------|
 | 1. Consolidation | `Consolidator` | Loads recent episodes, filters by salience (errors, successes, corrections, novel content), extracts facts and procedural patterns |
 | 2. Error Analysis | `ErrorAnalyzer` | Scans for error-like entries, classifies (internal/external/configuration), extracts lessons from internal errors |
-| 3. Pruning | `MemoryPruner` | Deletes stale working memory (>7 days), removes low-confidence unused patterns |
+| 3. Pruning | `MemoryPruner` | Deletes stale working memory (>7 days), removes low-confidence unused patterns, deletes daily logs >30 days, deduplicates MEMORY.md facts (Jaccard similarity) |
 | 4. Self-Improvement | `SelfImprover` | Heuristic-based proposal generator — detects idle systems, recurring errors, heavy pruning; writes proposals to `data/sleep/proposals/` |
 
 **CLI access:** `kenobot sleep` (run manually), `kenobot sleep --status`, `kenobot sleep --proposals`

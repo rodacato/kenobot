@@ -221,6 +221,13 @@ export default class MemoryStore {
     }
   }
 
+  async deleteDailyLog(filename) {
+    const { unlink } = await import('node:fs/promises')
+    const filepath = join(this.memoryDir, filename)
+    await unlink(filepath)
+    this.logger.info('memory-store', 'daily_log_deleted', { filename })
+  }
+
   async writeLongTermMemory(content) {
     await this._ensureDir()
     await writeFile(join(this.memoryDir, 'MEMORY.md'), content, 'utf8')
