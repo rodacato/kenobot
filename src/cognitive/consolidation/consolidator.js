@@ -132,6 +132,21 @@ export default class Consolidator {
       score += 0.3
     }
 
+    // User preferences and knowledge (+0.6) — these come from <memory> tags,
+    // the LLM already decided they were worth remembering
+    if (lowerEpisode.includes('favorite') || lowerEpisode.includes('prefer') ||
+        lowerEpisode.includes('likes') || lowerEpisode.includes('language') ||
+        lowerEpisode.includes('lives in') || lowerEpisode.includes('works at') ||
+        lowerEpisode.includes('timezone') || lowerEpisode.includes('name is')) {
+      score += 0.6
+    }
+
+    // Decisions and lessons (+0.4)
+    if (lowerEpisode.includes('decided') || lowerEpisode.includes('learned') ||
+        lowerEpisode.includes('remember') || lowerEpisode.includes('important')) {
+      score += 0.4
+    }
+
     return Math.min(score, 1.0)
   }
 
@@ -144,7 +159,11 @@ export default class Consolidator {
    */
   extractFacts(episodes) {
     const facts = []
-    const factIndicators = ['prefers', 'likes', 'always', 'never', 'wants', 'uses', 'needs']
+    const factIndicators = [
+      'prefers', 'prefer', 'likes', 'always', 'never', 'wants', 'uses', 'needs',
+      'favorite', 'favourite', 'lives in', 'works at', 'name is', 'timezone',
+      'decided', 'learned', 'language'
+    ]
 
     for (const episode of episodes) {
       const lines = episode.split('\n').map(l => l.trim()).filter(l => l.length > 0)
