@@ -4,7 +4,7 @@
 
 **Date**: 2026-02-15
 **Status**: Design
-**Builds on**: [body-systems.md](body-systems.md) (section 5), [nervous-system.md](nervous-system.md), [implementation-plan.md](implementation-plan.md)
+**Builds on**: [body-systems.md](body-systems.md) (section 5), [nervous-system.md](nervous-system.md)
 
 ## Experts Consulted
 
@@ -43,7 +43,7 @@
 
 ### The current limitation
 
-`AgentLoop._handleMessage` (src/agent/loop.js) does exactly **one LLM call per message**. It cannot:
+`AgentLoop._handleMessage` (src/application/loop.js) does exactly **one LLM call per message**. It cannot:
 - Call a tool and feed the result back to the LLM
 - Break a complex request into steps
 - Loop until a task is done
@@ -51,16 +51,16 @@
 
 ### Infrastructure that exists
 
-`BaseProvider` (src/providers/base.js) already defines tool support stubs:
+`BaseProvider` (src/adapters/providers/base.js) already defines tool support stubs:
 - `adaptToolDefinitions(definitions)` — adapts tool schemas to provider format
 - `buildToolResultMessages(rawContent, results)` — formats tool results for the LLM
 - `get supportsTools` — whether provider handles tool calls (default: false)
 
-The Nervous System (src/nervous/) supports arbitrary signal types — no changes needed, only new signal constants.
+The Nervous System (src/domain/nervous/) supports arbitrary signal types — no changes needed, only new signal constants.
 
-The Scheduler (src/scheduler/scheduler.js) persists and executes cron-based tasks via `MESSAGE_IN` signals — a simple Process Manager that could integrate with the Motor System.
+The Scheduler (src/adapters/scheduler/scheduler.js) persists and executes cron-based tasks via `MESSAGE_IN` signals — a simple Process Manager that could integrate with the Motor System.
 
-Approval workflow signals are reserved in src/events.js (`approval:proposed`, `approval:approved`, `approval:rejected`) but have no listeners.
+Approval workflow signals are reserved in src/infrastructure/events.js (`approval:proposed`, `approval:approved`, `approval:rejected`) but have no listeners.
 
 ## The Key Insight: GitHub as Sandbox
 
@@ -96,19 +96,27 @@ Cognitive System → memory, identity, retrieval (persistent "who I am")
 Motor System → tasks, actions, tools (persistent "what I'm doing")
 ```
 
-### Module Structure
+### Module Structure (Hexagonal Architecture)
 
 ```
-src/motor/
-  index.js              — MotorSystem facade
-  task-runner.js         — ReAct loop orchestrator (Process Manager)
-  task-store.js          — Task persistence (JSONL event log)
-  actions/
-    index.js             — Action registry
-    github.js            — clone, branch, commit, push, create PR
-    file.js              — read, write, edit (within cloned repos)
-    shell.js             — npm test, npm run build (with timeout + limits)
-    search.js            — web search for research
+src/
+  domain/
+    motor/
+      task.js              — Task entity (state machine, lifecycle)
+      action-registry.js   — Tool definitions catalog (schemas, no I/O)
+  application/
+    task-runner.js         — ReAct loop orchestrator (Process Manager)
+    loop.js                — MODIFIED: detect tool_use, spawn tasks
+  adapters/
+    actions/
+      github.js            — clone, branch, commit, push, create PR
+      file.js              — read, write, edit (within cloned repos)
+      shell.js             — npm test, npm run build (with timeout + limits)
+      search.js            — web search for research
+    storage/
+      task-store.js        — Task persistence (JSONL event log)
+  infrastructure/
+    events.js              — MODIFIED: add task:* signal constants
 ```
 
 ### Signal Flow
@@ -436,7 +444,7 @@ Bot:  [searches web, reads docs, responds with real information]
 **Goal**: The bot can read/write files, execute commands, and interact with GitHub.
 
 **What's built**:
-- `src/motor/actions/` — GitHub, file, and shell actions as tool definitions
+- `src/adapters/actions/` — GitHub, file, and shell actions as tool definitions
 - Action executor with guardrails (timeouts, path restrictions, secret scanning)
 - Repo permission config (`motor.repos` in config)
 - Git authentication (bot's own GitHub PAT)
@@ -539,7 +547,7 @@ Bot:  "Tarea cancelada. El progreso parcial está en la branch feat/financial-an
 ## The Complete Body Map (Updated)
 
 ```
-MOTOR SYSTEM (src/motor/)                                           [DESIGNED]
+MOTOR SYSTEM (src/domain/motor/ + src/adapters/actions/)             [DESIGNED]
   Motor Cortex ............ TaskRunner (plan and orchestrate tasks)
   Hands ................... Actions (github, file, shell, search)
   Cerebellum .............. ReAct loop (coordination and iteration)

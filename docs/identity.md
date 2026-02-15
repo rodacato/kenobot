@@ -746,7 +746,7 @@ await inferrer.inferProfile(messages)
 **Identity System Tests: 133 tests passing**
 
 ```
-test/cognitive/identity/
+test/domain/cognitive/identity/
 ├── identity-manager.test.js         (34 tests) ✓
 ├── core-loader.test.js              (16 tests) ✓
 ├── rules-engine.test.js             (22 tests) ✓
@@ -757,7 +757,6 @@ test/cognitive/identity/
 
 **Additional:**
 ```
-test/agent/identity.test.js          (9 tests) ✓  [IdentityLoader]
 test/conversations/scenarios/identity.test.js (3 tests) ✓  [Conversation scenarios]
 ```
 

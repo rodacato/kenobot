@@ -83,10 +83,10 @@ Metacognition maps to the brain's self-monitoring circuits — the prefrontal co
 
 ## What We're Building
 
-A metacognition module inside `src/cognitive/` — same bounded context as memory and identity, because metacognition is a cognitive function, not infrastructure.
+A metacognition module inside `src/domain/cognitive/` — same bounded context as memory and identity, because metacognition is a cognitive function, not infrastructure.
 
 ```
-src/cognitive/metacognition/
+src/domain/cognitive/metacognition/
   index.js              — MetacognitionSystem facade
   self-monitor.js       — Online response evaluation (pre-send quality gate)
   confidence.js         — Confidence estimation for responses
@@ -142,7 +142,7 @@ This lets the LLM itself calibrate its certainty language based on how much the 
 
 ### Reflection Engine
 
-Retrospective analysis during the sleep cycle (integrates with existing `src/cognitive/consolidation/`).
+Retrospective analysis during the sleep cycle (integrates with existing `src/domain/cognitive/consolidation/`).
 
 **What it does:**
 1. Reviews conversations from the past cycle
@@ -159,11 +159,11 @@ Retrospective analysis during the sleep cycle (integrates with existing `src/cog
 
 | Area | Change |
 |---|---|
-| **Post-processor pipeline** (`agent/post-processors.js`) | Add `evaluateResponse` as the last post-processor |
-| **Context builder** (`agent/context.js`) | Inject confidence level into system prompt when available |
-| **Cognitive System** (`cognitive/index.js`) | Expose `metacognition` subsystem alongside memory, identity, retrieval |
-| **Sleep cycle** (`cognitive/consolidation/sleep-cycle.js`) | Add reflection phase after existing consolidation |
-| **Signals** (`events.js`) | Add `meta:confidence-low`, `meta:reflection`, `meta:impasse` |
+| **Post-processor pipeline** (`application/post-processors.js`) | Add `evaluateResponse` as the last post-processor |
+| **Context builder** (`application/context.js`) | Inject confidence level into system prompt when available |
+| **Cognitive System** (`domain/cognitive/index.js`) | Expose `metacognition` subsystem alongside memory, identity, retrieval |
+| **Sleep cycle** (`domain/cognitive/consolidation/sleep-cycle.js`) | Add reflection phase after existing consolidation |
+| **Signals** (`infrastructure/events.js`) | Add `meta:confidence-low`, `meta:reflection`, `meta:impasse` |
 | **Consumers** | No changes — metacognition is internal to the brain |
 
 ## What We Gain

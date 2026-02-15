@@ -54,9 +54,9 @@ AgentLoop._handleMessage(message)   ← bus listener
 | Actor | File | Role |
 |-------|------|------|
 | Grammy SDK | (external) | Receives Telegram update |
-| `TelegramChannel` | `src/channels/telegram.js` | Adapts Telegram → signal |
-| `NervousSystem` (bus) | `src/nervous/bus.js` | Routes `message:in` signal |
-| `AgentLoop` | `src/agent/loop.js` | Listens, starts processing |
+| `TelegramChannel` | `src/adapters/channels/telegram.js` | Adapts Telegram → signal |
+| `NervousSystem` (bus) | `src/domain/nervous/bus.js` | Routes `message:in` signal |
+| `AgentLoop` | `src/application/loop.js` | Listens, starts processing |
 
 **Session ID generated:** `telegram-123456789`
 
@@ -133,17 +133,17 @@ ContextBuilder._buildSystemPrompt(messageText, sessionId)
 **Actors involved:**
 | Actor | File | Role |
 |-------|------|------|
-| `ContextBuilder` | `src/agent/context.js` | Orchestrates prompt assembly |
-| `CognitiveSystem` | `src/cognitive/index.js` | Facade for memory + identity |
-| `IdentityManager` | `src/cognitive/identity/identity-manager.js` | Loads personality + rules |
-| `MemorySystem` | `src/cognitive/memory/memory-system.js` | Facade for 4 memory tiers |
-| `SemanticMemory` | `src/cognitive/memory/semantic-memory.js` | Reads MEMORY.md + daily logs |
-| `EpisodicMemory` | `src/cognitive/memory/episodic-memory.js` | Reads chat-specific logs |
-| `WorkingMemory` | `src/cognitive/memory/working-memory.js` | Reads scratchpad |
-| `MemoryStore` | `src/storage/memory-store.js` | All filesystem I/O |
-| `RetrievalEngine` | `src/cognitive/retrieval/retrieval-engine.js` | Keyword-filtered retrieval |
-| `KeywordMatcher` | `src/cognitive/retrieval/keyword-matcher.js` | Extracts & matches keywords |
-| `ConfidenceScorer` | `src/cognitive/retrieval/confidence-scorer.js` | Scores retrieval quality |
+| `ContextBuilder` | `src/application/context.js` | Orchestrates prompt assembly |
+| `CognitiveSystem` | `src/domain/cognitive/index.js` | Facade for memory + identity |
+| `IdentityManager` | `src/domain/cognitive/identity/identity-manager.js` | Loads personality + rules |
+| `MemorySystem` | `src/domain/cognitive/memory/memory-system.js` | Facade for 4 memory tiers |
+| `SemanticMemory` | `src/domain/cognitive/memory/semantic-memory.js` | Reads MEMORY.md + daily logs |
+| `EpisodicMemory` | `src/domain/cognitive/memory/episodic-memory.js` | Reads chat-specific logs |
+| `WorkingMemory` | `src/domain/cognitive/memory/working-memory.js` | Reads scratchpad |
+| `MemoryStore` | `src/adapters/storage/memory-store.js` | All filesystem I/O |
+| `RetrievalEngine` | `src/domain/cognitive/retrieval/retrieval-engine.js` | Keyword-filtered retrieval |
+| `KeywordMatcher` | `src/domain/cognitive/retrieval/keyword-matcher.js` | Extracts & matches keywords |
+| `ConfidenceScorer` | `src/domain/cognitive/retrieval/confidence-scorer.js` | Scores retrieval quality |
 
 ---
 
@@ -261,15 +261,15 @@ que no están bien documentados."
 **Actors involved:**
 | Actor | File | Role |
 |-------|------|------|
-| `runPostProcessors` | `src/agent/post-processors.js` | Orchestrates pipeline |
-| `extractMemories` | `src/agent/memory-extractor.js` | Parses `<memory>` tags |
-| `extractChatMemories` | `src/agent/chat-memory-extractor.js` | Parses `<chat-memory>` tags |
-| `extractWorkingMemory` | `src/agent/working-memory-extractor.js` | Parses `<working-memory>` tags |
-| `SemanticMemory` | `src/cognitive/memory/semantic-memory.js` | Delegates addFact |
-| `EpisodicMemory` | `src/cognitive/memory/episodic-memory.js` | Delegates addChatEpisode |
-| `WorkingMemory` | `src/cognitive/memory/working-memory.js` | Replaces scratchpad |
-| `MemoryStore` | `src/storage/memory-store.js` | Writes to filesystem |
-| `NervousSystem` (bus) | `src/nervous/bus.js` | Fires `config:changed`, `message:out` |
+| `runPostProcessors` | `src/application/post-processors.js` | Orchestrates pipeline |
+| `extractMemories` | `src/application/extractors/memory.js` | Parses `<memory>` tags |
+| `extractChatMemories` | `src/application/extractors/chat-memory.js` | Parses `<chat-memory>` tags |
+| `extractWorkingMemory` | `src/application/extractors/working-memory.js` | Parses `<working-memory>` tags |
+| `SemanticMemory` | `src/domain/cognitive/memory/semantic-memory.js` | Delegates addFact |
+| `EpisodicMemory` | `src/domain/cognitive/memory/episodic-memory.js` | Delegates addChatEpisode |
+| `WorkingMemory` | `src/domain/cognitive/memory/working-memory.js` | Replaces scratchpad |
+| `MemoryStore` | `src/adapters/storage/memory-store.js` | Writes to filesystem |
+| `NervousSystem` (bus) | `src/domain/nervous/bus.js` | Fires `config:changed`, `message:out` |
 
 ---
 
@@ -509,13 +509,13 @@ SelfImprover.run(previousResults)
 **Actors involved in sleep cycle:**
 | Actor | File | Role |
 |-------|------|------|
-| `SleepCycle` | `src/cognitive/consolidation/sleep-cycle.js` | Orchestrates 4 phases |
-| `Consolidator` | `src/cognitive/consolidation/consolidator.js` | Episodic → semantic + procedural |
-| `ErrorAnalyzer` | `src/cognitive/consolidation/error-analyzer.js` | Extracts lessons from errors |
-| `MemoryPruner` | `src/cognitive/consolidation/memory-pruner.js` | Deletes stale/redundant memory |
-| `SelfImprover` | `src/cognitive/consolidation/self-improver.js` | Generates improvement proposals |
-| `MemorySystem` | `src/cognitive/memory/memory-system.js` | Reads/writes all tiers |
-| `MemoryStore` | `src/storage/memory-store.js` | Filesystem persistence |
+| `SleepCycle` | `src/domain/cognitive/consolidation/sleep-cycle.js` | Orchestrates 4 phases |
+| `Consolidator` | `src/domain/cognitive/consolidation/consolidator.js` | Episodic → semantic + procedural |
+| `ErrorAnalyzer` | `src/domain/cognitive/consolidation/error-analyzer.js` | Extracts lessons from errors |
+| `MemoryPruner` | `src/domain/cognitive/consolidation/memory-pruner.js` | Deletes stale/redundant memory |
+| `SelfImprover` | `src/domain/cognitive/consolidation/self-improver.js` | Generates improvement proposals |
+| `MemorySystem` | `src/domain/cognitive/memory/memory-system.js` | Reads/writes all tiers |
+| `MemoryStore` | `src/adapters/storage/memory-store.js` | Filesystem persistence |
 
 ---
 
@@ -688,39 +688,39 @@ Jun 2026        RESURRECTION VIA RETRIEVAL
 
 | Step | Actor | File |
 |------|-------|------|
-| 1 | `TelegramChannel` | `src/channels/telegram.js` |
-| 2 | `NervousSystem` (bus) | `src/nervous/bus.js` |
-| 3 | `AgentLoop` | `src/agent/loop.js` |
-| 4 | `Provider` (Claude API) | `src/providers/claude-api.js` |
-| 5 | `runPostProcessors` | `src/agent/post-processors.js` |
-| 6 | `extractMemories` | `src/agent/memory-extractor.js` |
-| 7 | `extractChatMemories` | `src/agent/chat-memory-extractor.js` |
-| 8 | `extractWorkingMemory` | `src/agent/working-memory-extractor.js` |
-| 9 | `MemorySystem` | `src/cognitive/memory/memory-system.js` |
-| 10 | `SemanticMemory` / `EpisodicMemory` / `WorkingMemory` | `src/cognitive/memory/*.js` |
-| 11 | `MemoryStore` | `src/storage/memory-store.js` |
+| 1 | `TelegramChannel` | `src/adapters/channels/telegram.js` |
+| 2 | `NervousSystem` (bus) | `src/domain/nervous/bus.js` |
+| 3 | `AgentLoop` | `src/application/loop.js` |
+| 4 | `Provider` (Claude API) | `src/adapters/providers/claude-api.js` |
+| 5 | `runPostProcessors` | `src/application/post-processors.js` |
+| 6 | `extractMemories` | `src/application/extractors/memory.js` |
+| 7 | `extractChatMemories` | `src/application/extractors/chat-memory.js` |
+| 8 | `extractWorkingMemory` | `src/application/extractors/working-memory.js` |
+| 9 | `MemorySystem` | `src/domain/cognitive/memory/memory-system.js` |
+| 10 | `SemanticMemory` / `EpisodicMemory` / `WorkingMemory` | `src/domain/cognitive/memory/*.js` |
+| 11 | `MemoryStore` | `src/adapters/storage/memory-store.js` |
 
 ### Read Path (Memory Retrieval)
 
 | Step | Actor | File |
 |------|-------|------|
-| 1 | `ContextBuilder` | `src/agent/context.js` |
-| 2 | `CognitiveSystem` | `src/cognitive/index.js` |
-| 3 | `MemorySystem` | `src/cognitive/memory/memory-system.js` |
-| 4 | `RetrievalEngine` (optional) | `src/cognitive/retrieval/retrieval-engine.js` |
-| 5 | `KeywordMatcher` | `src/cognitive/retrieval/keyword-matcher.js` |
-| 6 | `ConfidenceScorer` | `src/cognitive/retrieval/confidence-scorer.js` |
-| 7 | `MemoryStore` | `src/storage/memory-store.js` |
+| 1 | `ContextBuilder` | `src/application/context.js` |
+| 2 | `CognitiveSystem` | `src/domain/cognitive/index.js` |
+| 3 | `MemorySystem` | `src/domain/cognitive/memory/memory-system.js` |
+| 4 | `RetrievalEngine` (optional) | `src/domain/cognitive/retrieval/retrieval-engine.js` |
+| 5 | `KeywordMatcher` | `src/domain/cognitive/retrieval/keyword-matcher.js` |
+| 6 | `ConfidenceScorer` | `src/domain/cognitive/retrieval/confidence-scorer.js` |
+| 7 | `MemoryStore` | `src/adapters/storage/memory-store.js` |
 
 ### Consolidation Path (Memory Promotion)
 
 | Step | Actor | File |
 |------|-------|------|
-| 1 | `SleepCycle` | `src/cognitive/consolidation/sleep-cycle.js` |
-| 2 | `Consolidator` | `src/cognitive/consolidation/consolidator.js` |
-| 3 | `ErrorAnalyzer` | `src/cognitive/consolidation/error-analyzer.js` |
-| 4 | `MemoryPruner` | `src/cognitive/consolidation/memory-pruner.js` |
-| 5 | `SelfImprover` | `src/cognitive/consolidation/self-improver.js` |
+| 1 | `SleepCycle` | `src/domain/cognitive/consolidation/sleep-cycle.js` |
+| 2 | `Consolidator` | `src/domain/cognitive/consolidation/consolidator.js` |
+| 3 | `ErrorAnalyzer` | `src/domain/cognitive/consolidation/error-analyzer.js` |
+| 4 | `MemoryPruner` | `src/domain/cognitive/consolidation/memory-pruner.js` |
+| 5 | `SelfImprover` | `src/domain/cognitive/consolidation/self-improver.js` |
 
 ### Pruning Path (Memory Death)
 

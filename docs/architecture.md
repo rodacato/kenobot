@@ -119,7 +119,7 @@ User → Telegram
 
 ## Core Components
 
-### Agent Loop (`src/agent/loop.js`)
+### Agent Loop (`src/application/loop.js`)
 
 The core reasoning engine. Handles the full lifecycle of a message:
 
@@ -130,7 +130,7 @@ The core reasoning engine. Handles the full lifecycle of a message:
 - Saves to session history
 - Emits `message:out`
 
-### Context Builder (`src/agent/context.js`)
+### Context Builder (`src/application/context.js`)
 
 Assembles the system prompt and message history for each provider call.
 
@@ -164,7 +164,7 @@ Assembles the system prompt and message history for each provider call.
 
 > Signal-aware event backbone built on principles from neuroscience and enterprise integration patterns.
 
-The Nervous System (`src/nervous/`) is the **signaling backbone** — how the brain (Cognitive System + Agent Loop) communicates with the body (Channels, Watchdog, Scheduler). It replaces the primitive EventEmitter bus with a signal-aware system that traces, logs, and audits every signal flowing through the bot.
+The Nervous System (`src/domain/nervous/`) is the **signaling backbone** — how the brain (Cognitive System + Agent Loop) communicates with the body (Channels, Watchdog, Scheduler). It replaces the primitive EventEmitter bus with a signal-aware system that traces, logs, and audits every signal flowing through the bot.
 
 ```
 ┌─────────────────────────────────────────┐
@@ -225,7 +225,7 @@ The Nervous System implements several patterns from *Enterprise Integration Patt
 The Nervous System is a **bounded context** — a self-contained module with its own domain model (Signal), its own persistence (audit trail), and a clear API boundary (NervousSystem facade). It follows the same structural pattern as the Cognitive System:
 
 ```
-src/cognitive/              src/nervous/
+src/domain/cognitive/       src/domain/nervous/
   index.js    (facade)        index.js    (facade)
   memory/     (sub-system)    middleware.js (sub-system)
   identity/   (sub-system)    audit-trail.js (sub-system)
@@ -235,24 +235,24 @@ src/cognitive/              src/nervous/
 ### File Structure
 
 ```
-src/nervous/
+src/domain/nervous/
   index.js          — NervousSystem facade (extends EventEmitter, adds fire/use/audit)
   signal.js         — Signal class (typed event envelope with metadata)
-  signals.js        — Signal type constants (re-exports from events.js)
+  signals.js        — Signal type constants (re-exports from infrastructure/events.js)
   middleware.js     — Built-in middleware (trace propagation, logging, dead-signal)
   audit-trail.js   — JSONL signal persistence with query support
 
-src/events.js       — Signal type constants (canonical source, kept for backward compat)
+src/infrastructure/events.js — Signal type constants (canonical source, kept for backward compat)
 ```
 
 ### Core Components
 
-#### Signal (`src/nervous/signal.js`)
+#### Signal (`src/domain/nervous/signal.js`)
 
 The fundamental unit of communication. Wraps a raw event payload with metadata:
 
 ```javascript
-import Signal from './nervous/signal.js'
+import Signal from './domain/nervous/signal.js'
 
 const signal = new Signal('message:in', { text: 'hello', chatId: 42 }, {
   source: 'telegram',
@@ -270,12 +270,12 @@ signal.toJSON()   // serializable for audit trail
 
 **Design decision**: Listeners receive the raw `payload`, not the Signal. This preserves backward compatibility — existing `bus.on('message:in', (payload) => ...)` handlers work unchanged. The Signal envelope is visible only to middleware and the audit trail.
 
-#### NervousSystem (`src/nervous/index.js`)
+#### NervousSystem (`src/domain/nervous/index.js`)
 
 The facade. Extends `EventEmitter`, adds `fire()`, middleware, and audit:
 
 ```javascript
-import NervousSystem from './nervous/index.js'
+import NervousSystem from './domain/nervous/index.js'
 
 const bus = new NervousSystem({ logger, dataDir: '/path/to/data' })
 
@@ -296,7 +296,7 @@ bus.fire('message:in', { text: 'hello' }, { source: 'telegram' })
 bus.emit('message:in', { text: 'hello' })
 ```
 
-#### AuditTrail (`src/nervous/audit-trail.js`)
+#### AuditTrail (`src/domain/nervous/audit-trail.js`)
 
 Persistent signal log in JSONL format. Non-blocking writes (fire-and-forget with error logging):
 
@@ -314,7 +314,7 @@ const signals = await trail.query({
 
 ### Signal Types
 
-All signal types are defined in `src/events.js` and re-exported from `src/nervous/signals.js`. See [events.md](events.md) for the full signal schema.
+All signal types are defined in `src/infrastructure/events.js` and re-exported from `src/domain/nervous/signals.js`. See [events.md](events.md) for the full signal schema.
 
 #### Message Flow
 
@@ -496,7 +496,7 @@ The traceId links steps 1 and 6 — the same traceId from `message:in` is automa
 #### NervousSystem
 
 ```javascript
-import NervousSystem from './nervous/index.js'
+import NervousSystem from './domain/nervous/index.js'
 ```
 
 ##### `constructor({ logger?, dataDir?, audit? })`
@@ -549,7 +549,7 @@ const stats = bus.getStats()
 #### Signal
 
 ```javascript
-import Signal from './nervous/signal.js'
+import Signal from './domain/nervous/signal.js'
 ```
 
 | Property | Type | Description |
@@ -597,7 +597,7 @@ No environment variables are needed — the Nervous System inherits `dataDir` fr
 
 ### Advanced: Custom Signals
 
-1. Define constants in `src/events.js`:
+1. Define constants in `src/infrastructure/events.js`:
    ```javascript
    export const MY_EVENT = 'my:event'
    ```
@@ -633,7 +633,7 @@ bus.use((signal) => {
 
 > The brain of KenoBot — how the bot thinks, remembers, and develops personality.
 
-The Cognitive System (`src/cognitive/`) orchestrates everything the bot knows, remembers, and learns. It manages four sub-systems:
+The Cognitive System (`src/domain/cognitive/`) orchestrates everything the bot knows, remembers, and learns. It manages four sub-systems:
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -711,7 +711,7 @@ Motor output (Channels)
 
 #### Facade Pattern
 
-`CognitiveSystem` (`src/cognitive/index.js`) is the single entry point, following the same pattern as `NervousSystem`:
+`CognitiveSystem` (`src/domain/cognitive/index.js`) is the single entry point, following the same pattern as `NervousSystem`:
 
 ```javascript
 const cognitive = new CognitiveSystem(config, memoryStore, provider, { logger })
@@ -834,7 +834,7 @@ Heuristic self-awareness system (zero LLM cost, zero latency):
 ### File Structure
 
 ```
-src/cognitive/
+src/domain/cognitive/
   index.js                          — CognitiveSystem facade
   memory/
     memory-system.js                — MemorySystem facade
@@ -929,14 +929,14 @@ bus.fire()    ←───  emit response
 | **API** | `bus.fire()`, `bus.on()` | `cognitive.buildContext()`, `cognitive.saveMemory()` |
 | **Persistence** | JSONL audit trail (signals) | Markdown + JSON files (memories) |
 | **Pattern** | EIP / Observer | Cognitive psychology models |
-| **Location** | `src/nervous/` | `src/cognitive/` |
+| **Location** | `src/domain/nervous/` | `src/domain/cognitive/` |
 
 ### Cognitive System API Reference
 
 #### CognitiveSystem
 
 ```javascript
-import CognitiveSystem from './cognitive/index.js'
+import CognitiveSystem from './domain/cognitive/index.js'
 
 const cognitive = new CognitiveSystem(config, memoryStore, provider, { logger })
 ```
@@ -1007,7 +1007,7 @@ For detailed API reference of each sub-system, see:
 
 ## Interfaces & Contracts
 
-### BaseProvider (`src/providers/base.js`)
+### BaseProvider (`src/adapters/providers/base.js`)
 
 ```javascript
 class BaseProvider {
@@ -1018,7 +1018,7 @@ class BaseProvider {
 
 Five implementations: `claude-api` (Anthropic SDK), `claude-cli` (subprocess), `gemini-api` (Google GenAI SDK), `gemini-cli` (subprocess), `mock` (testing).
 
-### BaseChannel (`src/channels/base.js`)
+### BaseChannel (`src/adapters/channels/base.js`)
 
 Template Method pattern — common auth logic in base, I/O specifics in subclass.
 
@@ -1037,7 +1037,7 @@ class BaseChannel extends EventEmitter {
 
 Two implementations: `telegram` (grammy), `http` (webhook with HMAC).
 
-### BaseStorage (`src/storage/base.js`)
+### BaseStorage (`src/adapters/storage/base.js`)
 
 ```javascript
 class BaseStorage {
@@ -1176,7 +1176,7 @@ The `createApp()` return object exposes all internal components (`bus`, `agent`,
 
 ### Add a new Provider
 
-1. Create `src/providers/my-provider.js` extending `BaseProvider`
+1. Create `src/adapters/providers/my-provider.js` extending `BaseProvider`
 2. Implement `chat(messages, options)` and `get name()`
 3. Call `registerProvider('my-provider', (config) => new MyProvider(config))` at the bottom
 4. Import the file in `src/index.js` for self-registration
@@ -1184,7 +1184,7 @@ The `createApp()` return object exposes all internal components (`bus`, `agent`,
 
 ### Add a new Channel
 
-1. Create `src/channels/my-channel.js` extending `BaseChannel`
+1. Create `src/adapters/channels/my-channel.js` extending `BaseChannel`
 2. Implement `start()`, `stop()`, `send()`, `get name()`
 3. Call `_publishMessage()` when messages arrive (auth is inherited)
 4. Listen for `message:out` on the bus to send responses
@@ -1192,7 +1192,7 @@ The `createApp()` return object exposes all internal components (`bus`, `agent`,
 
 ### Add a Custom Signal
 
-1. Define constant in `src/events.js`:
+1. Define constant in `src/infrastructure/events.js`:
    ```javascript
    export const MY_EVENT = 'my:event'
    ```
@@ -1206,6 +1206,44 @@ The `createApp()` return object exposes all internal components (`bus`, `agent`,
    ```
 
 **Naming convention**: Use `category:action` pattern (e.g., `health:degraded`, `message:in`).
+
+## Project Structure
+
+The codebase follows a [hexagonal architecture](https://alistair.cockburn.us/hexagonal-architecture/) with four layers:
+
+```
+src/
+  domain/                  # Bounded contexts — pure business logic, no I/O
+    nervous/               # Signal bus with middleware, tracing, and audit trail
+    cognitive/             # Memory (4-tier), identity, retrieval, metacognition, consolidation
+  application/             # Use cases and orchestration
+    loop.js                # Agent loop: message:in → context → LLM → memory → message:out
+    context.js             # Prompt assembly (identity + memory + history)
+    post-processors.js     # Tag extraction pipeline (<memory>, <user>, etc.)
+    extractors/            # Individual tag extractors
+  adapters/                # External world interfaces (pluggable)
+    channels/              # Telegram, HTTP webhooks
+    providers/             # Claude API/CLI, Gemini API/CLI, mock — all implement chat()
+    storage/               # Filesystem: append-only JSONL sessions, markdown memory
+    scheduler/             # Cron-based tasks fired as synthetic signals
+  infrastructure/          # Cross-cutting concerns
+    config.js              # Env-based configuration
+    logger.js              # Structured JSONL logging with daily rotation
+    health.js              # PID management and health status
+    watchdog.js            # Health monitoring
+    events.js              # Signal type constants
+    format/                # Markdown-to-Telegram HTML converter
+
+templates/                 # Default files scaffolded by `kenobot setup`
+test/                      # Test suite (mirrors src/ structure)
+
+~/.kenobot/                # User home — persistent across updates
+  config/.env              # Bot configuration
+  data/sessions/           # Per-chat JSONL conversation history
+  data/memory/             # Cognitive system memory store + identity files
+  data/logs/               # Structured JSONL logs
+  data/scheduler/          # Persistent task definitions
+```
 
 ---
 

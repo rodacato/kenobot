@@ -1648,10 +1648,10 @@ The original 8 experts reviewed the developer feedback and reached final consens
 
 ## Implementation Summary
 
-The cognitive system is fully implemented across 28 modules in `src/cognitive/`:
+The cognitive system is fully implemented across 28 modules in `src/domain/cognitive/`:
 
 ```
-src/cognitive/
+src/domain/cognitive/
   index.js                          -- CognitiveSystem facade
   memory/
     memory-system.js                -- MemorySystem facade (4 memory types)

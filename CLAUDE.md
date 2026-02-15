@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-KenoBot is a personal AI assistant (Telegram bot) powered by Claude, built on Node.js 22+ with an event-driven architecture. Pure ESM, no build step, no TypeScript.
+KenoBot is a personal AI assistant (Telegram bot) powered by Claude, built for a single user, extensible by design. Pure ESM, no build step, no TypeScript. Runs on a 2vCPU / 4GB RAM / 40GB disk Hetzner VPS (~$4/month).
 
 ## Commands
 
@@ -18,81 +18,106 @@ npm run test:coverage                        # Coverage report (V8)
 npx vitest run test/application/post-processors.test.js  # Run a single test file
 npm run test:e2e                             # E2E tests (sequential)
 npm run test:conversations                   # Conversation scenario tests
+npm run lint                                 # ESLint
+npm run lint:boundaries                      # Check hexagonal architecture boundaries
 
 # CLI (after npm link or install.sh)
-kenobot setup                                # Scaffold ~/.kenobot/
-kenobot start -d                             # Start as daemon
+kenobot setup                                # Scaffold ~/.kenobot/ directories
+kenobot start [-d]                           # Start (foreground, or -d for daemon)
 kenobot stop                                 # Stop daemon
-kenobot status                               # Health check
-kenobot doctor                               # Diagnose problems
+kenobot restart                              # Restart daemon
+kenobot status                               # Check if running
+kenobot logs                                 # Tail latest log
+kenobot config [edit]                        # Show config or open in $EDITOR
+kenobot dev                                  # Run with --watch (development mode)
+kenobot reset                                # Reset cognitive system
+kenobot doctor                               # Diagnose common problems
+kenobot update                               # Update to latest release
+kenobot version                              # Show version
 ```
 
 ## Architecture
 
-Event-driven architecture organized by architectural role (Hexagonal/Ports & Adapters). Two bounded contexts: the **Nervous System** (signaling) and the **Cognitive System** (memory & identity). All components communicate via the Nervous System — a signal-aware event bus with middleware, tracing, and audit.
+Hexagonal architecture (Ports & Adapters) with strict ESLint-enforced boundaries (`eslint-plugin-boundaries`).
+
+### Layer Rules (deny-by-default)
 
 ```
-User → Telegram → TelegramChannel → bus.fire('message:in') → AgentLoop → ContextBuilder → Provider.chat()
-                                                                  ↓
-User ← Telegram ← TelegramChannel ← bus.fire('message:out') ← AgentLoop (memory → session)
+src/
+├── domain/           → can import: domain, infrastructure
+│   ├── nervous/      # Signal-aware event bus, middleware, audit trail
+│   └── cognitive/    # 4-tier memory, identity, retrieval, consolidation, metacognition
+├── application/      → can import: application, domain, infrastructure
+│   ├── loop.js       # Core: message:in → context → provider → memory → message:out
+│   ├── context.js    # System prompt assembly (identity + memory + history)
+│   ├── post-processors.js  # Tag extraction pipeline
+│   └── extractors/   # Parse <memory>, <chat-memory>, <working-memory>, <user>, <bootstrap-complete/>
+├── adapters/         → can import: adapters, infrastructure
+│   ├── channels/     # Telegram (Grammy), HTTP webhook
+│   ├── providers/    # Claude API/CLI, Gemini API/CLI, Mock — all implement chat()
+│   ├── storage/      # Filesystem (JSONL sessions), MemoryStore
+│   └── scheduler/    # Cron jobs (node-cron)
+├── infrastructure/   → can import: infrastructure only
+│   ├── config.js     # Pure function createConfig(env), no side effects
+│   ├── logger.js     # Structured JSONL logging
+│   ├── paths.js      # ~/.kenobot/ path resolution
+│   └── events.js     # Signal type constants
+├── cli/              # CLI subcommands (excluded from boundary rules)
+├── app.js            # Composition root: createApp(config, provider, options) → { bus, agent, ... start(), stop() }
+└── index.js          # Thin entry point (config, provider registration, process signals)
 ```
 
-**Entry points**: `src/index.js` (CLI startup, signals), `src/app.js` (`createApp()` — pure composition root factory returning `{ bus, agent, channels, cognitive, start(), stop() }`).
+Root files (`app.js`, `index.js`) can import from all layers.
 
-**Directory structure** (4 top-level categories by architectural role):
-- `src/domain/` — **Bounded Contexts** (core business logic, no external dependencies)
-  - `src/domain/nervous/` — Signal-aware event bus with middleware pipeline, audit trail (JSONL), trace correlation
-  - `src/domain/cognitive/` — Memory System (4-tier), Identity System (personality + preferences), Retrieval Engine
-- `src/application/` — **Use cases / orchestration** (coordinates domain + adapters)
-  - `src/application/loop.js` — Core message handler: build context → provider.chat → extract memories → save session → fire response
-  - `src/application/context.js` — Assembles system prompt (identity + memory) and message history into provider-agnostic `{ system, messages }` format
-  - `src/application/extractors/` — Post-processors that extract tagged content from LLM responses
-- `src/adapters/` — **External world interfaces** (ports/adapters pattern)
-  - `src/adapters/channels/` — Template Method: `BaseChannel` handles permissions/rate-limiting, subclasses (`TelegramChannel`, `HTTPChannel`) are <100 LOC
-  - `src/adapters/providers/` — Registry pattern with self-registration. `BaseProvider` interface: `claude-api`, `claude-cli`, `gemini-api`, `gemini-cli`, `mock`
-  - `src/adapters/storage/` — Strategy pattern: `FilesystemStorage` (JSONL sessions), `MemoryStore` (persistence)
-  - `src/adapters/scheduler/` — Cron-based tasks firing as synthetic `message:in` signals
-- `src/infrastructure/` — **Cross-cutting concerns** (config, logging, events, health, paths)
+### Message Flow
 
-**Signals**: `message:in`, `message:out`, `thinking:start`, `error`, `notification`, `config:changed`, `health:*`, `approval:*`
-
-## Conventions
-
-**Language**: All code, comments, commits, docs, filenames must be in English.
-
-**Commits** (enforced by `.githooks/commit-msg`):
 ```
-type(scope): description    # max 72 chars, imperative mood, no period
+User → Telegram → bus.fire('message:in') → AgentLoop → ContextBuilder → Provider.chat()
+                                                ↓
+User ← Telegram ← bus.fire('message:out') ← AgentLoop (extract tags → save session)
 ```
-Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `ci`, `perf`, `build`, `release`. Every commit requires a `[changelog]` or `[no-changelog]` section. Setup hooks: `git config core.hooksPath .githooks`
 
-**Code style**: 2-space indent, UTF-8, LF endings. Pure ESM with `.js` extensions on all imports. No TypeScript, no ESLint/Prettier.
+### Key Interfaces
 
-**Identity files**: `templates/identity/` contains the bot's identity templates (core.md, rules.json, BOOTSTRAP.md). At runtime, identity loads from `~/.kenobot/data/memory/identity/`. This is the bot's system prompt, not developer instructions.
+- **Providers**: All implement `chat(messages, options)` returning `{ content, toolCalls, stopReason, usage? }`. Never `complete()`.
+- **Composition root**: `createApp()` in `app.js` is a pure factory — use it in E2E tests for isolated instances.
+- **Two bounded contexts**: Nervous System (event bus with middleware/tracing/audit) and Cognitive System (memory + identity + retrieval + consolidation).
 
-## Testing
+**Signals**: `message:in`, `message:out`, `thinking:start`, `error`, `notification`, `config:changed`, `health:degraded`, `health:unhealthy`, `health:recovered`, `approval:proposed`, `approval:approved`, `approval:rejected`
 
-Vitest 4.x with globals enabled (`describe`, `it`, `expect` — no imports needed). Tests in `test/` mirror `src/` structure as `*.test.js`.
+## Tech Stack
 
-Coverage thresholds: lines 50%, functions 35%, branches 55%, statements 50%.
-
-**Principle: Test behavior, not implementation.**
-
-- **Use real implementations**: temp directories (`mkdtemp` + cleanup), `NervousSystem` (for bus), `ContextBuilder`, cognitive classes (`IdentityManager`, `MemorySystem`)
-- **Mock only**: `logger.js` (always — suppresses noise), `config.js` (always — import side effects), network boundaries (fetch, Anthropic SDK, Grammy), providers in agent tests
-- **Anti-patterns**: Don't `vi.mock('node:fs/promises')` — use real temp dirs. Don't assert mock call args — assert behavior/output.
-
-## Known Gotchas
-
-- `claude-cli` hangs when stdin is a pipe → provider uses `stdio: ['ignore', 'pipe', 'pipe']`
-- `claude-cli` is ~20s slow with Sonnet → use `claude-api` for speed
-- `gemini-api` uses `model` role instead of `assistant`, no function call IDs (synthetic IDs generated)
-- `BOOTSTRAP.md` in identity dir triggers first-conversation onboarding, auto-deleted when bot responds with `<bootstrap-complete/>`
-- Non-root devcontainer: runs as `node` user (uid=1000)
-- Cognitive System is always enabled. Uses `MemoryStore` for persistence, `IdentityManager` for personality
+- Node.js 22+, pure ESM (`"type": "module"`, `.js` extensions required on all imports)
+- No build step, no TypeScript
+- ESLint with `eslint-plugin-boundaries` (enforces hexagonal layer rules)
+- Vitest 4.x with globals enabled (describe, it, expect available without imports)
+- Runtime deps: grammy, @anthropic-ai/sdk, @google/genai, dotenv, node-cron
 
 ## Deployment
 
-Two modes code must support: **Stable** (end users, release tags, `kenobot update` = tag checkout) and **Dev** (maintainer VPS, master branch, `kenobot update` = git pull). Detection: detached HEAD (tag) vs on branch (`git symbolic-ref`).
+Two deployment modes — code changes must work in both:
 
-Resource constraint: 2vCPU / 4GB RAM / 40GB disk Hetzner VPS (~$4/month).
+| | Stable | Dev |
+|---|---|---|
+| **Audience** | End users, forks | Maintainer + bot on VPS |
+| **Tracks** | Latest release tag | master branch |
+| **Update method** | `kenobot update` (tag checkout + rollback) | `kenobot update` (git pull + rollback) |
+| **Git remote** | HTTPS (read-only) or SSH | SSH (read+write) |
+| **Bot can push** | No | Yes (PRs, self-improvement) |
+| **Detection** | Detached HEAD (tag) | On a branch (`git symbolic-ref`) |
+
+## Known Gotchas
+
+- **Claude CLI** hangs when stdin is a pipe — `claude-cli` provider uses `spawn()` with `stdio: ['ignore', 'pipe', 'pipe']`.
+- **`claude-cli`** is ~20s slow with Sonnet — use `claude-api` for faster responses.
+- **`gemini-cli`** wraps the Google Gemini CLI (`@google/gemini-cli`). Uses `--approval-mode yolo` and `--output-format text` for headless operation. Requires `gemini` installed globally.
+- **`gemini-api`** uses `model` instead of `assistant` as the role, and function calls have no `id` field — synthetic IDs are generated.
+- **Non-root devcontainer**: running as `node` user (uid=1000).
+- **Identity templates**: `templates/identity/` contains `core.md`, `rules.json`, `BOOTSTRAP.md`. At runtime, identity loads from `~/.kenobot/data/memory/identity/` (with `core.md`, `rules.json`, `preferences.md`).
+- **BOOTSTRAP.md** in the identity dir triggers first-conversation onboarding; deleted when response includes `<bootstrap-complete/>`.
+- **Cognitive System** is always enabled. Uses `MemoryStore` for persistence, `IdentityManager` for personality.
+- **Two memory directory structures**: `~/.kenobot/data/memory/` (active runtime, MemoryStore) vs `~/.kenobot/memory/` (templates/scaffold). Both must be handled by `kenobot reset`.
+
+## Development Conventions
+
+Read `AGENTS.md` for development conventions (commits, testing, branching, language rules) and `IDENTITY.md` for working style.

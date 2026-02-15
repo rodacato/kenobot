@@ -115,7 +115,7 @@ MemorySystem (Facade)
 
 **Persistence Layer:**
 ```
-MemoryStore (src/storage/memory-store.js)
+MemoryStore (src/adapters/storage/memory-store.js)
 └── Filesystem: data/memory/ and ~/.kenobot/memory/
 ```
 
@@ -769,7 +769,7 @@ await episodicMemory.addSharedEpisode(episode)
 **Memory System Tests: 133 tests passing**
 
 ```
-test/cognitive/memory/
+test/domain/cognitive/memory/
 ├── memory-system.test.js        (17 tests) ✓
 ├── working-memory.test.js       (11 tests) ✓
 ├── semantic-memory.test.js      (9 tests) ✓
@@ -779,10 +779,10 @@ test/cognitive/memory/
 
 **Additional:**
 ```
-test/agent/memory-extractor.test.js          (11 tests) ✓  [Tag extraction]
-test/agent/chat-memory-extractor.test.js     (10 tests) ✓  [Chat tag extraction]
-test/agent/working-memory-extractor.test.js  (9 tests) ✓   [Working tag extraction]
-test/storage/memory-store.test.js            (11 tests) ✓  [MemoryStore]
+test/application/memory-extractor.test.js          (11 tests) ✓  [Tag extraction]
+test/application/chat-memory-extractor.test.js     (10 tests) ✓  [Chat tag extraction]
+test/application/working-memory-extractor.test.js  (9 tests) ✓   [Working tag extraction]
+test/adapters/storage/memory-store.test.js         (11 tests) ✓  [MemoryStore]
 test/conversations/scenarios/memory.test.js  (7 tests) ✓   [Conversation scenarios]
 ```
 

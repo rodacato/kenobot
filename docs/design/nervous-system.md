@@ -16,7 +16,7 @@
 
 ## Context
 
-KenoBot already has a **brain** — the Cognitive System (`src/cognitive/`) with 4 memory types, identity management, and retrieval. But the brain communicates with the body through a 27-line dumb pipe (`src/bus.js`): a bare `EventEmitter` with no awareness of what flows through it.
+KenoBot already has a **brain** — the Cognitive System (`src/domain/cognitive/`) with 4 memory types, identity management, and retrieval. But the brain communicates with the body through a 27-line dumb pipe (`src/infrastructure/bus.js`): a bare `EventEmitter` with no awareness of what flows through it.
 
 When a message arrives from Telegram, traverses the agent loop, generates a response, and flows back — nobody records what happened. There's no trace of the signal's path. No audit trail. No way to intercept, filter, or transform signals globally. Debugging means reading scattered logs and hoping you find the right one.
 
@@ -81,10 +81,10 @@ The nervous system is how biological organisms communicate internally. It maps n
 
 ## What Was Built
 
-A `src/nervous/` bounded context — same pattern as `src/cognitive/`:
+A `src/domain/nervous/` bounded context — same pattern as `src/domain/cognitive/`:
 
 ```
-src/nervous/
+src/domain/nervous/
   index.js          — NervousSystem facade (extends EventEmitter)
   signal.js         — Signal class (typed event + metadata)
   signals.js        — Signal type definitions

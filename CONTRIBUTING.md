@@ -50,7 +50,7 @@ npm run test:watch      # Watch mode
 npm run test:coverage   # Coverage report
 ```
 
-See `AGENTS.md` for test conventions and coverage thresholds.
+See `AGENTS.md` for testing conventions and coverage thresholds.
 
 ### Useful commands
 
@@ -237,7 +237,7 @@ git merge --ff-only feature/my-feature
 
 | Topic | File |
 |-------|------|
-| Full CLI commands | `AGENTS.md` |
+| Full CLI commands | `CLAUDE.md` |
 | Architecture | `docs/architecture.md` |
 | Configuration | `docs/configuration.md` |
 | Getting started from scratch | `docs/getting-started.md` |
@@ -326,7 +326,7 @@ These thresholds will increase as the project matures. Coverage reports are in `
 
 If you're an AI assistant (Claude Code, etc.):
 
-1. Read `CLAUDE.md` first — it will chain you to `AGENTS.md` (project context) and `templates/identity/` (bot identity directory)
+1. Read `CLAUDE.md` first (project context), then `AGENTS.md` (conventions) and `IDENTITY.md` (working style)
 2. Follow the commit conventions above
 3. **Do not add co-author tags to commits** — all commits should be single-authored
 4. Never hardcode secrets — always use environment variables

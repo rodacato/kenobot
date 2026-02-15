@@ -31,13 +31,13 @@ KenoBot has a brain (Cognitive System) and a nervous system (signal bus). But wh
 
 | Biological System | KenoBot Module | Status |
 |---|---|---|
-| **Brain** (cognition) | `src/cognitive/` — Memory (4-tier), Identity, Retrieval, Consolidation | Built |
-| **Nervous System** (signaling) | `src/nervous/` — Signal bus, middleware, audit trail, trace correlation | Built |
-| **Sensory Organs** (input) | `src/channels/` — Telegram, HTTP (afferent pathway) | Built |
-| **Motor Output** (response) | `src/channels/` + `MESSAGE_OUT` (efferent pathway) | Built |
-| **Sleep** (maintenance) | `src/cognitive/consolidation/sleep-cycle.js` — nightly memory consolidation | Built |
-| **Reflexes** (automatic response) | `src/agent/typing-indicator.js` — fires without brain processing | Built |
-| **Autonomic System** (unconscious) | `src/watchdog.js` + `src/scheduler/` — health checks, cron tasks | Built |
+| **Brain** (cognition) | `src/domain/cognitive/` — Memory (4-tier), Identity, Retrieval, Consolidation | Built |
+| **Nervous System** (signaling) | `src/domain/nervous/` — Signal bus, middleware, audit trail, trace correlation | Built |
+| **Sensory Organs** (input) | `src/adapters/channels/` — Telegram, HTTP (afferent pathway) | Built |
+| **Motor Output** (response) | `src/adapters/channels/` + `MESSAGE_OUT` (efferent pathway) | Built |
+| **Sleep** (maintenance) | `src/domain/cognitive/consolidation/sleep-cycle.js` — nightly memory consolidation | Built |
+| **Reflexes** (automatic response) | `src/application/typing-indicator.js` — fires without brain processing | Built |
+| **Autonomic System** (unconscious) | `src/infrastructure/watchdog.js` + `src/adapters/scheduler/` — health checks, cron tasks | Built |
 | **Pain/Nociception** | Health events (`health:degraded`, `health:unhealthy`) | Built |
 | **Immune System** (basic) | `BaseChannel._isAllowed()`, rate limiting, `CircuitBreaker` | Partial |
 
@@ -55,7 +55,7 @@ Every cognitive architecture, every modern agent framework, and every theory of 
 
 ### 1. Metacognition — Prefrontal Monitor
 
-**Location**: `src/cognitive/metacognition/`
+**Location**: `src/domain/cognitive/metacognition/`
 
 The agent monitors and evaluates its own reasoning quality — before sending (online monitoring), after conversations (retrospective reflection), and across time (confidence calibration).
 
@@ -85,7 +85,7 @@ The agent monitors and evaluates its own reasoning quality — before sending (o
 
 ### 2. Thalamic Attention Gate
 
-**Location**: `src/cognitive/attention/`
+**Location**: `src/domain/cognitive/attention/`
 
 Before assembling the system prompt, runs a salience competition where each memory candidate competes for inclusion based on relevance, recency, frequency, and current focus.
 
@@ -110,7 +110,7 @@ Before assembling the system prompt, runs a salience competition where each memo
 
 ### 3. Limbic Drive System — Motivation and Desires
 
-**Location**: `src/cognitive/motivation/`
+**Location**: `src/domain/cognitive/motivation/`
 
 Gives the bot internal drives and desires that generate proactive behavior, transforming it from a reactive chatbot into an agent that *wants* things.
 
@@ -141,7 +141,7 @@ Gives the bot internal drives and desires that generate proactive behavior, tran
 
 ### 4. Endocrine System — Affective State
 
-**Location**: `src/cognitive/affect/`
+**Location**: `src/domain/cognitive/affect/`
 
 Maintains a set of numeric internal state variables that change slowly over time and modulate behavior globally across all other systems. Not simulated emotions — a resource allocation mechanism.
 
@@ -231,7 +231,7 @@ Comprehensive threat detection beyond basic auth/rate-limiting. Monitors for pro
 
 ### Executive Function — Planning and Task Decomposition
 
-**Location**: `src/cognitive/executive/`
+**Location**: `src/domain/cognitive/executive/`
 
 Manages explicit goals, decomposes complex requests, tracks multi-turn commitments.
 
@@ -334,7 +334,7 @@ Consolidated from all three research tracks, ordered by practical impact and imp
 THE KENOBOT BODY
 ================
 
-BRAIN (src/cognitive/)
+BRAIN (src/domain/cognitive/)
   Cerebral Cortex ......... LLM (the provider)
   Hippocampus ............. MemorySystem (4-tier)                        [BUILT]
   Prefrontal Cortex ....... Executive/Planning + Metacognition           [PROPOSED]
@@ -344,19 +344,19 @@ BRAIN (src/cognitive/)
   Basal Ganglia ........... Motivation/Drive System (habit + reward)     [PROPOSED]
   Default Mode Network .... SleepCycle (consolidation + reflection)      [BUILT]
 
-NERVOUS SYSTEM (src/nervous/)
+NERVOUS SYSTEM (src/domain/nervous/)
   Spinal Cord ............. NervousSystem (signal bus)                   [BUILT]
   Myelin Sheath ........... Middleware pipeline                          [BUILT]
   Neural Traces ........... Audit trail                                  [BUILT]
   Reflex Arcs ............. TypingIndicator, health events               [BUILT]
   Synapses ................ Event listeners                              [BUILT]
 
-ENDOCRINE SYSTEM (src/cognitive/affect/)
+ENDOCRINE SYSTEM (src/domain/cognitive/affect/)
   Cortisol ................ Stress response (error rate, frustration)    [PROPOSED]
   Dopamine ................ Reward signal (positive outcomes)            [PROPOSED]
   Oxytocin ................ Social bonding (interaction frequency)       [PROPOSED]
 
-SENSORY ORGANS (src/channels/)
+SENSORY ORGANS (src/adapters/channels/)
   Eyes/Ears ............... TelegramChannel, HTTPChannel (input)         [BUILT]
 
 MOTOR SYSTEM (src/motor/)

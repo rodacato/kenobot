@@ -275,12 +275,12 @@ CognitiveSystem.processBootstrapIfActive(sessionId, message, history)
 **Actors involved per message during observation:**
 | Actor | File | Role |
 |-------|------|------|
-| `CognitiveSystem` | `src/cognitive/index.js` | Orchestrates bootstrap check |
-| `IdentityManager` | `src/cognitive/identity/identity-manager.js` | Delegates to sub-components |
-| `PreferencesManager` | `src/cognitive/identity/preferences-manager.js` | Checks BOOTSTRAP.md on disk |
-| `ProfileInferrer` | `src/cognitive/identity/profile-inferrer.js` | LLM-based style inference |
-| `BootstrapOrchestrator` | `src/cognitive/identity/bootstrap-orchestrator.js` | State machine |
-| `WorkingMemory` | `src/cognitive/memory/working-memory.js` | Persists bootstrap state |
+| `CognitiveSystem` | `src/domain/cognitive/index.js` | Orchestrates bootstrap check |
+| `IdentityManager` | `src/domain/cognitive/identity/identity-manager.js` | Delegates to sub-components |
+| `PreferencesManager` | `src/domain/cognitive/identity/preferences-manager.js` | Checks BOOTSTRAP.md on disk |
+| `ProfileInferrer` | `src/domain/cognitive/identity/profile-inferrer.js` | LLM-based style inference |
+| `BootstrapOrchestrator` | `src/domain/cognitive/identity/bootstrap-orchestrator.js` | State machine |
+| `WorkingMemory` | `src/domain/cognitive/memory/working-memory.js` | Persists bootstrap state |
 
 ---
 
@@ -711,32 +711,32 @@ Over time — IDENTITY EVOLUTION
 | Actor | File | Role |
 |-------|------|------|
 | `init-cognitive.js` | `src/cli/init-cognitive.js` | Scaffolds identity files |
-| `IdentityManager` | `src/cognitive/identity/identity-manager.js` | Facade for all identity ops |
-| `CoreLoader` | `src/cognitive/identity/core-loader.js` | Loads + caches core.md |
-| `RulesEngine` | `src/cognitive/identity/rules-engine.js` | Loads + formats rules.json |
-| `PreferencesManager` | `src/cognitive/identity/preferences-manager.js` | Manages preferences.md + BOOTSTRAP.md |
-| `BootstrapOrchestrator` | `src/cognitive/identity/bootstrap-orchestrator.js` | State machine (observe/checkpoint/boundaries/complete) |
-| `ProfileInferrer` | `src/cognitive/identity/profile-inferrer.js` | LLM-based style inference |
-| `CognitiveSystem` | `src/cognitive/index.js` | Orchestrates bootstrap + memory isolation |
-| `ContextBuilder` | `src/agent/context.js` | Builds system prompt (gates bootstrap mode) |
+| `IdentityManager` | `src/domain/cognitive/identity/identity-manager.js` | Facade for all identity ops |
+| `CoreLoader` | `src/domain/cognitive/identity/core-loader.js` | Loads + caches core.md |
+| `RulesEngine` | `src/domain/cognitive/identity/rules-engine.js` | Loads + formats rules.json |
+| `PreferencesManager` | `src/domain/cognitive/identity/preferences-manager.js` | Manages preferences.md + BOOTSTRAP.md |
+| `BootstrapOrchestrator` | `src/domain/cognitive/identity/bootstrap-orchestrator.js` | State machine (observe/checkpoint/boundaries/complete) |
+| `ProfileInferrer` | `src/domain/cognitive/identity/profile-inferrer.js` | LLM-based style inference |
+| `CognitiveSystem` | `src/domain/cognitive/index.js` | Orchestrates bootstrap + memory isolation |
+| `ContextBuilder` | `src/application/context.js` | Builds system prompt (gates bootstrap mode) |
 
 ### Completion Phase
 
 | Actor | File | Role |
 |-------|------|------|
-| `extractBootstrapComplete` | `src/agent/bootstrap-extractor.js` | Detects `<bootstrap-complete/>` tag |
-| `runPostProcessors` | `src/agent/post-processors.js` | Pipeline that triggers deletion |
-| `IdentityManager.deleteBootstrap()` | `src/cognitive/identity/identity-manager.js` | Deletes BOOTSTRAP.md |
-| `NervousSystem` (bus) | `src/nervous/bus.js` | Fires `config:changed` signal |
+| `extractBootstrapComplete` | `src/application/extractors/bootstrap.js` | Detects `<bootstrap-complete/>` tag |
+| `runPostProcessors` | `src/application/post-processors.js` | Pipeline that triggers deletion |
+| `IdentityManager.deleteBootstrap()` | `src/domain/cognitive/identity/identity-manager.js` | Deletes BOOTSTRAP.md |
+| `NervousSystem` (bus) | `src/domain/nervous/bus.js` | Fires `config:changed` signal |
 
 ### Evolution Phase
 
 | Actor | File | Role |
 |-------|------|------|
-| `extractUserUpdates` | `src/agent/user-extractor.js` | Parses `<user-update>` tags |
-| `runPostProcessors` | `src/agent/post-processors.js` | Routes updates to identity |
-| `IdentityManager.updatePreference()` | `src/cognitive/identity/identity-manager.js` | Appends to preferences.md |
-| `PreferencesManager.updatePreference()` | `src/cognitive/identity/preferences-manager.js` | Filesystem write |
+| `extractUserUpdates` | `src/application/extractors/user.js` | Parses `<user-update>` tags |
+| `runPostProcessors` | `src/application/post-processors.js` | Routes updates to identity |
+| `IdentityManager.updatePreference()` | `src/domain/cognitive/identity/identity-manager.js` | Appends to preferences.md |
+| `PreferencesManager.updatePreference()` | `src/domain/cognitive/identity/preferences-manager.js` | Filesystem write |
 
 ### Three Layers of Identity
 

@@ -1,6 +1,6 @@
 # Signal Schema
 
-KenoBot uses an event-driven architecture powered by the **Nervous System** (`src/nervous/`). Components communicate through typed signals with automatic tracing, middleware, and audit capabilities.
+KenoBot uses an event-driven architecture powered by the **Nervous System** (`src/domain/nervous/`). Components communicate through typed signals with automatic tracing, middleware, and audit capabilities.
 
 The Nervous System extends Node.js `EventEmitter` — all existing `bus.on()` patterns work unchanged. The primary API for producers is `bus.fire()`, which wraps events in a Signal envelope before delivery.
 
@@ -261,7 +261,7 @@ One JSON line per signal. Queryable via `bus.getAuditTrail().query({ type, trace
 
 ## Extending with Custom Signals
 
-1. Define constants in `src/events.js` (or `src/nervous/signals.js`):
+1. Define constants in `src/infrastructure/events.js` (or `src/domain/nervous/signals.js`):
    ```javascript
    export const MY_EVENT = 'my:event'
    ```
