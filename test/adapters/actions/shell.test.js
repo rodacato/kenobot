@@ -3,6 +3,8 @@ import { join } from 'node:path'
 import { mkdtemp, mkdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 
+import logger from '../../../src/infrastructure/logger.js'
+
 // Suppress logger console output during tests
 vi.mock('../../../src/infrastructure/logger.js', () => ({
   default: {
@@ -170,6 +172,87 @@ describe('shell action', () => {
 
       expect(result).toContain('test')
       expect(result).toContain('[Exit code: 0]')
+    })
+  })
+
+  describe('audit trail', () => {
+    it('should log shell_exec on command start', async () => {
+      const tool = createRunCommand(motorConfig)
+
+      await tool.execute({ repo: 'testowner/testrepo', command: 'echo hello' })
+
+      expect(logger.info).toHaveBeenCalledWith('motor', 'shell_exec', expect.objectContaining({
+        repo: 'testowner/testrepo',
+        command: 'echo hello',
+        cwd: expect.stringContaining('testowner/testrepo'),
+        timeout: expect.any(Number)
+      }))
+    })
+
+    it('should log shell_completed with exit code and duration', async () => {
+      const tool = createRunCommand(motorConfig)
+
+      await tool.execute({ repo: 'testowner/testrepo', command: 'echo hello' })
+
+      expect(logger.info).toHaveBeenCalledWith('motor', 'shell_completed', expect.objectContaining({
+        repo: 'testowner/testrepo',
+        exitCode: 0,
+        durationMs: expect.any(Number),
+        outputBytes: expect.any(Number),
+        truncated: false
+      }))
+    })
+
+    it('should log shell_completed for non-zero exit code', async () => {
+      const tool = createRunCommand(motorConfig)
+
+      await tool.execute({ repo: 'testowner/testrepo', command: 'exit 42' })
+
+      expect(logger.info).toHaveBeenCalledWith('motor', 'shell_completed', expect.objectContaining({
+        exitCode: 42,
+        durationMs: expect.any(Number)
+      }))
+    })
+
+    it('should log shell_blocked when sudo is attempted', async () => {
+      const tool = createRunCommand(motorConfig)
+
+      await expect(
+        tool.execute({ repo: 'testowner/testrepo', command: 'sudo rm -rf /' })
+      ).rejects.toThrow('sudo is not allowed')
+
+      expect(logger.warn).toHaveBeenCalledWith('motor', 'shell_blocked', expect.objectContaining({
+        repo: 'testowner/testrepo',
+        reason: 'sudo'
+      }))
+    })
+
+    it('should log shell_timeout when command exceeds timeout', async () => {
+      const tool = createRunCommand(motorConfig)
+
+      await expect(
+        tool.execute({ repo: 'testowner/testrepo', command: 'sleep 999', timeout_ms: 100 })
+      ).rejects.toThrow(/timed out/)
+
+      expect(logger.warn).toHaveBeenCalledWith('motor', 'shell_timeout', expect.objectContaining({
+        repo: 'testowner/testrepo',
+        durationMs: expect.any(Number),
+        timeout: 100
+      }))
+    })
+
+    it('should mark truncated=true in audit when output exceeds limit', async () => {
+      const smallConfig = { workspacesDir: tmpDir, shellTimeout: 60_000, shellMaxOutput: 100 }
+      const tool = createRunCommand(smallConfig)
+
+      await tool.execute({
+        repo: 'testowner/testrepo',
+        command: 'echo "' + 'a'.repeat(150) + '"'
+      })
+
+      expect(logger.info).toHaveBeenCalledWith('motor', 'shell_completed', expect.objectContaining({
+        truncated: true
+      }))
     })
   })
 })

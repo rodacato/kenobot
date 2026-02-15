@@ -28,12 +28,14 @@ export function createRunCommand(motorConfig) {
       const workDir = resolveWorkspace(motorConfig.workspacesDir, repo)
       const timeout = Math.min(timeout_ms || motorConfig.shellTimeout || 60_000, MAX_TIMEOUT)
       const maxOutput = motorConfig.shellMaxOutput || 102_400
+      const startTime = Date.now()
 
       if (/\bsudo\b/.test(command)) {
+        logger.warn('motor', 'shell_blocked', { repo, command: command.slice(0, 100), reason: 'sudo' })
         throw new Error('sudo is not allowed')
       }
 
-      logger.info('motor', 'shell_start', { repo, command: command.slice(0, 100), timeout })
+      logger.info('motor', 'shell_exec', { repo, command: command.slice(0, 200), cwd: workDir, timeout })
 
       return new Promise((resolve, reject) => {
         const child = spawn('sh', ['-c', command], {
@@ -65,11 +67,14 @@ export function createRunCommand(motorConfig) {
         const timer = setTimeout(() => {
           child.kill()
           killed = true
+          const durationMs = Date.now() - startTime
+          logger.warn('motor', 'shell_timeout', { repo, command: command.slice(0, 200), durationMs, timeout })
           reject(new Error(`Command timed out after ${timeout}ms`))
         }, timeout)
 
         child.on('close', (code) => {
           clearTimeout(timer)
+          const durationMs = Date.now() - startTime
           let output = ''
           if (stdout) output += stdout
           if (stderr) output += (output ? '\n--- stderr ---\n' : '') + stderr
@@ -77,11 +82,31 @@ export function createRunCommand(motorConfig) {
             output += `\n[Output truncated at ${maxOutput} bytes]`
           }
           output += `\n[Exit code: ${code}]`
+
+          // Audit trail: log every command execution with full context
+          logger.info('motor', 'shell_completed', {
+            repo,
+            command: command.slice(0, 200),
+            cwd: workDir,
+            exitCode: code,
+            durationMs,
+            outputBytes: output.length,
+            truncated: killed
+          })
+
           resolve(output)
         })
 
         child.on('error', (err) => {
           clearTimeout(timer)
+          const durationMs = Date.now() - startTime
+          logger.error('motor', 'shell_error', {
+            repo,
+            command: command.slice(0, 200),
+            cwd: workDir,
+            error: err.message,
+            durationMs
+          })
           reject(err)
         })
       })
