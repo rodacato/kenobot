@@ -64,20 +64,18 @@ export async function createTestApp(overrides = {}, { setup } = {}) {
   // Create temp directories
   const dataDir = await mkdtemp(join(tmpdir(), 'kenobot-e2e-'))
   const identityDir = join(dataDir, 'memory', 'identity')
-  const skillsDir = join(dataDir, 'skills')
   const sessionsDir = join(dataDir, 'sessions')
 
   await mkdir(identityDir, { recursive: true })
-  await mkdir(skillsDir, { recursive: true })
   await mkdir(sessionsDir, { recursive: true })
 
   // Write minimal cognitive identity files
   await writeFile(join(identityDir, 'core.md'), '# Test Bot\nYou are a test bot.')
   await writeFile(join(identityDir, 'rules.json'), JSON.stringify({ rules: [] }, null, 2))
 
-  // Optional pre-start setup (e.g. create skill dirs, BOOTSTRAP.md)
+  // Optional pre-start setup (e.g. create BOOTSTRAP.md)
   if (setup) {
-    await setup({ dataDir, identityDir, skillsDir, sessionsDir })
+    await setup({ dataDir, identityDir, sessionsDir })
   }
 
   // Build config
@@ -85,7 +83,6 @@ export async function createTestApp(overrides = {}, { setup } = {}) {
     PROVIDER: 'mock',
     MODEL: 'test',
     DATA_DIR: dataDir,
-    SKILLS_DIR: skillsDir,
     TELEGRAM_BOT_TOKEN: 'fake-token',
     TELEGRAM_ALLOWED_USERS: 'e2e-user',
     HTTP_ENABLED: 'true',
@@ -93,7 +90,6 @@ export async function createTestApp(overrides = {}, { setup } = {}) {
     HTTP_HOST: '127.0.0.1',
     WEBHOOK_SECRET,
     HTTP_TIMEOUT: '10000',
-    MAX_TOOL_ITERATIONS: '5',
     WATCHDOG_INTERVAL: '60000',
     ...overrides
   })

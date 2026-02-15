@@ -33,7 +33,7 @@ await runScenario({
   name: 'my-scenario',
 
   // Optional: pre-start setup (write files, seed data)
-  setup: async ({ dataDir, identityDir, skillsDir, sessionsDir }) => {
+  setup: async ({ dataDir, identityDir, sessionsDir }) => {
     await writeFile(join(identityDir, 'BOOTSTRAP.md'), '...')
   },
 

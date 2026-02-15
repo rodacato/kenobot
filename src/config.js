@@ -53,18 +53,12 @@ export function createConfig(env = process.env) {
     memoryDays: int('MEMORY_DAYS', 3, { min: 0, max: 30 }),
     memoryRetentionDays: int('MEMORY_RETENTION_DAYS', 30, { min: 1, max: 365 }),
     workingMemoryStaleThreshold: int('WORKING_MEMORY_STALE_DAYS', 7, { min: 1, max: 30 }),
-    skillsDir: env.SKILLS_DIR || './skills',
-    toolsDir: env.TOOLS_DIR || '',
     sessionHistoryLimit: int('SESSION_HISTORY_LIMIT', 20, { min: 1 }),
-    maxToolIterations: int('MAX_TOOL_ITERATIONS', 20, { min: 1, max: 100 }),
 
     enableScheduler: env.ENABLE_SCHEDULER !== 'false',
     timezone: env.TIMEZONE || '',
 
-    selfImprovementEnabled: env.SELF_IMPROVEMENT_ENABLED === 'true',
-    approvalRequired: env.APPROVAL_REQUIRED !== 'false',
     watchdogInterval: int('WATCHDOG_INTERVAL', 60000, { min: 5000 }),
-    fallbackProvider: env.FALLBACK_PROVIDER || '',
 
     circuitBreaker: {
       threshold: int('CIRCUIT_BREAKER_THRESHOLD', 5, { min: 1 }),

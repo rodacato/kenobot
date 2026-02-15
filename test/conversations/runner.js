@@ -9,7 +9,7 @@ import { createInspector } from './inspect.js'
  *
  * @param {Object} scenario - Scenario definition
  * @param {string} scenario.name - Unique scenario name (used as chatId slug)
- * @param {Function} [scenario.setup] - Pre-start hook: async ({ dataDir, identityDir, skillsDir, sessionsDir }) => {}
+ * @param {Function} [scenario.setup] - Pre-start hook: async ({ dataDir, identityDir, sessionsDir }) => {}
  * @param {Object} [scenario.config] - Config overrides for createTestApp
  * @param {Array} scenario.turns - Array of turn definitions
  * @param {string} scenario.turns[].user - User message text

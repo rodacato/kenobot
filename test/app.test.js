@@ -27,8 +27,6 @@ describe('createApp', () => {
       provider: 'mock',
       model: 'test',
       dataDir: '/tmp/kenobot-test',
-      skillsDir: './skills',
-      maxToolIterations: 5,
       watchdogInterval: 60000,
       circuitBreaker: { threshold: 5, cooldown: 60000 },
       telegram: {
