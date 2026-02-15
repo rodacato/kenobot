@@ -78,6 +78,7 @@ export function createConfig(env = process.env) {
 
     motor: {
       githubUsername: env.GITHUB_USERNAME || '',
+      selfRepo: env.MOTOR_SELF_REPO || '',
       workspacesDir: env.MOTOR_WORKSPACES_DIR || join(env.DATA_DIR || './data', 'motor', 'workspaces'),
       shellTimeout: int('MOTOR_SHELL_TIMEOUT', 60000, { min: 5000, max: 300000 }),
       shellMaxOutput: int('MOTOR_SHELL_MAX_OUTPUT', 102400, { min: 1024 }),

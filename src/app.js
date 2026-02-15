@@ -81,9 +81,12 @@ export function createApp(config, provider, options = {}) {
     : new Scheduler(bus, config.dataDir, { timezone: config.timezone, logger })
   const storage = new FilesystemStorage(config, { logger })
 
-  // Cognitive System: Memory System + Identity System
+  // Motor System: Tool registry for ReAct loop (created before Cognitive to wire into sleep cycle)
+  const toolRegistry = createToolRegistry(config)
+
+  // Cognitive System: Memory System + Identity System (with Motor System integration for self-improvement)
   const memoryStore = new MemoryStore(config.dataDir, { logger })
-  const cognitiveOpts = { logger }
+  const cognitiveOpts = { logger, bus, toolRegistry }
   if (options.homePath) {
     cognitiveOpts.identityPath = join(options.homePath, 'memory', 'identity')
   }
@@ -95,9 +98,6 @@ export function createApp(config, provider, options = {}) {
     middleware: bus._middleware.length,
     audit: !!bus.getAuditTrail()
   })
-
-  // Motor System: Tool registry for ReAct loop
-  const toolRegistry = createToolRegistry(config)
   logger.info('system', 'tool_registry_ready', { tools: toolRegistry.size })
 
   // Motor System: Task persistence

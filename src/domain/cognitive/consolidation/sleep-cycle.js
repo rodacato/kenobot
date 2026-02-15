@@ -17,7 +17,7 @@ import defaultLogger from '../../../infrastructure/logger.js'
  * Phase 6: ML-based consolidation (embeddings, clustering)
  */
 export default class SleepCycle {
-  constructor(memorySystem, { logger = defaultLogger, dataDir } = {}) {
+  constructor(memorySystem, { logger = defaultLogger, dataDir, bus, toolRegistry, repo } = {}) {
     this.memory = memorySystem
     this.logger = logger
 
@@ -25,7 +25,7 @@ export default class SleepCycle {
     this.consolidator = new Consolidator(memorySystem, { logger })
     this.errorAnalyzer = new ErrorAnalyzer(memorySystem, { logger })
     this.pruner = new MemoryPruner(memorySystem, { logger })
-    this.selfImprover = new SelfImprover(memorySystem, { logger, dataDir })
+    this.selfImprover = new SelfImprover(memorySystem, { logger, dataDir, bus, toolRegistry, repo })
 
     this.state = {
       lastRun: null,
