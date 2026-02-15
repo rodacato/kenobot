@@ -1646,153 +1646,66 @@ The original 8 experts reviewed the developer feedback and reached final consens
 
 ---
 
-## Implementation Plan
+## Implementation Summary
 
-Implementation was organized in 7 phases, with Phases 1-6.5 completed and an integration phase pending.
+The cognitive system is fully implemented across 28 modules in `src/cognitive/`:
 
-### Phase 1: Base Structure (Backward-Compatible) -- COMPLETED
-
-Created the modular cognitive structure without breaking existing code. Key deliverables:
-- Directory structure: `src/cognitive/{memory,retrieval,identity,consolidation,utils}/`
-- `MemoryStore`: Wrapper of existing system, compatible with FileMemory
-- `MemorySystem`: Unified facade for working, episodic, semantic, procedural memory
-- `CognitiveSystem`: Main facade orchestrating memory and retrieval
-- Integration with ContextBuilder (detects CognitiveSystem vs. FileMemory, backward compatible)
-- Integration with app.js (`options.useCognitive` flag, default: true)
-- 20 tests passing
-
-### Phase 2: Selective Retrieval + Query Expansion -- COMPLETED
-
-Implemented selective memory retrieval to reduce tokens and improve relevance:
-- `RetrievalEngine`: Orchestrator with keyword matching
-- `KeywordMatcher`: Keyword-based search
-- 14 tests passing
-- Note: LLM-based query expansion deferred for later integration
-
-### Phase 3: 4 Memory Types -- COMPLETED
-
-Separated the 4 memory types into independent classes:
-- `WorkingMemory`: Scratchpad with staleness detection (7 days)
-- `EpisodicMemory`: Chat-specific + shared episodes, getLongTerm/getRecent methods
-- `SemanticMemory`: Facts wrapper with 3-day default retention
-- `ProceduralMemory`: add/remove/match patterns in memory
-- `MemorySystem` facade updated to delegate to all 4 classes
-- 50 tests passing
-
-### Phase 4: Sleep Cycle + Consolidation -- COMPLETED
-
-Implemented nightly consolidation for error learning and improvement over time:
-- `SleepCycle`: Orchestrator with resilience and persistent state on failure
-- `Consolidator`: Saliency filter (errors, successes, novel content), pattern/fact extraction
-- `ErrorAnalyzer`: Error classification (own vs. external), recoverable error detection
-- `SelfImprover`: Issue detection, proposal generation
-- `MemoryPruner`: Configurable thresholds (stale: 7 days, archive: 30 days), episode merging
-- 46 tests passing
-
-### Phase 5: Identity + Behavioral Rules -- COMPLETED
-
-Implemented emergent personality system based on behavioral rules:
-- `IdentityManager`: Facade integrating all identity components
-- `CoreLoader`: Loads core.md (immutable)
-- `RulesEngine`: Interprets rules.json, system instructions + few-shot examples format, forbidden pattern regex validation
-- `PreferencesManager`: Manages preferences.md
-- Bootstrap process: Detects BOOTSTRAP.md, saves responses, marks complete
-- 43 tests passing
-
-### Phase 6: Optimizations + UX -- COMPLETED
-
-Production refinements for observability, costs, and transparency:
-- `MessageBatcher`: Adaptive debouncing (2 sec silence), incomplete message detection
-- `CostTracker`: Claude 3.5 pricing, daily/monthly tracking, budget alerts (80%/100%)
-- `MemoryHealthChecker`: Sleep cycle status verification, HTTP-ready health format
-- `TransparencyManager`: Learning feedback, `/why` command, `/memory-status`, bilingual formatting
-- 58 tests passing
-
-### Phase 6.5: Conversational Bootstrap -- COMPLETED
-
-Replaced questionnaire bootstrap with natural conversation using observation and inference:
-- Enhanced BOOTSTRAP.md emphasizing natural observation over questionnaire
-- `BootstrapOrchestrator`: 3 phases (observing -> checkpoint -> boundaries -> complete)
-- `ProfileInferrer`: Uses LLM to infer tone, verbosity, language, emoji usage with confidence scoring
-- CLI `reset` command for dev/testing (--memory, --identity, --all, --yes)
-- 30 tests passing
-
-### Integration Phase -- COMPLETED
-
-Connected all components to the production message flow:
-- CognitiveSystem wired into app.js (composition root)
-- SleepCycle auto-triggered via hourly interval check (`shouldRun()`)
-- Sleep cycle health check registered with Watchdog
-- Metacognition post-processor evaluates every response (observe-only)
-- CLI commands: `kenobot sleep`, `kenobot memory`
-
-### Post-Integration: Consolidation Algorithms -- COMPLETED
-
-Completed all consolidation stubs with real heuristic-based implementations:
-- `Consolidator.run()`: Loads episodes from global + all chats, filters by salience, extracts facts and patterns
-- `ErrorAnalyzer.run()`: Scans for errors, classifies (internal/external/configuration), extracts lessons
-- `MemoryPruner.run()`: Deletes stale working memory, prunes low-confidence patterns, similarity grouping
-- `SelfImprover.run()`: Generates improvement proposals based on sleep cycle metrics
-- `ProceduralMemory`: Added disk persistence (lazy loading, auto-save) and keyword matching
-- `MemoryStore`: Added `readPatterns()`, `writePatterns()`, `listChatSessions()`, `listWorkingMemorySessions()`, `deleteWorkingMemory()`
-
-### Post-Integration: Metacognition System -- COMPLETED
-
-Added heuristic metacognitive capabilities (zero LLM cost):
-- `SelfMonitor`: Detects hedging, repetition, length anomalies, missing context
-- `ConfidenceEstimator`: Integrates with RetrievalEngine confidence scores
-- `ReflectionEngine`: Analyzes learning rate, error patterns, consolidation effectiveness
-- `MetacognitionSystem`: Facade orchestrating all three components
-- Wired as post-processor (observe-only: logs warnings for poor quality responses)
+```
+src/cognitive/
+  index.js                          -- CognitiveSystem facade
+  memory/
+    memory-system.js                -- MemorySystem facade (4 memory types)
+    working-memory.js               -- Scratchpad with staleness detection (7 days)
+    episodic-memory.js              -- Chat-specific + shared episodes
+    semantic-memory.js              -- Facts with retention policies
+    procedural-memory.js            -- Learned patterns with disk persistence
+  retrieval/
+    retrieval-engine.js             -- Orchestrator with keyword matching
+    keyword-matcher.js              -- Keyword-based search
+    confidence-scorer.js            -- Retrieval confidence scoring
+  identity/
+    identity-manager.js             -- IdentityManager facade
+    core-loader.js                  -- Loads core.md (immutable)
+    rules-engine.js                 -- System instructions + few-shot examples
+    preferences-manager.js          -- Learned preferences
+    bootstrap-orchestrator.js       -- Conversational onboarding (3 phases)
+    profile-inferrer.js             -- LLM-based style inference
+  consolidation/
+    sleep-cycle.js                  -- Nightly orchestrator with resilience
+    consolidator.js                 -- Saliency filter, fact/pattern extraction
+    error-analyzer.js               -- Error classification and lessons
+    memory-pruner.js                -- Stale cleanup, similarity grouping
+    self-improver.js                -- Improvement proposal generation
+  metacognition/
+    index.js                        -- MetacognitionSystem facade
+    self-monitor.js                 -- Heuristic response evaluation (zero LLM cost)
+    confidence-estimator.js         -- Confidence from retrieval scores
+    reflection-engine.js            -- Learning rate and error pattern analysis
+  utils/
+    cost-tracker.js                 -- Budget tracking and alerts
+    memory-health.js                -- Health checks for memory subsystem
+    message-batcher.js              -- Adaptive debouncing (2 sec silence)
+    transparency.js                 -- Learning feedback, /why, /memory-status
+```
 
 ### Architecture Patterns Used
 
 | Pattern | Where | Why |
 |---------|-------|-----|
-| **Facade** | CognitiveSystem, MemorySystem | Simplifies interface, hides complexity |
+| **Facade** | CognitiveSystem, MemorySystem, IdentityManager, MetacognitionSystem | Simplifies interface, hides complexity |
 | **Composition** | All components | More flexible than inheritance |
 | **Single Source of Truth** | MemoryStore | Prevents inconsistencies |
-| **Event-Driven** | Bus for external events | Decouples channels/agent |
+| **Event-Driven** | NervousSystem bus | Decouples channels/agent |
 | **Dependency Injection** | All constructors | Testable, mockable |
-| **Backward Compatibility** | Phase 1 complete | Reduces risk, allows rollback |
 
 ### Key Trade-offs
 
 | Decision | Advantage | Disadvantage | Justification |
 |----------|-----------|--------------|---------------|
 | **Facade pattern everywhere** | Simple interface | More files | Maintainability > fewer files |
-| **LLM-based query expansion** | Contextual, zero maintenance | LLM cost | Quality > marginal cost |
-| **Keyword matching (Phase 1-2)** | Simple, fast | Less precise | YAGNI -- embeddings only if necessary |
+| **Keyword matching** | Simple, fast | Less precise | YAGNI -- embeddings only if necessary |
 | **Sleep cycle at 4am** | Consistent, predictable | Rigid | Sufficient for single user |
-| **Haiku for consolidation** | Cheap (10x) | Less capable | Simple tasks, cost critical |
-
-### Progress Overview
-
-```
-Phase 1:       [########################] 100% -- COMPLETED (20 tests)
-Phase 2:       [########################] 100% -- COMPLETED (14 tests)
-Phase 3:       [########################] 100% -- COMPLETED (50 tests)
-Phase 4:       [########################] 100% -- COMPLETED (46 tests)
-Phase 5:       [########################] 100% -- COMPLETED (43 tests)
-Phase 6:       [########################] 100% -- COMPLETED (58 tests)
-Phase 6.5:     [########################] 100% -- COMPLETED (30 tests)
-Integration:   [########################] 100% -- COMPLETED
-Consolidation: [########################] 100% -- COMPLETED (98 tests)
-Metacognition: [########################] 100% -- COMPLETED (46 tests)
-CLI:           [########################] 100% -- COMPLETED (7 tests)
-Phase 7:       [                        ]   0% (future)
-
-Total: 835 tests passing
-```
-
-### Future Phase 7 (After Validation -- 6+ Months of Use)
-
-Only if necessary after validation with real usage data:
-- Knowledge versioning (revert changes)
-- Obsolescence detection (facts >90 days unused)
-- Embeddings + vector search (if keyword matching insufficient)
-- Multi-modal memory (images, files)
-- Analytics dashboard (pattern visualization)
+| **Heuristic metacognition** | Zero latency, zero cost | Less nuanced | LLM-based evaluation is a future extension |
 
 ---
 

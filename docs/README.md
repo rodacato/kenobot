@@ -25,7 +25,7 @@ Design rationale, research notes, and expert consultations behind KenoBot's arch
 | [Design Guide](design/README.md) | Conventions, research diary, and how to add new research |
 | [Expert Catalog](design/experts.md) | All expert personas used across research sessions |
 
-Research topics: [Cognitive Architecture](design/cognitive-architecture.md), [Nervous System](design/nervous-system.md), [Metacognition](design/metacognition.md), [Body Systems](design/body-systems.md), [Implementation Plan](design/implementation-plan.md), [Developer Experience](design/developer-experience.md), [Documentation](design/documentation.md)
+Research topics: [Cognitive Architecture](design/cognitive-architecture.md), [Nervous System](design/nervous-system.md), [Metacognition](design/metacognition.md), [Body Systems](design/body-systems.md), [Developer Experience](design/developer-experience.md), [Documentation](design/documentation.md)
 
 ## Examples
 

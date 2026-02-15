@@ -64,6 +64,5 @@ Every research document follows this structure:
 | 2 | 2026-02-14 | Nervous System | Implemented | [nervous-system.md](nervous-system.md) |
 | 3 | 2026-02-14 | Metacognition | Designed | [metacognition.md](metacognition.md) |
 | 4 | 2026-02-14 | Body Systems Survey | Research | [body-systems.md](body-systems.md) |
-| 5 | 2026-02-14 | Implementation Plan | Planning | [implementation-plan.md](implementation-plan.md) |
-| 6 | 2026-02-14 | Developer Experience | Designed | [developer-experience.md](developer-experience.md) |
-| 7 | 2026-02-14 | Documentation Taxonomy | Implemented | [documentation.md](documentation.md) |
+| 5 | 2026-02-14 | Developer Experience | Designed | [developer-experience.md](developer-experience.md) |
+| 6 | 2026-02-14 | Documentation Taxonomy | Implemented | [documentation.md](documentation.md) |

@@ -84,7 +84,6 @@ docs/
 |------|--------------|
 | "I want to use or extend the bot" | `docs/features/` |
 | "I want to understand why it works this way" | `docs/design/` |
-| "I want to see the project roadmap" | `docs/design/implementation-plan.md` |
 | "I want to see what other projects influenced this" | `docs/design/cognitive-architecture.md` (prior art section) |
 | "I want to re-use an expert persona" | `docs/design/experts.md` |
 
