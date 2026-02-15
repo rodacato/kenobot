@@ -7,6 +7,93 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-02-15
+
+### Added
+- Integration tests for full message flow
+- Provider contract tests for Claude and Gemini APIs
+- Two-track documentation structure (quickstart/ and reference/)
+- Event bus schema documentation with all 13 events
+- Rollback procedure guide
+- Contribution zones in README (low/medium/high risk areas)
+- Nervous System module (src/nervous/) with Signal, middleware pipeline, and JSONL audit trail
+- Design knowledge system in docs/design/ with research diary, expert catalog, and 7 consolidated research documents
+- ProceduralMemory disk persistence and keyword-based pattern matching
+- MemoryStore APIs for listing and managing memory sessions
+- Consolidation algorithms extract facts and patterns from episodes
+- Error analysis identifies recurring errors and generates lessons
+- Memory pruning removes stale working memory and low-confidence patterns
+- SelfImprover generates improvement proposals during sleep cycle
+- Sleep cycle now runs 4 phases (consolidation, error analysis, pruning, self-improvement)
+- Sleep cycle runs automatically at 4am daily via scheduler
+- Memory health checks detect stale working memory and oversized stores
+- Metacognition system with response quality monitoring
+- Confidence estimation for memory retrieval results
+- Reflection engine analyzes patterns during sleep cycle
+- CLI command 'kenobot sleep' for manual sleep cycle execution and status
+- CLI command 'kenobot memory' for memory stats, health checks, and pruning
+- Automatic daily log cleanup after 30 days (already consolidated)
+- MEMORY.md deduplication removes near-duplicate facts during sleep cycle
+- Active bootstrap orchestration with profile inference, checkpoints, and boundaries questions during first conversation
+- ENABLE_SCHEDULER config to disable cron task scheduler
+- TIMEZONE config for timezone-aware cron job scheduling
+- Conversation scenario test framework (runner, inspector, docs)
+- 19 conversation scenario tests (memory, identity, bootstrap, multi-turn, working-memory)
+- Focused HTTP-layer e2e tests (auth, validation, routing)
+
+### Changed
+- Config backups now manual via git or kenobot backup command
+- Restored detailed contributing guidelines for AI assistants
+- Bot now conversation-only until tools are redesigned
+- IdentityLoader now only supports directory mode
+- Consistent naming for Cognitive System sub-systems
+- Event bus replaced by Nervous System with middleware, tracing, and audit trail
+- Cleaned deployment, architecture, configuration, events, and guide docs
+- Simplified docs/ from 5 folders + 11 files to 7 flat files
+- Identity templates now at templates/identity/ with core.md, rules.json, BOOTSTRAP.md
+- Reset command always requires confirmation (removed --yes flag)
+
+### Removed
+- Self-improvement feature (security risk - auto-proposed rule changes)
+- Automatic config sync (surprising behavior - auto-commits/pushes)
+- n8n integration tools (niche use case - can be restored via RESTORE.md)
+- n8n installation and configuration from setup scripts
+- Complete tools and skills systems for future redesign
+- Multi-instance workspace support
+- KENOBOT_HOME environment variable (home is now always ~/.kenobot)
+- skills syncing from setup command
+- skills checking from doctor command
+- SKILLS_DIR environment variable
+- skills/ directory and obsolete migration scripts
+- tool-orchestrator and all tool execution logic from AgentLoop
+- obsolete environment variables from templates
+- Legacy single-file identity mode (kenobot.md)
+- Dead IdentityLoader import and outdated phase comments
+- Outdated planning docs (IMPLEMENTATION_PLAN, PLANNING_OVERVIEW, DX_PLAN, DX_REFERENCES)
+- Archived feature docs (tools, skills, n8n, self-improvement, multi-instance)
+- Integration guide, n8n guide, and rollback procedure docs
+- Stale CLAUDE.md.bk backup file
+- References to n8n, tools, skills, approval system, and multi-instance from docs
+- Legacy identity system (SOUL.md, IDENTITY.md, IDENTITY_FILE config, init-cognitive command)
+- Legacy test scripts (test:smoke, test:features, test:ui, test:cognitive)
+- Dead config vars and unused SSH/template checks from doctor
+- Orphan purge tags from directory structure definition
+- n8n integration (config, watchdog check, doctor check, templates)
+- Redundant e2e smoke/memory/session tests (superseded by conversation scenarios)
+
+### Fixed
+- Test suite stabilized to 100% pass rate
+- Memory saving from <memory>, <chat-memory>, and <working-memory> tags was silently failing
+- Bot now saves memories from the first conversation (tag instructions always visible)
+- Sleep cycle now consolidates user preferences and knowledge statements
+- Sleep consolidation writes to long-term memory with deduplication
+- Working memory corruption during bootstrap (recursive JSON nesting)
+- ProfileInferrer provider method mismatch (complete to chat)
+- Bootstrap completion not saving preferences.md
+- Reset command now properly cleans working memory and MEMORY.md
+- Memory consolidation now works with any language (removed English-only keyword filter)
+- HTTP channel graceful shutdown now destroys active connections
+
 ## [0.4.0] - 2026-02-13
 
 ### Added
