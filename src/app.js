@@ -16,7 +16,7 @@ import Watchdog from './infrastructure/watchdog.js'
 import { writePid, removePid } from './infrastructure/health.js'
 import { setupNotifications } from './infrastructure/notifications.js'
 import {
-  ERROR,
+  ERROR, MESSAGE_OUT,
   TASK_QUEUED, TASK_STARTED, TASK_PROGRESS, TASK_COMPLETED, TASK_FAILED, TASK_CANCELLED,
   APPROVAL_PROPOSED, APPROVAL_APPROVED, APPROVAL_REJECTED
 } from './infrastructure/events.js'

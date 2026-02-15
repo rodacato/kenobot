@@ -128,11 +128,15 @@ All read methods return empty string (`''`) or `null` when the file doesn't exis
 
 **Timeouts**: Each test should have a 15000ms timeout (15s). Multi-turn scenarios with 7+ turns should use 30000ms.
 
-**MockProvider scripting**: `setNextResponse(text)` queues one response, consumed on the next `provider.chat()` call. For bootstrap scenarios, internal calls (ProfileInferrer) may consume the response before the actual turn — keep this in mind for multi-phase tests.
+**MockProvider scripting**: `setNextResponse(text)` queues one text response; `queueResponse(obj)` queues a full response object (with `content`, `toolCalls`, `stopReason`, `rawContent`). Use `queueResponse` to script multi-step tool_use flows. Queued responses are consumed FIFO. For bootstrap scenarios, internal calls (ProfileInferrer) may consume responses before the actual turn — keep this in mind for multi-phase tests.
 
 **Tag stripping**: Tag extractors may leave extra whitespace where tags were. Assert with `toContain` rather than `toBe` for response text with tags removed.
 
 **Per-turn chatId**: Use `turn.chatId` to test multi-chat scenarios (e.g., memory isolation) within a single `runScenario()` call.
+
+**Tool use scripting**: For Motor System tests that bypass `runScenario()`, use `createTestApp()` directly with `provider.queueResponse()`. Use the `toolUseResponse(text, toolCalls)` and `endTurnResponse(text)` helpers from `motor-system.test.js`. Always call `mockTools(harness)` to replace real tools (search_web, fetch_url, github_setup_workspace) with fast mocks that avoid HTTP/git calls.
+
+**Background task tests**: Background tasks run asynchronously via TaskRunner. Use `Promise.race` with a timeout when waiting for signals like `task:completed` or `task:failed`. Allow extra time in `afterEach` for background tasks to settle before cleanup.
 
 ## Current Scenarios
 
@@ -143,6 +147,7 @@ All read methods return empty string (`''`) or `null` when the file doesn't exis
 | `identity.test.js` | 3 | Core identity, memory tag instructions, retrieval integration |
 | `multi-turn.test.js` | 2 | History ordering in provider context, session persistence |
 | `bootstrap.test.js` | 3 | Bootstrap detection, completion, non-bootstrap mode |
+| `motor-system.test.js` | 14 | Inline ReAct loop, tool registration, background tasks, multi-step tool use, task lifecycle (COMPLETED/FAILED/PROGRESS), concurrent task rejection, memory tags with tool iterations |
 
 ## Future Improvements
 
@@ -150,10 +155,10 @@ Based on expert reviews (QA Strategist, Cognitive Scientist, Software Architect)
 
 ### High Priority
 
-- **MockProvider response queue**: Add `queueResponses([...])` for scenarios with internal multi-call turns (bootstrap lifecycle, tool use). Currently `setNextResponse` is single-shot.
 - **Provider error scenarios**: Add `setNextError(error)` to MockProvider + `turn.error` to runner. Test agent loop error handling.
-- **Full bootstrap lifecycle**: Multi-turn test covering all 4 phases (observe, checkpoint, boundaries, complete). Blocked on response queue.
+- **Full bootstrap lifecycle**: Multi-turn test covering all 4 phases (observe, checkpoint, boundaries, complete).
 - **Consolidation round-trip**: Test the full encoding → storage → sleep cycle → retrieval loop.
+- **Approval workflow scenarios**: Test approval:proposed → approved/rejected signal flow.
 
 ### Medium Priority
 

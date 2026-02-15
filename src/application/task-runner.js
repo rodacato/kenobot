@@ -82,6 +82,11 @@ export default class TaskRunner {
 
       this.logger.info('motor', 'task_completed', { taskId, iterations, resultLength: text.length })
     } catch (error) {
+      if (!task.isActive) {
+        // Task already completed/failed — log but don't try to transition again
+        this.logger.error('motor', 'task_post_complete_error', { taskId, error: error.message, taskStatus: task.status })
+        return
+      }
       task.fail(error)
 
       this.bus.fire(TASK_FAILED, { taskId, chatId, error: error.message, channel }, { source: 'motor' })
