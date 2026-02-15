@@ -15,7 +15,11 @@ import CircuitBreakerProvider from './adapters/providers/circuit-breaker.js'
 import Watchdog from './infrastructure/watchdog.js'
 import { writePid, removePid } from './infrastructure/health.js'
 import { setupNotifications } from './infrastructure/notifications.js'
-import { ERROR, TASK_PROGRESS, TASK_COMPLETED, TASK_FAILED, APPROVAL_PROPOSED, APPROVAL_APPROVED, APPROVAL_REJECTED } from './infrastructure/events.js'
+import {
+  ERROR,
+  TASK_QUEUED, TASK_STARTED, TASK_PROGRESS, TASK_COMPLETED, TASK_FAILED, TASK_CANCELLED,
+  APPROVAL_PROPOSED, APPROVAL_APPROVED, APPROVAL_REJECTED
+} from './infrastructure/events.js'
 import { createToolRegistry } from './domain/motor/index.js'
 import TaskStore from './adapters/storage/task-store.js'
 
@@ -134,7 +138,13 @@ export function createApp(config, provider, options = {}) {
     })
   })
 
-  // Motor System: task signal → message translation
+  // Motor System: task lifecycle logging + message translation
+  bus.on(TASK_QUEUED, ({ taskId, chatId, input }) => {
+    logger.info('motor', 'task_queued', { taskId, chatId, input: input?.slice(0, 100) })
+  })
+  bus.on(TASK_STARTED, ({ taskId, chatId }) => {
+    logger.info('motor', 'task_started', { taskId, chatId })
+  })
   bus.on(TASK_PROGRESS, ({ chatId, text, channel }) => {
     bus.fire(MESSAGE_OUT, { chatId, text, channel }, { source: 'motor' })
   })
@@ -143,6 +153,9 @@ export function createApp(config, provider, options = {}) {
   })
   bus.on(TASK_FAILED, ({ chatId, error, channel }) => {
     bus.fire(MESSAGE_OUT, { chatId, text: `Task failed: ${error}`, channel }, { source: 'motor' })
+  })
+  bus.on(TASK_CANCELLED, ({ taskId, chatId }) => {
+    logger.info('motor', 'task_cancelled', { taskId, chatId })
   })
 
   // Approval workflow: log outcomes to audit trail
