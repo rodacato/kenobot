@@ -1,5 +1,6 @@
 import {
-  NOTIFICATION, HEALTH_DEGRADED, HEALTH_UNHEALTHY, HEALTH_RECOVERED, APPROVAL_PROPOSED
+  NOTIFICATION, HEALTH_DEGRADED, HEALTH_UNHEALTHY, HEALTH_RECOVERED,
+  APPROVAL_PROPOSED, APPROVAL_APPROVED, APPROVAL_REJECTED
 } from './events.js'
 
 /**
@@ -18,7 +19,16 @@ export function setupNotifications(bus, config) {
   bus.on(HEALTH_DEGRADED, ({ detail }) => notify(`Health degraded: ${detail}`))
   bus.on(HEALTH_UNHEALTHY, ({ detail }) => notify(`UNHEALTHY: ${detail}`))
   bus.on(HEALTH_RECOVERED, ({ previous }) => notify(`Recovered (was ${previous})`))
-  bus.on(APPROVAL_PROPOSED, ({ id, type, name }) =>
-    notify(`New proposal: [${type}] ${name} (ID: ${id})\nUse /approve ${id} or /reject ${id}`)
+
+  // Approval workflow: notify owner of proposals and outcomes
+  bus.on(APPROVAL_PROPOSED, ({ type, proposalCount, prUrl }) => {
+    const prLine = prUrl ? `\nPR: ${prUrl}` : ''
+    notify(`New ${type} proposal (${proposalCount} items)${prLine}\nReview on GitHub to approve or reject.`)
+  })
+  bus.on(APPROVAL_APPROVED, ({ type, prUrl }) =>
+    notify(`Approved: [${type}]${prUrl ? ` ${prUrl}` : ''}`)
+  )
+  bus.on(APPROVAL_REJECTED, ({ type, prUrl }) =>
+    notify(`Rejected: [${type}]${prUrl ? ` ${prUrl}` : ''}`)
   )
 }
