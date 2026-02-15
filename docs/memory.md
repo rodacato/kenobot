@@ -783,7 +783,7 @@ test/agent/memory-extractor.test.js          (11 tests) ✓  [Tag extraction]
 test/agent/chat-memory-extractor.test.js     (10 tests) ✓  [Chat tag extraction]
 test/agent/working-memory-extractor.test.js  (9 tests) ✓   [Working tag extraction]
 test/storage/memory-store.test.js            (11 tests) ✓  [MemoryStore]
-test/e2e/features/memory.test.js             (10 tests) ✓  [End-to-end]
+test/conversations/scenarios/memory.test.js  (7 tests) ✓   [Conversation scenarios]
 ```
 
 ### Key Test Scenarios

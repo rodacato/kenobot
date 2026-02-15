@@ -28,6 +28,7 @@ export default class HTTPChannel extends BaseChannel {
     this.server = null
     this._pendingRequests = new Map()
     this._responseHandler = null
+    this._sockets = new Set()
   }
 
   get name() { return 'http' }
@@ -37,6 +38,10 @@ export default class HTTPChannel extends BaseChannel {
     this.bus.on(MESSAGE_OUT, this._responseHandler)
 
     this.server = createServer((req, res) => this._route(req, res))
+    this.server.on('connection', (socket) => {
+      this._sockets.add(socket)
+      socket.on('close', () => this._sockets.delete(socket))
+    })
 
     await new Promise((resolve, reject) => {
       this.server.once('error', reject)
@@ -62,6 +67,8 @@ export default class HTTPChannel extends BaseChannel {
     this._pendingRequests.clear()
 
     if (this.server) {
+      for (const socket of this._sockets) socket.destroy()
+      this._sockets.clear()
       await new Promise(resolve => this.server.close(resolve))
       this.server = null
     }

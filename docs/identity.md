@@ -758,7 +758,7 @@ test/cognitive/identity/
 **Additional:**
 ```
 test/agent/identity.test.js          (9 tests) ✓  [IdentityLoader]
-test/e2e/features/identity.test.js   (7 tests) ✓  [End-to-end]
+test/conversations/scenarios/identity.test.js (3 tests) ✓  [Conversation scenarios]
 ```
 
 ### Key Test Scenarios

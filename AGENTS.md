@@ -30,6 +30,7 @@ npm run test:watch     # Watch mode
 npm run test:coverage  # Coverage report (V8)
 npx vitest run test/agent/loop.test.js  # Run a single test file
 npm run test:e2e       # E2E tests (sequential)
+npm run test:conversations  # Conversation scenario tests
 bin/release 0.2.0      # Generate changelog + git tag
 ```
 

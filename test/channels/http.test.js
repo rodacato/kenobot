@@ -59,7 +59,7 @@ describe('HTTPChannel', () => {
       port: 0,
       host: '127.0.0.1',
       webhookSecret: SECRET,
-      timeout: 5000
+      timeout: 100
     })
     await channel.start()
     port = channel.server.address().port
@@ -303,12 +303,11 @@ describe('HTTPChannel', () => {
       // Give time for request to arrive
       await new Promise(r => setTimeout(r, 50))
 
-      // Stop the channel — should reject pending
+      // Stop the channel — destroys sockets, should not hang
       await channel.stop()
 
-      const res = await responsePromise
-      // Connection will be cut or error returned
-      expect(res.status).toBe(500)
+      // Socket destruction causes connection error, not a clean HTTP response
+      await expect(responsePromise).rejects.toThrow('socket hang up')
     })
 
     it('should clean up server on stop', async () => {
