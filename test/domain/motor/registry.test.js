@@ -85,7 +85,6 @@ describe('createToolRegistry', () => {
   it('should register action tools when motor config is present', () => {
     const config = {
       motor: {
-        githubToken: 'test-token',
         githubUsername: 'testuser',
         workspacesDir: '/tmp/test-workspaces',
         shellTimeout: 60000,
@@ -94,8 +93,8 @@ describe('createToolRegistry', () => {
     }
     const registry = createToolRegistry(config)
 
-    // 2 information + 9 action = 11 tools
-    expect(registry.size).toBe(11)
+    // 2 information + 5 action = 7 tools
+    expect(registry.size).toBe(7)
 
     const names = registry.getDefinitions().map(d => d.name)
     expect(names).toContain('search_web')
@@ -104,10 +103,6 @@ describe('createToolRegistry', () => {
     expect(names).toContain('read_file')
     expect(names).toContain('write_file')
     expect(names).toContain('list_files')
-    expect(names).toContain('git_clone')
-    expect(names).toContain('git_diff')
-    expect(names).toContain('git_commit')
-    expect(names).toContain('git_push')
-    expect(names).toContain('create_pr')
+    expect(names).toContain('github_setup_workspace')
   })
 })

@@ -2,7 +2,7 @@ import defaultLogger from '../../infrastructure/logger.js'
 import { searchWeb, fetchUrl } from './tools.js'
 import { createRunCommand } from '../../adapters/actions/shell.js'
 import { createReadFile, createWriteFile, createListFiles } from '../../adapters/actions/file.js'
-import { createGitClone, createGitDiff, createGitCommit, createGitPush, createCreatePr } from '../../adapters/actions/github.js'
+import { createGithubSetupWorkspace } from '../../adapters/actions/github.js'
 
 /**
  * ToolRegistry - Catalog of tools the bot can use during conversations.
@@ -57,11 +57,7 @@ export function createToolRegistry(config = {}) {
     registry.register(createReadFile(motor))
     registry.register(createWriteFile(motor))
     registry.register(createListFiles(motor))
-    registry.register(createGitClone(motor))
-    registry.register(createGitDiff(motor))
-    registry.register(createGitCommit(motor))
-    registry.register(createGitPush(motor))
-    registry.register(createCreatePr(motor))
+    registry.register(createGithubSetupWorkspace(motor))
   }
 
   return registry

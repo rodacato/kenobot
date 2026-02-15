@@ -9,7 +9,7 @@ import TaskRunner from './task-runner.js'
 const CANCEL_PATTERN = /^(para|stop|cancel|cancelar)$/i
 
 // Tools that trigger background execution when seen in the first tool response
-const BACKGROUND_TRIGGER_TOOLS = new Set(['git_clone'])
+const BACKGROUND_TRIGGER_TOOLS = new Set(['github_setup_workspace'])
 
 /**
  * AgentLoop - Core message handler with session persistence and background task support

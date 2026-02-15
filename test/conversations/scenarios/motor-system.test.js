@@ -119,9 +119,8 @@ describe('Scenario: Motor System — Tool registration', () => {
     expect(toolNames).toContain('fetch_url')
   }, 15000)
 
-  it('should include all 11 tools with GitHub config', async () => {
+  it('should include all 7 tools with motor config', async () => {
     harness = await createTestApp({
-      GITHUB_TOKEN: 'fake-token',
       GITHUB_USERNAME: 'testuser'
     })
     const { provider, sendMessage } = harness
@@ -129,12 +128,11 @@ describe('Scenario: Motor System — Tool registration', () => {
     await sendMessage('hello', 'tools-motor')
 
     const lastCall = provider.lastCall
-    expect(lastCall.options.tools).toHaveLength(11)
+    expect(lastCall.options.tools).toHaveLength(7)
 
     const toolNames = lastCall.options.tools.map(t => t.name)
     expect(toolNames).toContain('run_command')
-    expect(toolNames).toContain('git_clone')
-    expect(toolNames).toContain('create_pr')
+    expect(toolNames).toContain('github_setup_workspace')
   }, 15000)
 })
 
@@ -149,17 +147,17 @@ describe('Scenario: Motor System — Background tasks', () => {
     }
   })
 
-  it('should return confirmation immediately when git_clone triggers background', async () => {
+  it('should return confirmation immediately when github_setup_workspace triggers background task', async () => {
     harness = await createTestApp()
     const { provider, sendMessage, app } = harness
     const signals = []
 
     app.bus.on('task:queued', (data) => signals.push({ type: 'queued', ...data }))
 
-    // First response triggers background detection (git_clone)
+    // First response triggers background detection (github_setup_workspace)
     provider.queueResponse(
       toolUseResponse("I'll clone the repo and start working on the fix.", [
-        { id: 'tc_bg', name: 'git_clone', input: { repo: 'owner/repo' } }
+        { id: 'tc_bg', name: 'github_setup_workspace', input: { repo: 'owner/repo' } }
       ])
     )
 
@@ -187,7 +185,7 @@ describe('Scenario: Motor System — Background tasks', () => {
     // Spawn background task with multiple tool iterations to keep it busy
     provider.queueResponse(
       toolUseResponse('Starting long task.', [
-        { id: 'tc_long', name: 'git_clone', input: { repo: 'owner/big-repo' } }
+        { id: 'tc_long', name: 'github_setup_workspace', input: { repo: 'owner/big-repo' } }
       ])
     )
     for (let i = 0; i < 5; i++) {

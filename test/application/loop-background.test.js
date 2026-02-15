@@ -34,10 +34,10 @@ class ScriptedProvider extends BaseProvider {
   get supportsTools() { return true }
 }
 
-const gitCloneTool = {
+const githubSetupTool = {
   definition: {
-    name: 'git_clone',
-    description: 'Clone a git repository',
+    name: 'github_setup_workspace',
+    description: 'Setup a GitHub workspace',
     input_schema: {
       type: 'object',
       properties: {
@@ -69,7 +69,7 @@ const searchWebTool = {
 
 function createToolRegistry() {
   const registry = new ToolRegistry()
-  registry.register(gitCloneTool)
+  registry.register(githubSetupTool)
   registry.register(searchWebTool)
   return registry
 }
@@ -165,14 +165,14 @@ describe('AgentLoop background tasks', () => {
     loop.stop()
   })
 
-  it('spawns background task when git_clone detected', async () => {
+  it('spawns background task when github_setup_workspace detected', async () => {
     const provider = new ScriptedProvider([
-      // Response 1: initial call returns git_clone (triggers background mode)
+      // Response 1: initial call returns github_setup_workspace (triggers background mode)
       {
         content: "I'll clone the repo for you",
-        toolCalls: [{ id: 'tc_1', name: 'git_clone', input: { repo: 'test/repo' } }],
+        toolCalls: [{ id: 'tc_1', name: 'github_setup_workspace', input: { repo: 'test/repo' } }],
         stopReason: 'tool_use',
-        rawContent: [{ type: 'tool_use', id: 'tc_1', name: 'git_clone', input: { repo: 'test/repo' } }],
+        rawContent: [{ type: 'tool_use', id: 'tc_1', name: 'github_setup_workspace', input: { repo: 'test/repo' } }],
         usage: {}
       },
       // Response 2: TaskRunner executes tool and calls provider again
@@ -228,9 +228,9 @@ describe('AgentLoop background tasks', () => {
       // Initial response triggers background task
       {
         content: "Cloning repository...",
-        toolCalls: [{ id: 'tc_1', name: 'git_clone', input: { repo: 'large/repo' } }],
+        toolCalls: [{ id: 'tc_1', name: 'github_setup_workspace', input: { repo: 'large/repo' } }],
         stopReason: 'tool_use',
-        rawContent: [{ type: 'tool_use', id: 'tc_1', name: 'git_clone', input: { repo: 'large/repo' } }],
+        rawContent: [{ type: 'tool_use', id: 'tc_1', name: 'github_setup_workspace', input: { repo: 'large/repo' } }],
         usage: {}
       },
       // TaskRunner would use this, but task gets cancelled first
@@ -287,17 +287,17 @@ describe('AgentLoop background tasks', () => {
       // First task
       {
         content: "Cloning first repo...",
-        toolCalls: [{ id: 'tc_1', name: 'git_clone', input: { repo: 'first/repo' } }],
+        toolCalls: [{ id: 'tc_1', name: 'github_setup_workspace', input: { repo: 'first/repo' } }],
         stopReason: 'tool_use',
-        rawContent: [{ type: 'tool_use', id: 'tc_1', name: 'git_clone', input: { repo: 'first/repo' } }],
+        rawContent: [{ type: 'tool_use', id: 'tc_1', name: 'github_setup_workspace', input: { repo: 'first/repo' } }],
         usage: {}
       },
-      // Second task attempt - provider IS called, returns git_clone
+      // Second task attempt - provider IS called, returns github_setup_workspace
       {
         content: "Cloning second repo...",
-        toolCalls: [{ id: 'tc_2', name: 'git_clone', input: { repo: 'second/repo' } }],
+        toolCalls: [{ id: 'tc_2', name: 'github_setup_workspace', input: { repo: 'second/repo' } }],
         stopReason: 'tool_use',
-        rawContent: [{ type: 'tool_use', id: 'tc_2', name: 'git_clone', input: { repo: 'second/repo' } }],
+        rawContent: [{ type: 'tool_use', id: 'tc_2', name: 'github_setup_workspace', input: { repo: 'second/repo' } }],
         usage: {}
       }
     ])
@@ -317,7 +317,7 @@ describe('AgentLoop background tasks', () => {
     expect(activeTask.isActive).toBe(true)
 
     // Try to spawn second task immediately (before first one completes)
-    // The git_clone tool has 200ms delay, so this should arrive while task 1 is still running
+    // The github_setup_workspace tool has 200ms delay, so this should arrive while task 1 is still running
     const response2 = await fireAndWait(bus, {
       text: 'clone another repo',
       chatId: '123',
@@ -390,9 +390,9 @@ describe('AgentLoop background tasks', () => {
         // Spawn a task
         {
           content: "Working...",
-          toolCalls: [{ id: 'tc_1', name: 'git_clone', input: { repo: 'test/repo' } }],
+          toolCalls: [{ id: 'tc_1', name: 'github_setup_workspace', input: { repo: 'test/repo' } }],
           stopReason: 'tool_use',
-          rawContent: [{ type: 'tool_use', id: 'tc_1', name: 'git_clone', input: { repo: 'test/repo' } }],
+          rawContent: [{ type: 'tool_use', id: 'tc_1', name: 'github_setup_workspace', input: { repo: 'test/repo' } }],
           usage: {}
         },
         // TaskRunner response
@@ -438,15 +438,15 @@ describe('AgentLoop background tasks', () => {
     }
   })
 
-  it('handles git_clone with text content', async () => {
+  it('handles github_setup_workspace with text content', async () => {
     const provider = new ScriptedProvider([
       {
         content: "Sure! I'll clone that repository for you.",
-        toolCalls: [{ id: 'tc_1', name: 'git_clone', input: { repo: 'user/project', destination: '/tmp/test' } }],
+        toolCalls: [{ id: 'tc_1', name: 'github_setup_workspace', input: { repo: 'user/project', destination: '/tmp/test' } }],
         stopReason: 'tool_use',
         rawContent: [
           { type: 'text', text: "Sure! I'll clone that repository for you." },
-          { type: 'tool_use', id: 'tc_1', name: 'git_clone', input: { repo: 'user/project', destination: '/tmp/test' } }
+          { type: 'tool_use', id: 'tc_1', name: 'github_setup_workspace', input: { repo: 'user/project', destination: '/tmp/test' } }
         ],
         usage: {}
       },
@@ -480,9 +480,9 @@ describe('AgentLoop background tasks', () => {
     const provider = new ScriptedProvider([
       {
         content: '', // Empty content
-        toolCalls: [{ id: 'tc_1', name: 'git_clone', input: { repo: 'test/repo' } }],
+        toolCalls: [{ id: 'tc_1', name: 'github_setup_workspace', input: { repo: 'test/repo' } }],
         stopReason: 'tool_use',
-        rawContent: [{ type: 'tool_use', id: 'tc_1', name: 'git_clone', input: { repo: 'test/repo' } }],
+        rawContent: [{ type: 'tool_use', id: 'tc_1', name: 'github_setup_workspace', input: { repo: 'test/repo' } }],
         usage: {}
       },
       {
@@ -509,9 +509,9 @@ describe('AgentLoop background tasks', () => {
     const provider = new ScriptedProvider([
       {
         content: "Working...",
-        toolCalls: [{ id: 'tc_1', name: 'git_clone', input: { repo: 'test/repo' } }],
+        toolCalls: [{ id: 'tc_1', name: 'github_setup_workspace', input: { repo: 'test/repo' } }],
         stopReason: 'tool_use',
-        rawContent: [{ type: 'tool_use', id: 'tc_1', name: 'git_clone', input: { repo: 'test/repo' } }],
+        rawContent: [{ type: 'tool_use', id: 'tc_1', name: 'github_setup_workspace', input: { repo: 'test/repo' } }],
         usage: {}
       },
       {

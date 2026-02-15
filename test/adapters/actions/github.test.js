@@ -1,14 +1,10 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, readFile, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execSync } from 'node:child_process'
 import {
-  createGitClone,
-  createGitDiff,
-  createGitCommit,
-  createGitPush,
-  createCreatePr,
-  _git
+  createGithubSetupWorkspace,
+  _PRE_COMMIT_HOOK
 } from '../../../src/adapters/actions/github.js'
 
 vi.mock('../../../src/infrastructure/logger.js', () => ({
@@ -20,13 +16,13 @@ vi.mock('../../../src/infrastructure/logger.js', () => ({
 }))
 
 describe('GitHub Actions', () => {
-  describe('git_clone', () => {
+  describe('github_setup_workspace', () => {
     it('should have correct definition shape', () => {
-      const motorConfig = { githubToken: 'test-token', workspacesDir: '/tmp' }
-      const tool = createGitClone(motorConfig)
+      const motorConfig = { workspacesDir: '/tmp', githubUsername: 'testuser' }
+      const tool = createGithubSetupWorkspace(motorConfig)
 
       expect(tool.definition).toMatchObject({
-        name: 'git_clone',
+        name: 'github_setup_workspace',
         description: expect.any(String),
         input_schema: {
           type: 'object',
@@ -39,20 +35,19 @@ describe('GitHub Actions', () => {
       })
     })
 
-    it('should throw when GITHUB_TOKEN is empty', async () => {
-      const motorConfig = { githubToken: '', workspacesDir: '/tmp' }
-      const tool = createGitClone(motorConfig)
+    it('should mention run_command in description', () => {
+      const motorConfig = { workspacesDir: '/tmp', githubUsername: 'testuser' }
+      const tool = createGithubSetupWorkspace(motorConfig)
 
-      await expect(tool.execute({ repo: 'test-owner/test-repo' }))
-        .rejects
-        .toThrow('GITHUB_TOKEN not configured')
+      expect(tool.definition.description).toContain('run_command')
     })
   })
 
-  describe('git_diff', () => {
+  describe('pre-commit hook installation', () => {
     let tmpDir
     let workspacesDir
     let repoDir
+    let remoteDir
     let motorConfig
 
     beforeEach(async () => {
@@ -60,247 +55,85 @@ describe('GitHub Actions', () => {
       workspacesDir = join(tmpDir, 'workspaces')
       repoDir = join(workspacesDir, 'test-owner', 'test-repo')
 
-      // Create and initialize git repo
-      execSync(`mkdir -p "${repoDir}"`, { encoding: 'utf8' })
-      execSync(`git init`, { cwd: repoDir, encoding: 'utf8' })
-      execSync(`git config user.email "test@test.com"`, { cwd: repoDir, encoding: 'utf8' })
-      execSync(`git config user.name "Test"`, { cwd: repoDir, encoding: 'utf8' })
-      execSync(`touch .gitkeep`, { cwd: repoDir, encoding: 'utf8' })
-      execSync(`git add .`, { cwd: repoDir, encoding: 'utf8' })
-      execSync(`git commit -m "init"`, { cwd: repoDir, encoding: 'utf8' })
+      // Create a local bare "remote" repo
+      remoteDir = join(tmpDir, 'remote')
+      execSync(`mkdir -p "${remoteDir}"`, { encoding: 'utf8' })
+      execSync('git init --bare', { cwd: remoteDir, encoding: 'utf8' })
 
-      motorConfig = { workspacesDir }
+      // Seed it with a commit
+      const seedDir = join(tmpDir, 'seed')
+      execSync(`mkdir -p "${seedDir}"`, { encoding: 'utf8' })
+      execSync('git init', { cwd: seedDir, encoding: 'utf8' })
+      execSync('git config user.email "test@test.com"', { cwd: seedDir, encoding: 'utf8' })
+      execSync('git config user.name "Test"', { cwd: seedDir, encoding: 'utf8' })
+      execSync('touch .gitkeep', { cwd: seedDir, encoding: 'utf8' })
+      execSync('git add .', { cwd: seedDir, encoding: 'utf8' })
+      execSync('git commit -m "init"', { cwd: seedDir, encoding: 'utf8' })
+      execSync(`git remote add origin "${remoteDir}"`, { cwd: seedDir, encoding: 'utf8' })
+      execSync('git push -u origin master', { cwd: seedDir, encoding: 'utf8' })
+
+      motorConfig = { workspacesDir, githubUsername: 'testbot' }
     })
 
     afterEach(async () => {
       await rm(tmpDir, { recursive: true, force: true })
     })
 
-    it('should show "No changes detected." on clean repo', async () => {
-      const tool = createGitDiff(motorConfig)
+    it('should install pre-commit hook when workspace already exists', async () => {
+      // Clone the repo locally to simulate an existing workspace
+      execSync(`mkdir -p "${join(workspacesDir, 'test-owner')}"`, { encoding: 'utf8' })
+      execSync(`git clone "${remoteDir}" "${repoDir}"`, { encoding: 'utf8' })
+
+      const hookPath = join(repoDir, '.git', 'hooks', 'pre-commit')
+
+      // Verify hook doesn't exist yet
+      await expect(stat(hookPath)).rejects.toThrow()
+
+      const tool = createGithubSetupWorkspace(motorConfig)
+      await tool.execute({ repo: 'test-owner/test-repo' })
+
+      // Verify hook was installed
+      const hookContent = await readFile(hookPath, 'utf8')
+      expect(hookContent).toContain('KenoBot secret scanner')
+      expect(hookContent).toContain('AKIA')
+      expect(hookContent).toContain('GitHub Token')
+      expect(hookContent).toContain('Private Key')
+
+      // Verify hook is executable
+      const hookStat = await stat(hookPath)
+      const mode = hookStat.mode & 0o777
+      expect(mode & 0o100).toBeTruthy() // owner execute bit
+    })
+
+    it('should return workspace path in result', async () => {
+      // Clone the repo locally to simulate an existing workspace
+      execSync(`mkdir -p "${join(workspacesDir, 'test-owner')}"`, { encoding: 'utf8' })
+      execSync(`git clone "${remoteDir}" "${repoDir}"`, { encoding: 'utf8' })
+
+      const tool = createGithubSetupWorkspace(motorConfig)
       const result = await tool.execute({ repo: 'test-owner/test-repo' })
 
-      expect(result).toBe('No changes detected.')
-    })
-
-    it('should show changes when files are modified', async () => {
-      const tool = createGitDiff(motorConfig)
-
-      // Modify an existing file
-      await writeFile(join(repoDir, '.gitkeep'), 'Modified content\n')
-
-      const result = await tool.execute({ repo: 'test-owner/test-repo' })
-
-      expect(result).toContain('Status:')
-      expect(result).toContain('.gitkeep')
-      expect(result).toContain('Unstaged changes:')
+      expect(result).toContain('Updated test-owner/test-repo')
+      expect(result).toContain('Workspace:')
+      expect(result).toContain(repoDir)
     })
   })
 
-  describe('git_commit', () => {
-    let tmpDir
-    let workspacesDir
-    let repoDir
-    let motorConfig
-
-    beforeEach(async () => {
-      tmpDir = await mkdtemp(join(tmpdir(), 'kenobot-test-'))
-      workspacesDir = join(tmpDir, 'workspaces')
-      repoDir = join(workspacesDir, 'test-owner', 'test-repo')
-
-      // Create and initialize git repo
-      execSync(`mkdir -p "${repoDir}"`, { encoding: 'utf8' })
-      execSync(`git init`, { cwd: repoDir, encoding: 'utf8' })
-      execSync(`git config user.email "test@test.com"`, { cwd: repoDir, encoding: 'utf8' })
-      execSync(`git config user.name "Test"`, { cwd: repoDir, encoding: 'utf8' })
-      execSync(`touch .gitkeep`, { cwd: repoDir, encoding: 'utf8' })
-      execSync(`git add .`, { cwd: repoDir, encoding: 'utf8' })
-      execSync(`git commit -m "init"`, { cwd: repoDir, encoding: 'utf8' })
-
-      motorConfig = { workspacesDir }
+  describe('pre-commit hook content', () => {
+    it('should contain all secret patterns', () => {
+      expect(_PRE_COMMIT_HOOK).toContain('AKIA[0-9A-Z]{16}')
+      expect(_PRE_COMMIT_HOOK).toContain('gh[ps]_[A-Za-z0-9_]{36,}')
+      expect(_PRE_COMMIT_HOOK).toContain('github_pat_[A-Za-z0-9_]{22,}')
+      expect(_PRE_COMMIT_HOOK).toContain('PRIVATE KEY')
+      expect(_PRE_COMMIT_HOOK).toContain('secret|password|token|key')
     })
 
-    afterEach(async () => {
-      await rm(tmpDir, { recursive: true, force: true })
+    it('should be a valid shell script', () => {
+      expect(_PRE_COMMIT_HOOK).toMatch(/^#!\/bin\/sh/)
     })
 
-    it('should commit staged changes and return commit hash in output', async () => {
-      const tool = createGitCommit(motorConfig)
-
-      // Create a new file
-      await writeFile(join(repoDir, 'feature.txt'), 'New feature\n')
-
-      const result = await tool.execute({
-        repo: 'test-owner/test-repo',
-        message: 'feat: add new feature'
-      })
-
-      expect(result).toContain('Committed:')
-      expect(result).toContain('feat: add new feature')
-
-      // Verify commit exists
-      const log = execSync(`git log --oneline -1`, { cwd: repoDir, encoding: 'utf8' })
-      expect(log).toContain('feat: add new feature')
-    })
-
-    it('should reject commit containing AWS key pattern', async () => {
-      const tool = createGitCommit(motorConfig)
-
-      // Create a file with AWS secret (assembled to avoid pre-commit hook)
-      const awsKey = 'AKIA' + 'IOSFODNN7EXAMPLE'
-      await writeFile(join(repoDir, 'config.txt'), `AWS_KEY=${awsKey}\n`)
-
-      await expect(tool.execute({
-        repo: 'test-owner/test-repo',
-        message: 'add config'
-      }))
-        .rejects
-        .toThrow('Secret scan failed')
-
-      await expect(tool.execute({
-        repo: 'test-owner/test-repo',
-        message: 'add config'
-      }))
-        .rejects
-        .toThrow('AWS Access Key')
-    })
-
-    it('should reject commit containing GitHub token', async () => {
-      const tool = createGitCommit(motorConfig)
-
-      // Create a file with GitHub token (assembled to avoid pre-commit hook)
-      const ghToken = 'gh' + 'p_' + 'x'.repeat(36)
-      await writeFile(join(repoDir, 'secrets.txt'), `TOKEN=${ghToken}\n`)
-
-      await expect(tool.execute({
-        repo: 'test-owner/test-repo',
-        message: 'add secrets'
-      }))
-        .rejects
-        .toThrow('Secret scan failed')
-
-      await expect(tool.execute({
-        repo: 'test-owner/test-repo',
-        message: 'add secrets'
-      }))
-        .rejects
-        .toThrow('GitHub Token')
-    })
-  })
-
-  describe('git_push', () => {
-    it('should have correct definition shape', () => {
-      const motorConfig = { githubToken: 'test-token', workspacesDir: '/tmp' }
-      const tool = createGitPush(motorConfig)
-
-      expect(tool.definition).toMatchObject({
-        name: 'git_push',
-        description: expect.any(String),
-        input_schema: {
-          type: 'object',
-          properties: {
-            repo: expect.any(Object)
-          },
-          required: ['repo']
-        }
-      })
-    })
-
-    it('should throw when GITHUB_TOKEN is empty', async () => {
-      const motorConfig = { githubToken: '', workspacesDir: '/tmp' }
-      const tool = createGitPush(motorConfig)
-
-      await expect(tool.execute({ repo: 'test-owner/test-repo' }))
-        .rejects
-        .toThrow('GITHUB_TOKEN not configured')
-    })
-  })
-
-  describe('create_pr', () => {
-    let originalFetch
-
-    beforeEach(() => {
-      originalFetch = global.fetch
-      global.fetch = vi.fn()
-    })
-
-    afterEach(() => {
-      global.fetch = originalFetch
-    })
-
-    it('should send correct request to GitHub API', async () => {
-      const motorConfig = { githubToken: 'test-token-123', workspacesDir: '/tmp' }
-      const tool = createCreatePr(motorConfig)
-
-      global.fetch.mockResolvedValue({
-        ok: true,
-        json: async () => ({ number: 42, html_url: 'https://github.com/owner/repo/pull/42' })
-      })
-
-      await tool.execute({
-        repo: 'owner/repo',
-        title: 'Test PR',
-        body: 'Test description',
-        branch: 'feature-branch',
-        base: 'main'
-      })
-
-      expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.github.com/repos/owner/repo/pulls',
-        expect.objectContaining({
-          method: 'POST',
-          headers: expect.objectContaining({
-            'Authorization': 'Bearer test-token-123',
-            'Accept': 'application/vnd.github+json',
-            'Content-Type': 'application/json',
-            'User-Agent': 'KenoBot/1.0'
-          }),
-          body: JSON.stringify({
-            title: 'Test PR',
-            body: 'Test description',
-            head: 'feature-branch',
-            base: 'main'
-          })
-        })
-      )
-    })
-
-    it('should return PR URL on success', async () => {
-      const motorConfig = { githubToken: 'test-token', workspacesDir: '/tmp' }
-      const tool = createCreatePr(motorConfig)
-
-      global.fetch.mockResolvedValue({
-        ok: true,
-        json: async () => ({ number: 99, html_url: 'https://github.com/owner/repo/pull/99' })
-      })
-
-      const result = await tool.execute({
-        repo: 'owner/repo',
-        title: 'My PR',
-        branch: 'my-branch'
-      })
-
-      expect(result).toBe('PR #99 created: https://github.com/owner/repo/pull/99')
-    })
-
-    it('should handle API errors (non-200 response)', async () => {
-      const motorConfig = { githubToken: 'test-token', workspacesDir: '/tmp' }
-      const tool = createCreatePr(motorConfig)
-
-      global.fetch.mockResolvedValue({
-        ok: false,
-        status: 422,
-        statusText: 'Unprocessable Entity',
-        json: async () => ({ message: 'Validation failed' })
-      })
-
-      await expect(tool.execute({
-        repo: 'owner/repo',
-        title: 'Bad PR',
-        branch: 'bad-branch'
-      }))
-        .rejects
-        .toThrow('GitHub API error (422): Validation failed')
+    it('should use git diff --cached for scanning', () => {
+      expect(_PRE_COMMIT_HOOK).toContain('git diff --cached')
     })
   })
 })

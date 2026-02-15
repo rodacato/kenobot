@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
-import { access, mkdir } from 'node:fs/promises'
-import { resolveWorkspace, cloneUrl, parseRepo } from '../../domain/motor/workspace.js'
+import { access, mkdir, writeFile, chmod } from 'node:fs/promises'
+import { join } from 'node:path'
+import { resolveWorkspace, sshUrl } from '../../domain/motor/workspace.js'
 import defaultLogger from '../../infrastructure/logger.js'
 
 const GIT_TIMEOUT = 120_000
@@ -57,32 +58,45 @@ async function dirExists(path) {
   }
 }
 
-// Secret patterns for pre-commit scanning
-const SECRET_PATTERNS = [
-  { name: 'AWS Access Key', pattern: /AKIA[0-9A-Z]{16}/ },
-  { name: 'GitHub Token', pattern: /gh[ps]_[A-Za-z0-9_]{36,}/ },
-  { name: 'GitHub PAT', pattern: /github_pat_[A-Za-z0-9_]{22,}/ },
-  { name: 'Private Key', pattern: /-----BEGIN\s+(RSA|EC|DSA|OPENSSH)?\s*PRIVATE KEY-----/ },
-  { name: 'Generic Secret', pattern: /(?:secret|password|token|key)\s*[:=]\s*['"][A-Za-z0-9+/=]{32,}['"]/i },
-]
+// Pre-commit hook script that scans for secrets before allowing commits
+const PRE_COMMIT_HOOK = `#!/bin/sh
+# KenoBot secret scanner — blocks commits containing credentials
+diff=$(git diff --cached -U0)
 
-function scanSecrets(diff) {
-  const found = []
-  for (const { name, pattern } of SECRET_PATTERNS) {
-    if (pattern.test(diff)) {
-      found.push(name)
-    }
-  }
-  return found
+check_pattern() {
+  if echo "$diff" | grep -qE "$1"; then
+    echo "ERROR: Potential secret detected ($2)"
+    echo "Review staged changes and remove sensitive data before committing."
+    exit 1
+  fi
 }
 
-// --- Tool factories ---
+check_pattern 'AKIA[0-9A-Z]{16}' 'AWS Access Key'
+check_pattern 'gh[ps]_[A-Za-z0-9_]{36,}' 'GitHub Token'
+check_pattern 'github_pat_[A-Za-z0-9_]{22,}' 'GitHub PAT'
+check_pattern '-----BEGIN[[:space:]]+(RSA|EC|DSA|OPENSSH)?[[:space:]]*PRIVATE KEY-----' 'Private Key'
+check_pattern '(secret|password|token|key)[[:space:]]*[:=][[:space:]]*['"'"'""][A-Za-z0-9+/=]{32,}['"'"'"]' 'Generic Secret'
+`
 
-export function createGitClone(motorConfig) {
+/**
+ * Install the pre-commit hook in a git repository.
+ * @param {string} workDir - Path to the git repository
+ */
+async function installPreCommitHook(workDir) {
+  const hooksDir = join(workDir, '.git', 'hooks')
+  await mkdir(hooksDir, { recursive: true })
+  const hookPath = join(hooksDir, 'pre-commit')
+  await writeFile(hookPath, PRE_COMMIT_HOOK)
+  await chmod(hookPath, 0o755)
+}
+
+// --- Tool factory ---
+
+export function createGithubSetupWorkspace(motorConfig) {
   return {
     definition: {
-      name: 'git_clone',
-      description: 'Clone a GitHub repository into the workspace. If already cloned, fetches updates. Optionally creates or checks out a branch.',
+      name: 'github_setup_workspace',
+      description: 'Clone a GitHub repository into the workspace via SSH. If already cloned, fetches updates. Installs a pre-commit hook for secret scanning. Use run_command for all other git operations (diff, commit, push, etc.).',
       input_schema: {
         type: 'object',
         properties: {
@@ -94,12 +108,8 @@ export function createGitClone(motorConfig) {
     },
 
     async execute({ repo, branch }, { logger = defaultLogger } = {}) {
-      if (!motorConfig.githubToken) {
-        throw new Error('GITHUB_TOKEN not configured. Set it in .env to use GitHub tools.')
-      }
-
       const workDir = resolveWorkspace(motorConfig.workspacesDir, repo)
-      const url = cloneUrl(repo, motorConfig.githubToken)
+      const url = sshUrl(repo)
 
       if (await dirExists(workDir + '/.git')) {
         await git(['fetch', '--all', '--prune'], workDir)
@@ -115,8 +125,11 @@ export function createGitClone(motorConfig) {
           await git(['pull', '--ff-only'], workDir)
         }
 
+        // Re-install hook on update (ensures latest patterns)
+        await installPreCommitHook(workDir)
+
         const current = await git(['branch', '--show-current'], workDir)
-        return `Updated ${repo} (branch: ${current})`
+        return `Updated ${repo} (branch: ${current}). Workspace: ${workDir}`
       }
 
       // Fresh clone
@@ -130,163 +143,18 @@ export function createGitClone(motorConfig) {
       await git(['config', 'user.name', username], workDir)
       await git(['config', 'user.email', `${username}@users.noreply.github.com`], workDir)
 
+      // Install pre-commit hook for secret scanning
+      await installPreCommitHook(workDir)
+
       if (branch) {
         await git(['checkout', '-b', branch], workDir)
       }
 
       const current = await git(['branch', '--show-current'], workDir)
-      return `Cloned ${repo} (branch: ${current})`
+      return `Cloned ${repo} (branch: ${current}). Workspace: ${workDir}`
     }
   }
 }
 
-export function createGitDiff(motorConfig) {
-  return {
-    definition: {
-      name: 'git_diff',
-      description: 'Show the current changes in a cloned repository workspace. Returns git status and diff output.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          repo: { type: 'string', description: 'Repository in "owner/repo" format' }
-        },
-        required: ['repo']
-      }
-    },
-
-    async execute({ repo }, { logger = defaultLogger } = {}) {
-      const workDir = resolveWorkspace(motorConfig.workspacesDir, repo)
-
-      const status = await git(['status', '--short'], workDir)
-      const diff = await git(['diff'], workDir)
-      const staged = await git(['diff', '--cached'], workDir)
-
-      const parts = []
-      if (status) parts.push(`Status:\n${status}`)
-      if (staged) parts.push(`Staged changes:\n${staged}`)
-      if (diff) parts.push(`Unstaged changes:\n${diff}`)
-      if (parts.length === 0) parts.push('No changes detected.')
-
-      return parts.join('\n\n')
-    }
-  }
-}
-
-export function createGitCommit(motorConfig) {
-  return {
-    definition: {
-      name: 'git_commit',
-      description: 'Stage all changes and create a git commit in a cloned repository workspace. Includes basic secret scanning to prevent accidental credential leaks.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          repo: { type: 'string', description: 'Repository in "owner/repo" format' },
-          message: { type: 'string', description: 'Commit message' }
-        },
-        required: ['repo', 'message']
-      }
-    },
-
-    async execute({ repo, message }, { logger = defaultLogger } = {}) {
-      const workDir = resolveWorkspace(motorConfig.workspacesDir, repo)
-
-      await git(['add', '-A'], workDir)
-
-      // Secret scanning on staged diff
-      const stagedDiff = await git(['diff', '--cached'], workDir)
-      const secrets = scanSecrets(stagedDiff)
-      if (secrets.length > 0) {
-        await git(['reset', 'HEAD'], workDir)
-        throw new Error(`Secret scan failed. Potential secrets found: ${secrets.join(', ')}. Review and remove sensitive data before committing.`)
-      }
-
-      await git(['commit', '-m', message], workDir)
-
-      const log = await git(['log', '--oneline', '-1'], workDir)
-      return `Committed: ${log}`
-    }
-  }
-}
-
-export function createGitPush(motorConfig) {
-  return {
-    definition: {
-      name: 'git_push',
-      description: 'Push the current branch to the remote repository.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          repo: { type: 'string', description: 'Repository in "owner/repo" format' }
-        },
-        required: ['repo']
-      }
-    },
-
-    async execute({ repo }, { logger = defaultLogger } = {}) {
-      if (!motorConfig.githubToken) {
-        throw new Error('GITHUB_TOKEN not configured. Set it in .env to push to GitHub.')
-      }
-
-      const workDir = resolveWorkspace(motorConfig.workspacesDir, repo)
-      const branch = await git(['branch', '--show-current'], workDir)
-
-      if (!branch) {
-        throw new Error('Not on a branch (detached HEAD). Checkout a branch first.')
-      }
-
-      await git(['push', '-u', 'origin', branch], workDir)
-      return `Pushed branch "${branch}" to origin.`
-    }
-  }
-}
-
-export function createCreatePr(motorConfig) {
-  return {
-    definition: {
-      name: 'create_pr',
-      description: 'Create a pull request on GitHub via the API.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          repo: { type: 'string', description: 'Repository in "owner/repo" format' },
-          title: { type: 'string', description: 'PR title' },
-          body: { type: 'string', description: 'PR description (markdown)' },
-          branch: { type: 'string', description: 'Head branch name' },
-          base: { type: 'string', description: 'Base branch (default: "main")' }
-        },
-        required: ['repo', 'title', 'branch']
-      }
-    },
-
-    async execute({ repo, title, body = '', branch, base = 'main' }, { logger = defaultLogger } = {}) {
-      if (!motorConfig.githubToken) {
-        throw new Error('GITHUB_TOKEN not configured. Set it in .env to create pull requests.')
-      }
-
-      parseRepo(repo)
-
-      const response = await fetch(`https://api.github.com/repos/${repo}/pulls`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${motorConfig.githubToken}`,
-          'Accept': 'application/vnd.github+json',
-          'Content-Type': 'application/json',
-          'User-Agent': 'KenoBot/1.0'
-        },
-        body: JSON.stringify({ title, body, head: branch, base }),
-        signal: AbortSignal.timeout(30_000)
-      })
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        throw new Error(`GitHub API error (${response.status}): ${error.message || response.statusText}`)
-      }
-
-      const pr = await response.json()
-      return `PR #${pr.number} created: ${pr.html_url}`
-    }
-  }
-}
-
-// Export git helper for testing
-export { git as _git }
+// Export for testing
+export { PRE_COMMIT_HOOK as _PRE_COMMIT_HOOK }

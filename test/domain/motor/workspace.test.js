@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseRepo, resolveWorkspace, cloneUrl } from '../../../src/domain/motor/workspace.js'
+import { parseRepo, resolveWorkspace, sshUrl } from '../../../src/domain/motor/workspace.js'
 import { join } from 'node:path'
 
 describe('workspace', () => {
@@ -121,51 +121,36 @@ describe('workspace', () => {
     })
   })
 
-  describe('cloneUrl', () => {
-    it('generates URL without token', () => {
-      const result = cloneUrl('octocat/hello-world')
-      expect(result).toBe('https://github.com/octocat/hello-world.git')
+  describe('sshUrl', () => {
+    it('generates SSH URL for valid repo', () => {
+      const result = sshUrl('octocat/hello-world')
+      expect(result).toBe('git@github.com:octocat/hello-world.git')
     })
 
-    it('generates URL with token', () => {
-      const result = cloneUrl('octocat/hello-world', 'ghp_token123')
-      expect(result).toBe('https://ghp_token123@github.com/octocat/hello-world.git')
+    it('generates SSH URL for repo with dots', () => {
+      const result = sshUrl('owner.name/repo.name')
+      expect(result).toBe('git@github.com:owner.name/repo.name.git')
     })
 
-    it('generates URL with empty string token as no token', () => {
-      const result = cloneUrl('octocat/hello-world', '')
-      expect(result).toBe('https://github.com/octocat/hello-world.git')
-    })
-
-    it('generates URL for repo with dots', () => {
-      const result = cloneUrl('owner.name/repo.name', 'token')
-      expect(result).toBe('https://token@github.com/owner.name/repo.name.git')
-    })
-
-    it('generates URL for repo with hyphens and underscores', () => {
-      const result = cloneUrl('my-org_name/my-repo_name')
-      expect(result).toBe('https://github.com/my-org_name/my-repo_name.git')
+    it('generates SSH URL for repo with hyphens and underscores', () => {
+      const result = sshUrl('my-org_name/my-repo_name')
+      expect(result).toBe('git@github.com:my-org_name/my-repo_name.git')
     })
 
     it('throws error for invalid repo format', () => {
-      expect(() => cloneUrl('invalid')).toThrow('Invalid repo format: "invalid". Expected "owner/repo".')
+      expect(() => sshUrl('invalid')).toThrow('Invalid repo format: "invalid". Expected "owner/repo".')
     })
 
     it('throws error for path traversal in repo', () => {
-      expect(() => cloneUrl('../etc/passwd', 'token')).toThrow('Invalid repo format: "../etc/passwd". Expected "owner/repo".')
+      expect(() => sshUrl('../etc/passwd')).toThrow('Invalid repo format: "../etc/passwd". Expected "owner/repo".')
     })
 
     it('throws error for null repo', () => {
-      expect(() => cloneUrl(null, 'token')).toThrow('Invalid repo format: "null". Expected "owner/repo".')
+      expect(() => sshUrl(null)).toThrow('Invalid repo format: "null". Expected "owner/repo".')
     })
 
     it('throws error for repo with multiple slashes', () => {
-      expect(() => cloneUrl('owner/repo/extra', 'token')).toThrow('Invalid repo format: "owner/repo/extra". Expected "owner/repo".')
-    })
-
-    it('handles token with special characters', () => {
-      const result = cloneUrl('octocat/hello-world', 'ghp_abc123!@#')
-      expect(result).toBe('https://ghp_abc123!@#@github.com/octocat/hello-world.git')
+      expect(() => sshUrl('owner/repo/extra')).toThrow('Invalid repo format: "owner/repo/extra". Expected "owner/repo".')
     })
   })
 })

@@ -28,15 +28,11 @@ export function resolveWorkspace(workspacesDir, repo) {
 }
 
 /**
- * Build the authenticated clone URL.
+ * Build the SSH clone URL.
  * @param {string} repo - "owner/repo"
- * @param {string} token - GitHub PAT (optional)
- * @returns {string} https URL with embedded token
+ * @returns {string} SSH URL for git clone
  */
-export function cloneUrl(repo, token) {
+export function sshUrl(repo) {
   parseRepo(repo)
-  if (token) {
-    return `https://${token}@github.com/${repo}.git`
-  }
-  return `https://github.com/${repo}.git`
+  return `git@github.com:${repo}.git`
 }
