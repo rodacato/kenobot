@@ -30,8 +30,8 @@ forbidden_patterns=(
 for file in $staged_files; do
   for pattern in "${forbidden_patterns[@]}"; do
     if echo "$file" | grep -qE "$pattern"; then
-      # Allow .env.example
-      if [ "$file" = ".env.example" ]; then
+      # Allow .env.example files (root and templates/)
+      if echo "$file" | grep -qE "env\.example$"; then
         continue
       fi
       echo -e "${RED}BLOCKED${NC}: $file matches forbidden pattern ($pattern)"
@@ -56,7 +56,7 @@ secret_patterns=(
 
 for file in $staged_files; do
   # Skip safe files
-  if [ "$file" = ".env.example" ]; then
+  if echo "$file" | grep -qE "env\.example$"; then
     continue
   fi
 
@@ -65,7 +65,7 @@ for file in $staged_files; do
     continue
   fi
 
-  if ! git show ":$file" 2>/dev/null | file - | grep -q "text"; then
+  if git show ":$file" 2>/dev/null | head -c 8192 | grep -qP '\x00'; then
     continue
   fi
 
