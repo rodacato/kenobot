@@ -2,10 +2,8 @@ import { mkdtemp, rm, readFile, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execSync } from 'node:child_process'
-import {
-  createGithubSetupWorkspace,
-  _PRE_COMMIT_HOOK
-} from '../../../src/adapters/actions/github.js'
+import { createGithubSetupWorkspace } from '../../../src/adapters/actions/github.js'
+import { generatePreCommitHook } from '../../../src/domain/immune/secret-scanner.js'
 
 vi.mock('../../../src/infrastructure/logger.js', () => ({
   default: {
@@ -119,21 +117,24 @@ describe('GitHub Actions', () => {
     })
   })
 
-  describe('pre-commit hook content', () => {
+  describe('pre-commit hook content (from immune system)', () => {
     it('should contain all secret patterns', () => {
-      expect(_PRE_COMMIT_HOOK).toContain('AKIA[0-9A-Z]{16}')
-      expect(_PRE_COMMIT_HOOK).toContain('gh[ps]_[A-Za-z0-9_]{36,}')
-      expect(_PRE_COMMIT_HOOK).toContain('github_pat_[A-Za-z0-9_]{22,}')
-      expect(_PRE_COMMIT_HOOK).toContain('PRIVATE KEY')
-      expect(_PRE_COMMIT_HOOK).toContain('secret|password|token|key')
+      const hook = generatePreCommitHook()
+      expect(hook).toContain('AKIA[0-9A-Z]{16}')
+      expect(hook).toContain('gh[ps]_[A-Za-z0-9_]{36,}')
+      expect(hook).toContain('github_pat_[A-Za-z0-9_]{22,}')
+      expect(hook).toContain('PRIVATE KEY')
+      expect(hook).toContain('secret|password|token|key')
     })
 
     it('should be a valid shell script', () => {
-      expect(_PRE_COMMIT_HOOK).toMatch(/^#!\/bin\/sh/)
+      const hook = generatePreCommitHook()
+      expect(hook).toMatch(/^#!\/bin\/sh/)
     })
 
     it('should use git diff --cached for scanning', () => {
-      expect(_PRE_COMMIT_HOOK).toContain('git diff --cached')
+      const hook = generatePreCommitHook()
+      expect(hook).toContain('git diff --cached')
     })
   })
 })

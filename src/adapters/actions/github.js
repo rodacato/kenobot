@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { access, mkdir, writeFile, chmod } from 'node:fs/promises'
 import { join } from 'node:path'
 import { resolveWorkspace, sshUrl } from '../../domain/motor/workspace.js'
+import { generatePreCommitHook } from '../../domain/immune/secret-scanner.js'
 import defaultLogger from '../../infrastructure/logger.js'
 
 const GIT_TIMEOUT = 120_000
@@ -58,35 +59,16 @@ async function dirExists(path) {
   }
 }
 
-// Pre-commit hook script that scans for secrets before allowing commits
-const PRE_COMMIT_HOOK = `#!/bin/sh
-# KenoBot secret scanner — blocks commits containing credentials
-diff=$(git diff --cached -U0)
-
-check_pattern() {
-  if echo "$diff" | grep -qE "$1"; then
-    echo "ERROR: Potential secret detected ($2)"
-    echo "Review staged changes and remove sensitive data before committing."
-    exit 1
-  fi
-}
-
-check_pattern 'AKIA[0-9A-Z]{16}' 'AWS Access Key'
-check_pattern 'gh[ps]_[A-Za-z0-9_]{36,}' 'GitHub Token'
-check_pattern 'github_pat_[A-Za-z0-9_]{22,}' 'GitHub PAT'
-check_pattern '-----BEGIN[[:space:]]+(RSA|EC|DSA|OPENSSH)?[[:space:]]*PRIVATE KEY-----' 'Private Key'
-check_pattern '(secret|password|token|key)[[:space:]]*[:=][[:space:]]*['"'"'""][A-Za-z0-9+/=]{32,}['"'"'"]' 'Generic Secret'
-`
-
 /**
  * Install the pre-commit hook in a git repository.
+ * Hook is generated from the immune system's secret scanner patterns.
  * @param {string} workDir - Path to the git repository
  */
 async function installPreCommitHook(workDir) {
   const hooksDir = join(workDir, '.git', 'hooks')
   await mkdir(hooksDir, { recursive: true })
   const hookPath = join(hooksDir, 'pre-commit')
-  await writeFile(hookPath, PRE_COMMIT_HOOK)
+  await writeFile(hookPath, generatePreCommitHook())
   await chmod(hookPath, 0o755)
 }
 
@@ -156,5 +138,3 @@ export function createGithubSetupWorkspace(motorConfig) {
   }
 }
 
-// Export for testing
-export { PRE_COMMIT_HOOK as _PRE_COMMIT_HOOK }

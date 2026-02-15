@@ -60,8 +60,8 @@ for file in $staged_files; do
     continue
   fi
 
-  # Skip files that contain detection patterns
-  if echo "$file" | grep -qE "^\.githooks/|^bin/audit$"; then
+  # Skip files that contain detection patterns (hooks, audit, immune system)
+  if echo "$file" | grep -qE "^\.githooks/|^bin/audit$|domain/immune/"; then
     continue
   fi
 
