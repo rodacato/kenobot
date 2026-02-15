@@ -76,7 +76,8 @@ export default class CognitiveSystem {
           longTerm: '',
           recentNotes: '',
           chatLongTerm: '',
-          chatRecent: ''
+          chatRecent: '',
+          chatContext: ''
         },
         workingMemory: null,
         isBootstrapping: true
@@ -84,6 +85,7 @@ export default class CognitiveSystem {
     }
 
     const workingMemory = await this.memory.getWorkingMemory(sessionId)
+    const chatContext = await this.memory.getChatContext(sessionId)
 
     // Selective retrieval (keyword-based)
     if (this.useRetrieval && messageText) {
@@ -107,7 +109,8 @@ export default class CognitiveSystem {
           longTerm: this._formatRetrievedFacts(retrieved.facts),
           recentNotes: this._formatRetrievedEpisodes(retrieved.episodes),
           chatLongTerm: '',
-          chatRecent: ''
+          chatRecent: '',
+          chatContext
         },
         workingMemory,
         retrieval: retrieved, // Include full retrieval metadata
@@ -130,7 +133,8 @@ export default class CognitiveSystem {
         longTerm,
         recentNotes,
         chatLongTerm,
-        chatRecent
+        chatRecent,
+        chatContext
       },
       workingMemory,
       isBootstrapping: false

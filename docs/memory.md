@@ -42,7 +42,7 @@ KenoBot's memory system implements a **four-tier memory architecture** inspired 
 - ✅ **Four memory types** - Working, episodic, semantic, procedural (Atkinson-Shiffrin + Tulving model)
 - ✅ **Selective retrieval** - Load only relevant memories (not everything)
 - ✅ **Staleness tracking** - Working memory expires after 7 days
-- ✅ **Scope separation** - Global facts vs per-chat context
+- ✅ **Scope separation** - Global facts vs per-chat context and behavioral adaptation
 - ✅ **Isolated components** - Each memory type is independently testable
 - ✅ **Plain markdown** - Zero dependencies, human-readable
 
@@ -332,6 +332,7 @@ Webhook returned 401 Unauthorized. We tried:
 ├── chats/                         # Per-chat episodic memory
 │   ├── telegram-123456789/
 │   │   ├── MEMORY.md             # Chat-specific long-term
+│   │   ├── context.md            # Chat context (type, tone, participants)
 │   │   └── 2026-02-13.md         # Chat daily episodes
 │   └── telegram-987654321/
 │       └── ...
@@ -351,6 +352,7 @@ Webhook returned 401 Unauthorized. We tried:
 - `YYYY-MM-DD.md` - Global daily logs
 - `chats/{sessionId}/MEMORY.md` - Chat long-term
 - `chats/{sessionId}/YYYY-MM-DD.md` - Chat daily logs
+- `chats/{sessionId}/context.md` - Chat context (type, tone, participants)
 - `working/{sessionId}.json` - Working memory (7-day staleness)
 - `procedural/patterns.json` - Learned patterns (persisted, keyword-matched)
 
@@ -374,6 +376,10 @@ class MemorySystem {
   async getChatLongTermMemory(sessionId)       // chats/{id}/MEMORY.md
   async getChatRecentDays(sessionId, days)     // chats/{id}/YYYY-MM-DD.md
   async addChatFact(sessionId, fact)           // Append to chat daily log
+
+  // Chat Context
+  async getChatContext(sessionId)              // chats/{id}/context.md
+  async setChatContext(sessionId, content)     // Replace chat context
 
   // Working (scratchpad)
   async getWorkingMemory(sessionId)            // Returns {content, updatedAt} or null
@@ -601,6 +607,7 @@ The LLM wraps memories in XML tags:
 <memory>Short title: fact to remember</memory>
 <chat-memory>Chat-specific context</chat-memory>
 <working-memory>Current task state</working-memory>
+<chat-context>Chat type, tone, participants</chat-context>
 ```
 
 **Post-processors extract and persist:**
@@ -623,9 +630,34 @@ const workingMemory = extractWorkingMemoryTag(response.content)
 if (workingMemory) {
   await memorySystem.replaceWorkingMemory(sessionId, workingMemory)  // → working/{id}.json
 }
+
+// chat-context-extractor.js
+const chatContext = extractChatContext(response.content)
+if (chatContext) {
+  await memorySystem.setChatContext(sessionId, chatContext)  // → chats/{id}/context.md
+}
 ```
 
 **Tags are stripped before displaying to user.**
+
+### Chat Context Tag
+
+The `<chat-context>` tag allows the LLM to describe the nature of each chat (type, tone, participants). It works as a behavioral primer — the LLM reads it on every message to adapt its tone and style per chat.
+
+**Behavior:**
+- **Last-wins:** If multiple `<chat-context>` tags appear, only the last one is kept
+- **Replaces:** Each update fully replaces the previous context (not append)
+- **Per-chat:** Stored in `chats/{sessionId}/context.md`
+- **Injected in system prompt:** Appears as "### Chat context" section
+- **Cost:** ~50-80 tokens per request (~$0.02/month)
+
+**Example:**
+```
+User: "this is my work group for the backend team"
+Bot: "Got it! <chat-context>Type: Work group (backend team)\nTone: Technical, concise</chat-context>"
+```
+
+**See also:** [Chat Context Design](design/chat-context.md)
 
 ---
 
@@ -649,6 +681,7 @@ CognitiveSystem.buildContext(sessionId, messageText)
         ├─→ memorySystem.getRecentDays(3)
         ├─→ memorySystem.getChatLongTermMemory(sessionId)
         ├─→ memorySystem.getChatRecentDays(sessionId, 3)
+        ├─→ memorySystem.getChatContext(sessionId)
         └─→ memorySystem.getWorkingMemory(sessionId)
     ↓
 system = {identity, tools, skills, memory}
@@ -656,11 +689,12 @@ messages = [history..., current_message]
     ↓
 Provider.chat(messages, {system})
     ↓
-Response (may include <memory>, <chat-memory>, <working-memory> tags)
+Response (may include <memory>, <chat-memory>, <working-memory>, <chat-context> tags)
     ↓
 Post-processors
     ├─→ extractMemoryTags() → memorySystem.addFact()
     ├─→ extractChatMemoryTags() → memorySystem.addChatFact()
+    ├─→ extractChatContext() → memorySystem.setChatContext()
     └─→ extractWorkingMemoryTag() → memorySystem.replaceWorkingMemory()
 ```
 
@@ -679,6 +713,10 @@ Memory is injected into system prompt:
 [2026-02-12.md]
 [2026-02-13.md]
 
+### Chat context
+Type: Work group (backend team)
+Tone: Technical, concise
+
 ### Chat-specific memory
 [chats/telegram-123/MEMORY.md]
 [chats/telegram-123/2026-02-13.md]
@@ -690,9 +728,10 @@ Memory is injected into system prompt:
 **Token budget:**
 - MEMORY.md: ~1000 tokens
 - Daily logs (3 days): ~500 tokens
+- Chat context: ~50-80 tokens
 - Chat memory: ~300 tokens
 - Working memory: ~200 tokens
-- **Total:** ~2000 tokens
+- **Total:** ~2100 tokens
 
 ---
 
@@ -716,6 +755,10 @@ await memorySystem.writeLongTermMemory(content)
 await memorySystem.getChatLongTermMemory(sessionId)
 await memorySystem.getChatRecentDays(sessionId, days)
 await memorySystem.addChatFact(sessionId, fact)
+
+// Chat Context
+await memorySystem.getChatContext(sessionId)
+await memorySystem.setChatContext(sessionId, content)
 
 // Working
 await memorySystem.getWorkingMemory(sessionId)
@@ -782,8 +825,10 @@ test/domain/cognitive/memory/
 test/application/memory-extractor.test.js          (11 tests) ✓  [Tag extraction]
 test/application/chat-memory-extractor.test.js     (10 tests) ✓  [Chat tag extraction]
 test/application/working-memory-extractor.test.js  (9 tests) ✓   [Working tag extraction]
-test/adapters/storage/memory-store.test.js         (11 tests) ✓  [MemoryStore]
-test/conversations/scenarios/memory.test.js  (7 tests) ✓   [Conversation scenarios]
+test/application/chat-context-extractor.test.js    (11 tests) ✓  [Chat context tag extraction]
+test/adapters/storage/memory-store.test.js         (15 tests) ✓  [MemoryStore]
+test/conversations/scenarios/memory.test.js        (7 tests) ✓   [Conversation scenarios]
+test/conversations/scenarios/chat-context.test.js  (7 tests) ✓   [Chat context scenarios]
 ```
 
 ### Key Test Scenarios

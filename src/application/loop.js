@@ -157,6 +157,7 @@ export default class AgentLoop {
           toolIterations: iterations || undefined,
           memoriesExtracted: stats.memory?.memories?.length || 0,
           chatMemoriesExtracted: stats['chat-memory']?.chatMemories?.length || 0,
+          chatContextSet: stats['chat-context']?.chatContext ? true : undefined,
           userUpdates: stats.user?.updates?.length || 0,
           bootstrapComplete: stats.bootstrap?.isComplete || undefined
         })

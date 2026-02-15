@@ -50,6 +50,12 @@ export function createInspector(harness) {
       return safeRead(join(memoryDir, 'chats', sessionId, 'MEMORY.md'))
     },
 
+    /** Read chat context description. */
+    async getChatContext(sessionId) {
+      const content = await safeRead(join(memoryDir, 'chats', sessionId, 'context.md'))
+      return content || null
+    },
+
     /** Read working memory content for a session. */
     async getWorkingMemory(sessionId) {
       const content = await safeRead(join(memoryDir, 'working', `${sessionId}.md`))

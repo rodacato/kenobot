@@ -126,6 +126,38 @@ describe('MemoryStore', () => {
     })
   })
 
+  describe('chat context', () => {
+    it('should return empty string when context.md does not exist', async () => {
+      const result = await store.getChatContext('nonexistent')
+      expect(result).toBe('')
+    })
+
+    it('should write and read chat context', async () => {
+      await store.setChatContext('telegram-123', 'Type: Work group\nTone: Professional')
+
+      const result = await store.getChatContext('telegram-123')
+      expect(result).toBe('Type: Work group\nTone: Professional')
+    })
+
+    it('should replace existing context on set', async () => {
+      await store.setChatContext('telegram-123', 'Type: Friends')
+      await store.setChatContext('telegram-123', 'Type: Work group')
+
+      const result = await store.getChatContext('telegram-123')
+      expect(result).toBe('Type: Work group')
+    })
+
+    it('should create chat directory if it does not exist', async () => {
+      await store.setChatContext('new-chat-999', 'Type: Family')
+
+      const content = await readFile(
+        join(tmpDir, 'memory', 'chats', 'new-chat-999', 'context.md'),
+        'utf8'
+      )
+      expect(content).toBe('Type: Family')
+    })
+  })
+
   describe('compaction support', () => {
     it('should list daily logs', async () => {
       const memDir = join(tmpDir, 'memory')

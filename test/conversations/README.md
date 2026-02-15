@@ -111,6 +111,7 @@ describe('Scenario: My feature', () => {
 | `getLongTermMemory()` | `string` | Global MEMORY.md |
 | `getChatDailyLog(sessionId, date?)` | `string` | Per-chat daily log |
 | `getChatLongTermMemory(sessionId)` | `string` | Per-chat MEMORY.md |
+| `getChatContext(sessionId)` | `string\|null` | Per-chat context description (context.md) |
 | `getWorkingMemory(sessionId)` | `string\|null` | Working memory content |
 | `getPreferences()` | `string` | Identity preferences.md |
 | `isBootstrapping()` | `boolean` | BOOTSTRAP.md exists? |
@@ -147,6 +148,7 @@ All read methods return empty string (`''`) or `null` when the file doesn't exis
 | `identity.test.js` | 3 | Core identity, memory tag instructions, retrieval integration |
 | `multi-turn.test.js` | 2 | History ordering in provider context, session persistence |
 | `bootstrap.test.js` | 3 | Bootstrap detection, completion, non-bootstrap mode |
+| `chat-context.test.js` | 7 | Chat context persistence, replacement, prompt injection, multi-chat isolation, tag coexistence |
 | `motor-system.test.js` | 14 | Inline ReAct loop, tool registration, background tasks, multi-step tool use, task lifecycle (COMPLETED/FAILED/PROGRESS), concurrent task rejection, memory tags with tool iterations |
 
 ## Future Improvements

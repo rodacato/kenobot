@@ -131,6 +131,7 @@ export default class ContextBuilder {
     const context = await this.cognitive.buildContext(sessionId, messageText)
     const longTerm = context.memory.longTerm
     const recentNotes = context.memory.recentNotes
+    const chatContext = context.memory.chatContext
     const chatLongTerm = context.memory.chatLongTerm
     const chatRecent = context.memory.chatRecent
     const workingMemoryResult = context.workingMemory
@@ -148,7 +149,8 @@ export default class ContextBuilder {
       '|-----|---------|-------|',
       '| `<memory>fact</memory>` | Important facts, decisions, context | Global, forever |',
       '| `<chat-memory>fact</chat-memory>` | Chat-specific context | This conversation only |',
-      '| `<working-memory>bullets</working-memory>` | Current task, pending items | Scratchpad (replaces previous) |\n',
+      '| `<working-memory>bullets</working-memory>` | Current task, pending items | Scratchpad (replaces previous) |',
+      '| `<chat-context>description</chat-context>` | Chat type, tone, participants | Per-chat (replaces previous) |\n',
       '_Use sparingly. One line per fact. Don\'t duplicate what\'s already saved._\n'
     ]
 
@@ -159,6 +161,10 @@ export default class ContextBuilder {
     if (recentNotes) {
       lines.push('### Recent notes')
       lines.push(recentNotes + '\n')
+    }
+    if (chatContext) {
+      lines.push('### Chat context')
+      lines.push(chatContext + '\n')
     }
     if (chatLongTerm) {
       lines.push('### Chat-specific memory')

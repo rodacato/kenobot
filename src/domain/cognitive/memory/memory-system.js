@@ -73,6 +73,26 @@ export default class MemorySystem {
     await this.episodic.addChatEpisode(sessionId, fact)
   }
 
+  // --- Chat Context ---
+
+  /**
+   * Get chat context description.
+   * @param {string} sessionId
+   * @returns {Promise<string>} Context markdown or empty string
+   */
+  async getChatContext(sessionId) {
+    return this.store.getChatContext(sessionId)
+  }
+
+  /**
+   * Set (replace) chat context description.
+   * @param {string} sessionId
+   * @param {string} content
+   */
+  async setChatContext(sessionId, content) {
+    await this.store.setChatContext(sessionId, content)
+  }
+
   // --- Working Memory (session scratchpad) ---
 
   /**

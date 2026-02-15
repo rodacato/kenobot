@@ -93,6 +93,34 @@ export default class MemoryStore {
     }
   }
 
+  // --- Chat context ---
+
+  /**
+   * Get chat context description.
+   * @param {string} sessionId
+   * @returns {Promise<string>} Context markdown or empty string
+   */
+  async getChatContext(sessionId) {
+    try {
+      const filepath = join(this.memoryDir, 'chats', sessionId, 'context.md')
+      return await readFile(filepath, 'utf8')
+    } catch {
+      return ''
+    }
+  }
+
+  /**
+   * Set (replace) chat context description.
+   * @param {string} sessionId
+   * @param {string} content
+   */
+  async setChatContext(sessionId, content) {
+    const chatDir = join(this.memoryDir, 'chats', sessionId)
+    await mkdir(chatDir, { recursive: true })
+    await writeFile(join(chatDir, 'context.md'), content, 'utf8')
+    this.logger.info('memory-store', 'chat_context_set', { sessionId, sizeBytes: content.length })
+  }
+
   // --- Working memory ---
 
   /**

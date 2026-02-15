@@ -91,6 +91,56 @@ describe('runPostProcessors', () => {
   })
 })
 
+describe('chat-context processor', () => {
+  const chatContextProcessor = defaultPostProcessors.find(p => p.name === 'chat-context')
+
+  it('should exist in the default pipeline', () => {
+    expect(chatContextProcessor).toBeDefined()
+  })
+
+  it('should extract chat-context tags and return clean text', () => {
+    const input = 'Got it!\n\n<chat-context>Type: Work group\nTone: Professional</chat-context>'
+    const { cleanText, data } = chatContextProcessor.extract(input)
+
+    expect(cleanText).toBe('Got it!')
+    expect(data.chatContext).toBe('Type: Work group\nTone: Professional')
+  })
+
+  it('should call memory.setChatContext on apply', async () => {
+    const mockMemory = { setChatContext: vi.fn() }
+    const deps = { memory: mockMemory, sessionId: 'telegram-123' }
+
+    await chatContextProcessor.apply({ chatContext: 'Type: Work group' }, deps)
+
+    expect(mockMemory.setChatContext).toHaveBeenCalledWith('telegram-123', 'Type: Work group')
+  })
+
+  it('should skip apply when no chat context extracted', async () => {
+    const mockMemory = { setChatContext: vi.fn() }
+    const deps = { memory: mockMemory, sessionId: 'telegram-123' }
+
+    await chatContextProcessor.apply({ chatContext: null }, deps)
+
+    expect(mockMemory.setChatContext).not.toHaveBeenCalled()
+  })
+
+  it('should skip apply when no memory manager', async () => {
+    const deps = { memory: null, sessionId: 'telegram-123' }
+
+    // Should not throw
+    await chatContextProcessor.apply({ chatContext: 'Type: Work' }, deps)
+  })
+
+  it('should skip apply when no sessionId', async () => {
+    const mockMemory = { setChatContext: vi.fn() }
+    const deps = { memory: mockMemory, sessionId: null }
+
+    await chatContextProcessor.apply({ chatContext: 'Type: Work' }, deps)
+
+    expect(mockMemory.setChatContext).not.toHaveBeenCalled()
+  })
+})
+
 describe('working-memory processor', () => {
   const workingMemoryProcessor = defaultPostProcessors.find(p => p.name === 'working-memory')
 

@@ -28,6 +28,7 @@ describe('CognitiveSystem', () => {
       getRecentDays: vi.fn().mockResolvedValue('Recent notes'),
       getChatLongTermMemory: vi.fn().mockResolvedValue('Chat facts'),
       getChatRecentDays: vi.fn().mockResolvedValue('Chat recent'),
+      getChatContext: vi.fn().mockResolvedValue(''),
       getWorkingMemory: vi.fn().mockResolvedValue({ content: 'Working', updatedAt: Date.now() }),
       appendDaily: vi.fn().mockResolvedValue(undefined),
       appendChatDaily: vi.fn().mockResolvedValue(undefined),

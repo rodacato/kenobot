@@ -1,6 +1,7 @@
 import { extractMemories } from './extractors/memory.js'
 import { extractChatMemories } from './extractors/chat-memory.js'
 import { extractWorkingMemory } from './extractors/working-memory.js'
+import { extractChatContext } from './extractors/chat-context.js'
 import { extractUserUpdates } from './extractors/user.js'
 import { extractBootstrapComplete } from './extractors/bootstrap.js'
 import { CONFIG_CHANGED } from '../infrastructure/events.js'
@@ -39,6 +40,17 @@ export const defaultPostProcessors = [
       if (!memory || chatMemories.length === 0) return
       for (const entry of chatMemories) await memory.addChatFact(sessionId, entry)
       bus.fire(CONFIG_CHANGED, { reason: 'chat memory update' }, { source: 'post-processor' })
+    }
+  },
+  {
+    name: 'chat-context',
+    extract(text) {
+      const { cleanText, chatContext } = extractChatContext(text)
+      return { cleanText, data: { chatContext } }
+    },
+    async apply({ chatContext }, { memory, sessionId }) {
+      if (!memory || !chatContext || !sessionId) return
+      await memory.setChatContext(sessionId, chatContext)
     }
   },
   {
