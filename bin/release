@@ -180,6 +180,7 @@ new_changelog=$(echo "$changelog_content" | awk -v new_section="$new_section" '
   }
   /^## \[/ && skip {
     skip = 0
+    print ""
   }
   !skip { print }
 ')
