@@ -1,16 +1,23 @@
 import defaultLogger from '../infrastructure/logger.js'
-import { MESSAGE_IN, MESSAGE_OUT } from '../infrastructure/events.js'
+import { MESSAGE_IN, MESSAGE_OUT, TASK_QUEUED, TASK_CANCELLED } from '../infrastructure/events.js'
 import { runPostProcessors } from './post-processors.js'
 import { withTypingIndicator } from './typing-indicator.js'
 import { executeToolCalls } from './tool-executor.js'
+import Task from '../domain/motor/task.js'
+import TaskRunner from './task-runner.js'
+
+const CANCEL_PATTERN = /^(para|stop|cancel|cancelar)$/i
+
+// Tools that trigger background execution when seen in the first tool response
+const BACKGROUND_TRIGGER_TOOLS = new Set(['git_clone'])
 
 /**
- * AgentLoop - Core message handler with session persistence
+ * AgentLoop - Core message handler with session persistence and background task support
  *
- * Flow: message:in → build context → provider.chat → [tool loop] → extract memories → save session → message:out
+ * Flow: message:in → build context → provider.chat → [inline tool loop | background task] → message:out
  */
 export default class AgentLoop {
-  constructor(bus, provider, contextBuilder, storage, memoryManager, { logger = defaultLogger, toolRegistry = null } = {}) {
+  constructor(bus, provider, contextBuilder, storage, memoryManager, { logger = defaultLogger, toolRegistry = null, taskStore = null } = {}) {
     this.bus = bus
     this.provider = provider
     this.contextBuilder = contextBuilder
@@ -18,12 +25,13 @@ export default class AgentLoop {
     this.memory = memoryManager || null
     this.logger = logger
     this.toolRegistry = toolRegistry
+    this.taskStore = taskStore
     this._handler = null
+    this._activeTasks = new Map() // sessionId → Task
   }
 
   /**
    * Start the agent loop: register bus listener.
-   * Identity is loaded on-demand by CognitiveSystem.
    */
   async start() {
     this._handler = (message) => this._handleMessage(message)
@@ -33,14 +41,26 @@ export default class AgentLoop {
   }
 
   /**
-   * Stop the agent loop: remove bus listener.
+   * Stop the agent loop: remove bus listener and cancel active tasks.
    */
   stop() {
     if (this._handler) {
       this.bus.off(MESSAGE_IN, this._handler)
       this._handler = null
     }
+    for (const task of this._activeTasks.values()) {
+      if (task.isActive) task.cancel()
+    }
+    this._activeTasks.clear()
     this.logger.info('agent', 'stopped')
+  }
+
+  /**
+   * Get active task for a session (if any).
+   */
+  getActiveTask(sessionId) {
+    const task = this._activeTasks.get(sessionId)
+    return task?.isActive ? task : null
   }
 
   /**
@@ -55,6 +75,9 @@ export default class AgentLoop {
       userId: message.userId,
       length: message.text.length
     })
+
+    // Check for cancel command
+    if (this._handleCancel(sessionId, message)) return
 
     const typingPayload = { chatId: message.chatId, channel: message.channel }
 
@@ -87,8 +110,14 @@ export default class AgentLoop {
         let messages = [...context.messages]
         let response = await this.provider.chatWithRetry(messages, chatOptions)
 
-        // ReAct loop: execute tools and iterate until final response
-        const maxIterations = this.contextBuilder.config?.maxToolIterations ?? 5
+        // Check if this should be a background task
+        if (this._shouldBackground(response)) {
+          await this._spawnBackgroundTask({ messages, chatOptions, response, message, sessionId })
+          return
+        }
+
+        // ReAct loop: execute tools and iterate until final response (inline)
+        const maxIterations = this.contextBuilder.config?.maxToolIterations ?? 15
         let iterations = 0
 
         while (response.stopReason === 'tool_use' && response.toolCalls?.length && iterations < maxIterations) {
@@ -158,5 +187,112 @@ export default class AgentLoop {
         channel: message.channel
       }, { source: 'agent' })
     }
+  }
+
+  /**
+   * Check if the LLM response should trigger a background task.
+   * @private
+   */
+  _shouldBackground(response) {
+    if (!response.toolCalls?.length) return false
+    return response.toolCalls.some(tc => BACKGROUND_TRIGGER_TOOLS.has(tc.name))
+  }
+
+  /**
+   * Handle cancel commands for active tasks.
+   * @private
+   */
+  _handleCancel(sessionId, message) {
+    if (!CANCEL_PATTERN.test(message.text.trim())) return false
+
+    const task = this._activeTasks.get(sessionId)
+    if (!task?.isActive) return false
+
+    task.cancel()
+    this._activeTasks.delete(sessionId)
+
+    this.logger.info('agent', 'task_cancelled', { sessionId, taskId: task.id })
+
+    this.bus.fire(TASK_CANCELLED, {
+      taskId: task.id,
+      chatId: message.chatId,
+      channel: message.channel
+    }, { source: 'agent' })
+
+    this.bus.fire(MESSAGE_OUT, {
+      chatId: message.chatId,
+      text: `Task cancelled. ${task.steps.length} steps completed.`,
+      channel: message.channel
+    }, { source: 'agent' })
+
+    return true
+  }
+
+  /**
+   * Spawn a background TaskRunner for a long-running task.
+   * @private
+   */
+  async _spawnBackgroundTask({ messages, chatOptions, response, message, sessionId }) {
+    // Check concurrent task limit
+    const existingTask = this._activeTasks.get(sessionId)
+    if (existingTask?.isActive) {
+      this.bus.fire(MESSAGE_OUT, {
+        chatId: message.chatId,
+        text: 'There is already a task in progress. Send "stop" to cancel it first.',
+        channel: message.channel
+      }, { source: 'agent' })
+      return
+    }
+
+    // Create task entity
+    const task = new Task({
+      chatId: message.chatId,
+      channel: message.channel,
+      sessionId,
+      input: message.text
+    })
+
+    this._activeTasks.set(sessionId, task)
+
+    this.bus.fire(TASK_QUEUED, {
+      taskId: task.id,
+      chatId: message.chatId,
+      channel: message.channel,
+      input: message.text
+    }, { source: 'motor' })
+
+    // Send the LLM's initial text as confirmation (it usually describes its plan)
+    const confirmation = response.content || 'Working on it. I\'ll send updates as I make progress.'
+
+    this.bus.fire(MESSAGE_OUT, {
+      chatId: message.chatId,
+      text: confirmation,
+      channel: message.channel
+    }, { source: 'agent' })
+
+    // Save session with the confirmation
+    const now = Date.now()
+    await this.storage.saveSession(sessionId, [
+      { role: 'user', content: message.text, timestamp: now - 1 },
+      { role: 'assistant', content: confirmation, timestamp: now }
+    ])
+
+    // Spawn TaskRunner in background (fire and forget)
+    const maxIterations = this.contextBuilder.config?.motor?.maxTaskIterations ?? 30
+    const runner = new TaskRunner(this.bus, this.provider, this.toolRegistry, {
+      logger: this.logger,
+      taskStore: this.taskStore,
+      maxIterations
+    })
+
+    runner.run(task, { messages, chatOptions, pendingResponse: response })
+      .catch(err => this.logger.error('motor', 'task_runner_crash', { taskId: task.id, error: err.message }))
+      .finally(() => {
+        if (this._activeTasks.get(sessionId) === task) {
+          this._activeTasks.delete(sessionId)
+        }
+      })
+
+    this.logger.info('agent', 'task_spawned', { sessionId, taskId: task.id })
   }
 }

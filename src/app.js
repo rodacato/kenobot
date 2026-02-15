@@ -15,8 +15,9 @@ import CircuitBreakerProvider from './adapters/providers/circuit-breaker.js'
 import Watchdog from './infrastructure/watchdog.js'
 import { writePid, removePid } from './infrastructure/health.js'
 import { setupNotifications } from './infrastructure/notifications.js'
-import { ERROR } from './infrastructure/events.js'
+import { ERROR, TASK_PROGRESS, TASK_COMPLETED, TASK_FAILED } from './infrastructure/events.js'
 import { createToolRegistry } from './domain/motor/index.js'
+import TaskStore from './adapters/storage/task-store.js'
 
 /**
  * Create a fully wired KenoBot application instance.
@@ -99,9 +100,12 @@ export function createApp(config, provider, options = {}) {
   const toolRegistry = createToolRegistry(config)
   logger.info('system', 'tool_registry_ready', { tools: toolRegistry.size })
 
+  // Motor System: Task persistence
+  const taskStore = new TaskStore(config.dataDir, { logger })
+
   // ContextBuilder: Uses Cognitive System for identity and memory
   const contextBuilder = new ContextBuilder(config, storage, cognitive, { logger })
-  const agent = new AgentLoop(bus, circuitBreaker, contextBuilder, storage, memory, { logger, toolRegistry })
+  const agent = new AgentLoop(bus, circuitBreaker, contextBuilder, storage, memory, { logger, toolRegistry, taskStore })
 
   // Channels
   const channels = []
@@ -128,6 +132,17 @@ export function createApp(config, provider, options = {}) {
       source,
       error: typeof error === 'string' ? error : error?.message || String(error)
     })
+  })
+
+  // Motor System: task signal → message translation
+  bus.on(TASK_PROGRESS, ({ chatId, text, channel }) => {
+    bus.fire(MESSAGE_OUT, { chatId, text, channel }, { source: 'motor' })
+  })
+  bus.on(TASK_COMPLETED, ({ chatId, text, channel }) => {
+    bus.fire(MESSAGE_OUT, { chatId, text, channel }, { source: 'motor' })
+  })
+  bus.on(TASK_FAILED, ({ chatId, error, channel }) => {
+    bus.fire(MESSAGE_OUT, { chatId, text: `Task failed: ${error}`, channel }, { source: 'motor' })
   })
 
   // Lifecycle methods

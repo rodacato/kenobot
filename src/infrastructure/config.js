@@ -82,6 +82,8 @@ export function createConfig(env = process.env) {
       workspacesDir: env.MOTOR_WORKSPACES_DIR || join(env.DATA_DIR || './data', 'motor', 'workspaces'),
       shellTimeout: int('MOTOR_SHELL_TIMEOUT', 60000, { min: 5000, max: 300000 }),
       shellMaxOutput: int('MOTOR_SHELL_MAX_OUTPUT', 102400, { min: 1024 }),
+      maxTaskIterations: int('MAX_TASK_ITERATIONS', 30, { min: 1, max: 50 }),
+      maxConcurrentTasks: int('MAX_CONCURRENT_TASKS', 1, { min: 1, max: 5 }),
     }
   }
 

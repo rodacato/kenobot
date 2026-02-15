@@ -29,6 +29,10 @@ export default class CircuitBreakerProvider extends BaseProvider {
     return this.inner.name
   }
 
+  get supportsTools() {
+    return this.inner.supportsTools
+  }
+
   adaptToolDefinitions(definitions) {
     return this.inner.adaptToolDefinitions(definitions)
   }

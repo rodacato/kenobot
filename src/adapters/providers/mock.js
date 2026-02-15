@@ -12,6 +12,7 @@ export default class MockProvider extends BaseProvider {
     super()
     this.config = config
     this._nextResponse = null
+    this._responseQueue = []
     this._lastCall = null
   }
 
@@ -22,6 +23,15 @@ export default class MockProvider extends BaseProvider {
    */
   setNextResponse(response) {
     this._nextResponse = response
+  }
+
+  /**
+   * Queue a full response object for multi-step tool_use scripting.
+   * Queued responses are consumed FIFO before setNextResponse or defaults.
+   * @param {Object} response - Full response object { content, toolCalls, stopReason, rawContent, usage }
+   */
+  queueResponse(response) {
+    this._responseQueue.push(response)
   }
 
   /**
@@ -41,6 +51,11 @@ export default class MockProvider extends BaseProvider {
 
     // Simulate a small delay like a real LLM
     await new Promise(resolve => setTimeout(resolve, 50))
+
+    // Full response queue (for multi-step tool_use scripting)
+    if (this._responseQueue.length) {
+      return this._responseQueue.shift()
+    }
 
     // Scriptable response: consume queued response if set
     if (this._nextResponse !== null) {
