@@ -7,6 +7,51 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-02-15
+
+### Added
+
+**Motor System (Agentic Capabilities)**
+- ReAct tool loop — bot can now Think → Act → Observe → Repeat with real tools
+- ToolRegistry for registering and executing tool definitions
+- 7 action tools — github_setup_workspace, read_file, write_file, list_files, run_command, search_web, fetch_url
+- Background task system for long-running operations (TaskRunner, Task entity, TaskStore)
+- Cancel commands for active background tasks (para/stop/cancel/cancelar)
+- Self-improver creates improvement PRs via Motor System during sleep cycle
+- MOTOR_SELF_REPO config for bot's own repository
+- Motor System design document with agentic loop and self-improvement architecture
+
+**Immune System (Safety & Integrity)**
+- Immune system bounded context with secret scanner and integrity checker
+- Shell command audit trail with full execution context (exec, completed, blocked, timeout, error)
+- Approval workflow notifies owner via Telegram when self-improvement PRs are created
+
+**Architecture & Documentation**
+- ESLint boundary rules to enforce hexagonal architecture layer separation
+- Motor System and Immune System documentation in architecture docs
+- Project roadmap with phased implementation plan
+- Expert personas for sandboxing, tool use, self-modification, automation, and agent ops
+- Conversation scenario tests for Motor System (ReAct loop, tool registration, background tasks)
+
+### Changed
+- Reorganize src/ directory by architectural role (domain, application, adapters, infrastructure)
+- All documentation paths aligned with hexagonal architecture
+- Simplify motor git tools from 5 to 1 (github_setup_workspace) with SSH auth
+- Secret scanning moved from runtime JS to pre-commit hook generated from centralized patterns
+- Approval workflow signals documented as implemented (was reserved)
+- MAX_TOOL_ITERATIONS default from 5 to 15
+
+### Removed
+- git_diff, git_commit, git_push, create_pr tools (LLM uses run_command instead)
+- GITHUB_TOKEN config (replaced by SSH key authentication)
+- Dead config variables (SKILLS_DIR, TOOLS_DIR, MAX_TOOL_ITERATIONS, SELF_IMPROVEMENT_ENABLED, APPROVAL_REQUIRED, FALLBACK_PROVIDER)
+- Obsolete implementation plan from design docs
+
+### Fixed
+- CircuitBreakerProvider now delegates supportsTools to inner provider
+- Pre-commit secret scanner now works in devcontainer (removed file command dependency)
+- Release script now adds blank line between changelog sections
+
 ## [0.5.0] - 2026-02-15
 
 ### Added
