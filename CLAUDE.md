@@ -15,7 +15,7 @@ npm run dev                                  # Run with --watch
 npm test                                     # Run all tests (vitest run)
 npm run test:watch                           # Watch mode
 npm run test:coverage                        # Coverage report (V8)
-npx vitest run test/agent/loop.test.js       # Run a single test file
+npx vitest run test/application/post-processors.test.js  # Run a single test file
 npm run test:e2e                             # E2E tests (sequential)
 npm run test:conversations                   # Conversation scenario tests
 
@@ -29,7 +29,7 @@ kenobot doctor                               # Diagnose problems
 
 ## Architecture
 
-Event-driven architecture with two bounded contexts: the **Nervous System** (signaling) and the **Cognitive System** (memory & identity). All components communicate via the Nervous System (`src/nervous/`) — a signal-aware event bus with middleware, tracing, and audit.
+Event-driven architecture organized by architectural role (Hexagonal/Ports & Adapters). Two bounded contexts: the **Nervous System** (signaling) and the **Cognitive System** (memory & identity). All components communicate via the Nervous System — a signal-aware event bus with middleware, tracing, and audit.
 
 ```
 User → Telegram → TelegramChannel → bus.fire('message:in') → AgentLoop → ContextBuilder → Provider.chat()
@@ -39,15 +39,20 @@ User ← Telegram ← TelegramChannel ← bus.fire('message:out') ← AgentLoop 
 
 **Entry points**: `src/index.js` (CLI startup, signals), `src/app.js` (`createApp()` — pure composition root factory returning `{ bus, agent, channels, cognitive, start(), stop() }`).
 
-**Key modules**:
-- `src/nervous/` — **Nervous System**: signal-aware event bus with middleware pipeline (trace, logging, dead-signal), audit trail (JSONL), and trace correlation
-- `src/cognitive/` — **Cognitive System**: orchestrates Memory System (4-tier), Identity System (personality + preferences), and Retrieval Engine
-- `src/agent/loop.js` — Core message handler: build context → provider.chat → extract memories → save session → fire response
-- `src/agent/context.js` — Assembles system prompt (identity + memory) and message history into provider-agnostic `{ system, messages }` format
-- `src/channels/` — Template Method pattern: `BaseChannel` handles permissions/rate-limiting, subclasses (`TelegramChannel`, `HTTPChannel`) are <100 LOC
-- `src/providers/` — Registry pattern with self-registration on import. `BaseProvider` interface, implementations: `claude-api`, `claude-cli`, `gemini-api`, `gemini-cli`, `mock`
-- `src/storage/` — Strategy pattern: `FilesystemStorage` (JSONL sessions), `MemoryStore` (persistence layer for Memory System)
-- `src/scheduler/` — Cron-based tasks firing as synthetic `message:in` signals
+**Directory structure** (4 top-level categories by architectural role):
+- `src/domain/` — **Bounded Contexts** (core business logic, no external dependencies)
+  - `src/domain/nervous/` — Signal-aware event bus with middleware pipeline, audit trail (JSONL), trace correlation
+  - `src/domain/cognitive/` — Memory System (4-tier), Identity System (personality + preferences), Retrieval Engine
+- `src/application/` — **Use cases / orchestration** (coordinates domain + adapters)
+  - `src/application/loop.js` — Core message handler: build context → provider.chat → extract memories → save session → fire response
+  - `src/application/context.js` — Assembles system prompt (identity + memory) and message history into provider-agnostic `{ system, messages }` format
+  - `src/application/extractors/` — Post-processors that extract tagged content from LLM responses
+- `src/adapters/` — **External world interfaces** (ports/adapters pattern)
+  - `src/adapters/channels/` — Template Method: `BaseChannel` handles permissions/rate-limiting, subclasses (`TelegramChannel`, `HTTPChannel`) are <100 LOC
+  - `src/adapters/providers/` — Registry pattern with self-registration. `BaseProvider` interface: `claude-api`, `claude-cli`, `gemini-api`, `gemini-cli`, `mock`
+  - `src/adapters/storage/` — Strategy pattern: `FilesystemStorage` (JSONL sessions), `MemoryStore` (persistence)
+  - `src/adapters/scheduler/` — Cron-based tasks firing as synthetic `message:in` signals
+- `src/infrastructure/` — **Cross-cutting concerns** (config, logging, events, health, paths)
 
 **Signals**: `message:in`, `message:out`, `thinking:start`, `error`, `notification`, `config:changed`, `health:*`, `approval:*`
 

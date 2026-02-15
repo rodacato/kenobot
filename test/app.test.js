@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-vi.mock('../src/logger.js', () => ({
+vi.mock('../src/infrastructure/logger.js', () => ({
   default: {
     info: vi.fn(),
     warn: vi.fn(),

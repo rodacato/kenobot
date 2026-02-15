@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
-import paths from '../../src/paths.js'
+import paths from '../../src/infrastructure/paths.js'
 
 describe('paths', () => {
   it('resolves to ~/.kenobot by default', () => {

@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { mkdtemp, rm, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { getStatus, writePid, removePid, checkPid } from '../src/health.js'
+import { getStatus, writePid, removePid, checkPid } from '../src/infrastructure/health.js'
 
 describe('Health', () => {
   let tempDir

@@ -2,7 +2,7 @@ import { readFile, writeFile, unlink } from 'node:fs/promises'
 import { join, basename } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { checkPid } from '../health.js'
+import { checkPid } from '../infrastructure/health.js'
 import {
   GREEN, RED, YELLOW, BOLD, DIM, NC,
   printOk, printWarn, printFail, printSkip,

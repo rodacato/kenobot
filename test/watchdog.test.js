@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import Watchdog from '../src/watchdog.js'
+import Watchdog from '../src/infrastructure/watchdog.js'
 
-vi.mock('../src/logger.js', () => ({
+vi.mock('../src/infrastructure/logger.js', () => ({
   default: {
     info: vi.fn(),
     warn: vi.fn(),

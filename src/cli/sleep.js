@@ -1,6 +1,6 @@
 import { join } from 'node:path'
-import MemoryStore from '../storage/memory-store.js'
-import CognitiveSystem from '../cognitive/index.js'
+import MemoryStore from '../adapters/storage/memory-store.js'
+import CognitiveSystem from '../domain/cognitive/index.js'
 import { BOLD, GREEN, YELLOW, DIM, NC } from './utils.js'
 
 /**

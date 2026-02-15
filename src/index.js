@@ -10,16 +10,16 @@ if (existsSync(npmGlobalBin) && !process.env.PATH?.includes(npmGlobalBin)) {
   process.env.PATH = `${npmGlobalBin}:${process.env.PATH}`
 }
 
-import config from './config.js'
-import logger from './logger.js'
-import paths from './paths.js'
+import config from './infrastructure/config.js'
+import logger from './infrastructure/logger.js'
+import paths from './infrastructure/paths.js'
 // Provider self-registration: importing triggers registerProvider()
-import './providers/mock.js'
-import './providers/claude-cli.js'
-import './providers/claude-api.js'
-import './providers/gemini-cli.js'
-import './providers/gemini-api.js'
-import { createProvider } from './providers/registry.js'
+import './adapters/providers/mock.js'
+import './adapters/providers/claude-cli.js'
+import './adapters/providers/claude-api.js'
+import './adapters/providers/gemini-cli.js'
+import './adapters/providers/gemini-api.js'
+import { createProvider } from './adapters/providers/registry.js'
 import { createApp } from './app.js'
 
 // Error boundaries — log but don't crash on transient errors

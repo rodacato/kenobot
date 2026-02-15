@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { existsSync } from 'node:fs'
-import paths from './paths.js'
+import paths from './infrastructure/paths.js'
 
 const args = process.argv.slice(2)
 const subcommand = args[0] || 'help'

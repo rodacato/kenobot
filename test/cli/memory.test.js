@@ -3,7 +3,7 @@ import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
-vi.mock('../../src/logger.js', () => ({
+vi.mock('../../src/infrastructure/logger.js', () => ({
   default: {
     info: vi.fn(),
     warn: vi.fn(),

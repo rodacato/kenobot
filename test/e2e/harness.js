@@ -3,9 +3,9 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import crypto from 'node:crypto'
 import http from 'node:http'
-import { createConfig } from '../../src/config.js'
+import { createConfig } from '../../src/infrastructure/config.js'
 import { createApp } from '../../src/app.js'
-import MockProvider from '../../src/providers/mock.js'
+import MockProvider from '../../src/adapters/providers/mock.js'
 
 const WEBHOOK_SECRET = 'e2e-test-secret'
 

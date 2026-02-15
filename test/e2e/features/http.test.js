@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import crypto from 'node:crypto'
 import http from 'node:http'
 
-vi.mock('../../../src/logger.js', () => ({
+vi.mock('../../../src/infrastructure/logger.js', () => ({
   default: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), configure: vi.fn() },
   Logger: class { constructor() { this.info = vi.fn(); this.warn = vi.fn(); this.error = vi.fn(); this.configure = vi.fn() } }
 }))

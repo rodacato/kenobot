@@ -1,8 +1,8 @@
 import { join } from 'node:path'
-import MemoryStore from '../storage/memory-store.js'
-import MemorySystem from '../cognitive/memory/memory-system.js'
-import MemoryHealthChecker from '../cognitive/utils/memory-health.js'
-import SleepCycle from '../cognitive/consolidation/sleep-cycle.js'
+import MemoryStore from '../adapters/storage/memory-store.js'
+import MemorySystem from '../domain/cognitive/memory/memory-system.js'
+import MemoryHealthChecker from '../domain/cognitive/utils/memory-health.js'
+import SleepCycle from '../domain/cognitive/consolidation/sleep-cycle.js'
 import { BOLD, GREEN, YELLOW, DIM, NC, formatBytes } from './utils.js'
 
 /**
@@ -119,7 +119,7 @@ async function showHealth(memorySystem, dataDir) {
 
 async function runPrune(memorySystem) {
   // Import pruner lazily
-  const { default: MemoryPruner } = await import('../cognitive/consolidation/memory-pruner.js')
+  const { default: MemoryPruner } = await import('../domain/cognitive/consolidation/memory-pruner.js')
   const pruner = new MemoryPruner(memorySystem)
 
   console.log(`${BOLD}Running memory pruner...${NC}\n`)

@@ -3,7 +3,7 @@
 import { rm, mkdir, writeFile, copyFile } from 'node:fs/promises'
 import { join, basename } from 'node:path'
 import { createInterface } from 'node:readline'
-import { checkPid } from '../health.js'
+import { checkPid } from '../infrastructure/health.js'
 import { GREEN, RED, YELLOW, BOLD, NC, exists } from './utils.js'
 
 const ok = (msg) => console.log(`${GREEN}[✓]${NC} ${msg}`)
