@@ -19,7 +19,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "vitest run test/e2e/ --fileParallelism=false",
-    "test:conversations": "vitest run test/conversations/ --fileParallelism=false"
+    "test:conversations": "vitest run test/conversations/ --fileParallelism=false",
+    "lint": "eslint src/",
+    "lint:boundaries": "eslint --rule '{\"boundaries/element-types\": \"error\"}' src/"
   },
   "keywords": [
     "ai",
@@ -41,6 +43,8 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.0.18",
+    "eslint": "^10.0.0",
+    "eslint-plugin-boundaries": "^5.4.0",
     "vitest": "^4.0.18"
   }
 }
