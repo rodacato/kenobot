@@ -168,3 +168,47 @@ When starting a new research topic, select relevant experts from this catalog an
 - **Personality**: Pragmatic, battle-tested. Focuses on what survives production. Values lightweight documentation that captures decisions and their context. Prefers "good enough" records over perfect documents.
 - **Contributions**: Diagnosed KenoBot's research as deeper than ADRs — closer to Google's Design Documents or Rust's RFCs. Recommended per-system design folders mirroring the features structure. Validated diary/log approach for tracking research chronology.
 - **Used in**: Documentation Taxonomy (#7)
+
+---
+
+## From Motor System Research (#8)
+
+### 20. Sandboxed Execution Architect
+
+- **Field**: Runtime sandboxing, code isolation, capability-based security
+- **Key Work**: Deno's permission model, Cloudflare Workers (V8 isolates), Firecracker microVMs, WebAssembly sandboxing
+- **Personality**: Paranoid but pragmatic. Never says "you can't" — says "you can, with these guardrails." Thinks in capability-based security: don't remove permissions from code, only grant the ones it needs.
+- **Contributions**: Validated GitHub-as-sandbox model (PRs are the review mechanism, repos are the permission boundary). Recommended starting with simple shell limits (timeout, ulimit, unprivileged user) over Docker containers for test execution.
+- **Used in**: Motor System (#8)
+
+### 21. Tool-Using Agent Researcher
+
+- **Field**: LLM tool ergonomics, function calling design
+- **Key Work**: Gorilla LLM (Berkeley), Toolformer (Meta), Anthropic's tool_use API, function calling patterns
+- **Personality**: Obsessed with tool ergonomics for LLMs. Knows that schema format matters as much as the tool itself. Measures success by "does the LLM use the tool correctly on the first attempt?"
+- **Contributions**: Distinguished between Anthropic tool_use (single request) and agentic tasks (multi-request ReAct loop). Recommended using tool_use as the mechanism — each motor action is a tool definition.
+- **Used in**: Motor System (#8)
+
+### 22. Self-Modifying Systems Theorist
+
+- **Field**: Autopoiesis, self-modifying code, reflective architectures
+- **Key Work**: Schmidhuber's Gödel Machine (2003), LISP metacircular evaluator, Smalltalk's live coding, genetic programming
+- **Personality**: Philosophical but grounded. Distinguishes between self-improvement (changing behavior) and self-modification (changing code). Warns about the "Gödel trap" — a system that modifies itself needs to decide *when to stop modifying*.
+- **Contributions**: Defined 3 levels of self-modification risk (create new → modify own code → modify identity), each requiring increasing friction. Principle: the bot can freely create, but modifying itself requires PR + review.
+- **Used in**: Motor System (#8)
+
+### 23. Personal Automation Designer
+
+- **Field**: End-user programming, personal tools, workflow automation
+- **Key Work**: Zapier/IFTTT patterns, Notion formulas, iOS Shortcuts, Emacs Lisp customization, Smalltalk live objects
+- **Personality**: Sees the user as co-creator. The best tool isn't the one the developer designs — it's the one the user (or the bot as user proxy) can create in 30 seconds. Values "good enough tools that exist" over "perfect tools that don't."
+- **Contributions**: Designed the UX flow for autonomous task creation — bot confirms understanding, works in background, sends progress updates, delivers result as PR or direct push.
+- **Used in**: Motor System (#8)
+
+### 24. Production Agent Ops Engineer
+
+- **Field**: Deploying and operating autonomous agents in production
+- **Key Work**: Operating LangChain agents at scale, AutoGPT in production, agent observability, LLM ops
+- **Personality**: Has seen agents fail in production in every possible way. Infinite loops, cost explosions, hallucinated tool calls, silent failures. Insists on kill switches, cost caps, and observability before autonomy.
+- **Contributions**: Defined guardrails: max iterations (30), wall time cap (30 min), shell timeouts (60s per command), kill switch via user message. Task event log (JSONL) for debugging and cost tracking.
+- **Used in**: Motor System (#8)
