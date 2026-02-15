@@ -1,5 +1,6 @@
 import { config as loadEnv } from 'dotenv'
 import { parseArgs } from 'node:util'
+import { join } from 'node:path'
 import logger from './logger.js'
 
 /**
@@ -60,7 +61,7 @@ export function createConfig(env = process.env) {
 
     watchdogInterval: int('WATCHDOG_INTERVAL', 60000, { min: 5000 }),
 
-    maxToolIterations: int('MAX_TOOL_ITERATIONS', 5, { min: 1, max: 20 }),
+    maxToolIterations: int('MAX_TOOL_ITERATIONS', 15, { min: 1, max: 20 }),
 
     circuitBreaker: {
       threshold: int('CIRCUIT_BREAKER_THRESHOLD', 5, { min: 1 }),
@@ -73,6 +74,14 @@ export function createConfig(env = process.env) {
       host: env.HTTP_HOST || '127.0.0.1',
       webhookSecret: env.WEBHOOK_SECRET || '',
       timeout: int('HTTP_TIMEOUT', 60000, { min: 1000 })
+    },
+
+    motor: {
+      githubToken: env.GITHUB_TOKEN || '',
+      githubUsername: env.GITHUB_USERNAME || '',
+      workspacesDir: env.MOTOR_WORKSPACES_DIR || join(env.DATA_DIR || './data', 'motor', 'workspaces'),
+      shellTimeout: int('MOTOR_SHELL_TIMEOUT', 60000, { min: 5000, max: 300000 }),
+      shellMaxOutput: int('MOTOR_SHELL_MAX_OUTPUT', 102400, { min: 1024 }),
     }
   }
 

@@ -96,7 +96,7 @@ export function createApp(config, provider, options = {}) {
   })
 
   // Motor System: Tool registry for ReAct loop
-  const toolRegistry = createToolRegistry()
+  const toolRegistry = createToolRegistry(config)
   logger.info('system', 'tool_registry_ready', { tools: toolRegistry.size })
 
   // ContextBuilder: Uses Cognitive System for identity and memory

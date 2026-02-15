@@ -24,3 +24,10 @@ export const HEALTH_RECOVERED = 'health:recovered'
 export const APPROVAL_PROPOSED = 'approval:proposed'
 export const APPROVAL_APPROVED = 'approval:approved'
 export const APPROVAL_REJECTED = 'approval:rejected'
+
+// Task lifecycle (Motor System — Phase 1c)
+export const TASK_QUEUED = 'task:queued'
+export const TASK_STARTED = 'task:started'
+export const TASK_PROGRESS = 'task:progress'
+export const TASK_COMPLETED = 'task:completed'
+export const TASK_FAILED = 'task:failed'

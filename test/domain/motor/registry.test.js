@@ -72,7 +72,7 @@ describe('ToolRegistry', () => {
 })
 
 describe('createToolRegistry', () => {
-  it('should return a registry with search_web and fetch_url tools', () => {
+  it('should return a registry with search_web and fetch_url tools when no config', () => {
     const registry = createToolRegistry()
 
     expect(registry.size).toBe(2)
@@ -80,5 +80,34 @@ describe('createToolRegistry', () => {
     const names = registry.getDefinitions().map(d => d.name)
     expect(names).toContain('search_web')
     expect(names).toContain('fetch_url')
+  })
+
+  it('should register action tools when motor config is present', () => {
+    const config = {
+      motor: {
+        githubToken: 'test-token',
+        githubUsername: 'testuser',
+        workspacesDir: '/tmp/test-workspaces',
+        shellTimeout: 60000,
+        shellMaxOutput: 102400,
+      }
+    }
+    const registry = createToolRegistry(config)
+
+    // 2 information + 9 action = 11 tools
+    expect(registry.size).toBe(11)
+
+    const names = registry.getDefinitions().map(d => d.name)
+    expect(names).toContain('search_web')
+    expect(names).toContain('fetch_url')
+    expect(names).toContain('run_command')
+    expect(names).toContain('read_file')
+    expect(names).toContain('write_file')
+    expect(names).toContain('list_files')
+    expect(names).toContain('git_clone')
+    expect(names).toContain('git_diff')
+    expect(names).toContain('git_commit')
+    expect(names).toContain('git_push')
+    expect(names).toContain('create_pr')
   })
 })
