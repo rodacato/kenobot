@@ -2,20 +2,22 @@ import defaultLogger from '../infrastructure/logger.js'
 import { MESSAGE_IN, MESSAGE_OUT } from '../infrastructure/events.js'
 import { runPostProcessors } from './post-processors.js'
 import { withTypingIndicator } from './typing-indicator.js'
+import { executeToolCalls } from './tool-executor.js'
 
 /**
  * AgentLoop - Core message handler with session persistence
  *
- * Flow: message:in → build context → provider.chat → extract memories → save session → message:out
+ * Flow: message:in → build context → provider.chat → [tool loop] → extract memories → save session → message:out
  */
 export default class AgentLoop {
-  constructor(bus, provider, contextBuilder, storage, memoryManager, { logger = defaultLogger } = {}) {
+  constructor(bus, provider, contextBuilder, storage, memoryManager, { logger = defaultLogger, toolRegistry = null } = {}) {
     this.bus = bus
     this.provider = provider
     this.contextBuilder = contextBuilder
     this.storage = storage
     this.memory = memoryManager || null
     this.logger = logger
+    this.toolRegistry = toolRegistry
     this._handler = null
   }
 
@@ -75,11 +77,39 @@ export default class AgentLoop {
         // Build context with identity + history + bootstrap action
         const context = await this.contextBuilder.build(sessionId, message, { bootstrapAction, history })
 
-        // Build chat options
+        // Build chat options (add tools if provider supports them)
         const chatOptions = { system: context.system }
+        if (this.toolRegistry && this.provider.supportsTools) {
+          chatOptions.tools = this.provider.adaptToolDefinitions(this.toolRegistry.getDefinitions())
+        }
 
-        // Call provider
-        const response = await this.provider.chatWithRetry(context.messages, chatOptions)
+        // Call provider (may return tool_use requiring iteration)
+        let messages = [...context.messages]
+        let response = await this.provider.chatWithRetry(messages, chatOptions)
+
+        // ReAct loop: execute tools and iterate until final response
+        const maxIterations = this.contextBuilder.config?.maxToolIterations ?? 5
+        let iterations = 0
+
+        while (response.stopReason === 'tool_use' && response.toolCalls?.length && iterations < maxIterations) {
+          iterations++
+
+          this.logger.info('agent', 'tool_iteration', {
+            sessionId,
+            iteration: iterations,
+            tools: response.toolCalls.map(t => t.name)
+          })
+
+          const results = await executeToolCalls(response.toolCalls, this.toolRegistry, { logger: this.logger })
+          const toolMessages = this.provider.buildToolResultMessages(response.rawContent, results)
+          messages = [...messages, ...toolMessages]
+          response = await this.provider.chatWithRetry(messages, chatOptions)
+        }
+
+        if (iterations >= maxIterations && response.stopReason === 'tool_use') {
+          this.logger.warn('agent', 'tool_max_iterations', { sessionId, maxIterations })
+        }
+
         const durationMs = Date.now() - start
 
         // Run post-processor pipeline: extract tags, persist, clean text
@@ -95,6 +125,7 @@ export default class AgentLoop {
           sessionId,
           durationMs,
           contentLength: cleanText.length,
+          toolIterations: iterations || undefined,
           memoriesExtracted: stats.memory?.memories?.length || 0,
           chatMemoriesExtracted: stats['chat-memory']?.chatMemories?.length || 0,
           userUpdates: stats.user?.updates?.length || 0,

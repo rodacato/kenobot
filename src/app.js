@@ -16,6 +16,7 @@ import Watchdog from './infrastructure/watchdog.js'
 import { writePid, removePid } from './infrastructure/health.js'
 import { setupNotifications } from './infrastructure/notifications.js'
 import { ERROR } from './infrastructure/events.js'
+import { createToolRegistry } from './domain/motor/index.js'
 
 /**
  * Create a fully wired KenoBot application instance.
@@ -94,9 +95,13 @@ export function createApp(config, provider, options = {}) {
     audit: !!bus.getAuditTrail()
   })
 
+  // Motor System: Tool registry for ReAct loop
+  const toolRegistry = createToolRegistry()
+  logger.info('system', 'tool_registry_ready', { tools: toolRegistry.size })
+
   // ContextBuilder: Uses Cognitive System for identity and memory
   const contextBuilder = new ContextBuilder(config, storage, cognitive, { logger })
-  const agent = new AgentLoop(bus, circuitBreaker, contextBuilder, storage, memory, { logger })
+  const agent = new AgentLoop(bus, circuitBreaker, contextBuilder, storage, memory, { logger, toolRegistry })
 
   // Channels
   const channels = []

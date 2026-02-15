@@ -60,6 +60,8 @@ export function createConfig(env = process.env) {
 
     watchdogInterval: int('WATCHDOG_INTERVAL', 60000, { min: 5000 }),
 
+    maxToolIterations: int('MAX_TOOL_ITERATIONS', 5, { min: 1, max: 20 }),
+
     circuitBreaker: {
       threshold: int('CIRCUIT_BREAKER_THRESHOLD', 5, { min: 1 }),
       cooldown: int('CIRCUIT_BREAKER_COOLDOWN', 60000, { min: 1000 })

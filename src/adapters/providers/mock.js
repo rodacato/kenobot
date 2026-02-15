@@ -60,11 +60,11 @@ export default class MockProvider extends BaseProvider {
       const url = userText.match(/https?:\/\/\S+/)?.[0]
       return {
         content: `I'll fetch ${url} for you.`,
-        toolCalls: [{ id: 'mock_tool_1', name: 'web_fetch', input: { url } }],
+        toolCalls: [{ id: 'mock_tool_1', name: 'fetch_url', input: { url } }],
         stopReason: 'tool_use',
         rawContent: [
           { type: 'text', text: `I'll fetch ${url} for you.` },
-          { type: 'tool_use', id: 'mock_tool_1', name: 'web_fetch', input: { url } }
+          { type: 'tool_use', id: 'mock_tool_1', name: 'fetch_url', input: { url } }
         ],
         usage: { mock: true }
       }
