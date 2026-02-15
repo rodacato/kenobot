@@ -11,17 +11,16 @@ Telegram bot with memory, identity, and scheduling — all running on a $4/month
 - **Nervous System**: signal-aware event bus with middleware pipeline, trace correlation, and JSONL audit trail
 - **Cognitive System**: orchestrates memory, identity, and retrieval
   - **4-tier memory**: working, episodic, semantic, procedural — with auto-extraction from `<memory>`, `<chat-memory>`, `<working-memory>` tags
-  - **Identity system**: modular personality (SOUL + IDENTITY + USER), conversational bootstrap, user preference learning
+  - **Identity system**: modular personality (core.md + rules.json + preferences.md), conversational bootstrap, user preference learning
   - **Retrieval engine**: keyword matching + confidence scoring for selective memory recall
   - **Consolidation**: sleep cycles, memory pruning, error analysis
 - **Per-chat sessions**: isolated conversation history in append-only JSONL files
-- **Circuit breaker**: automatic failure protection with configurable fallback provider
+- **Circuit breaker**: automatic failure protection
 - **Watchdog**: health monitoring with configurable intervals
 - **Cron scheduler**: persistent tasks that fire as synthetic signals
 - **HTTP webhook channel**: HMAC-SHA256 validated endpoint for external integrations
 - **Structured logging**: JSONL logs with daily rotation
 - **Health checks**: PID management, `kenobot status`, systemd integration
-- **Multi-instance**: run multiple bots with different configs, providers, and identities
 - **Markdown formatter**: converts responses to Telegram HTML with 4000-char chunking
 
 ## Quick Start
@@ -56,7 +55,6 @@ kenobot status               # Check if running
 kenobot logs                 # Tail latest log
 kenobot config [edit]        # Show config or open in $EDITOR
 kenobot dev                  # Run with --watch (development mode)
-kenobot init-cognitive       # Initialize cognitive system memory structure
 kenobot reset                # Reset cognitive system
 kenobot doctor               # Diagnose common problems
 kenobot update               # Update to latest release
@@ -74,7 +72,7 @@ kenobot config edit          # Set tokens and provider
 kenobot start                # Run the bot
 ```
 
-See [Getting Started](docs/quickstart/getting-started.md) for a detailed walkthrough or [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
+See [Getting Started](docs/getting-started.md) for a detailed walkthrough or [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
 
 ## Architecture
 
@@ -90,11 +88,11 @@ All components communicate via the Nervous System — a signal-aware event bus w
 
 **Signals**: `message:in`, `message:out`, `thinking:start`, `error`, `notification`, `config:changed`, `health:degraded`, `health:unhealthy`, `health:recovered`, `approval:proposed`, `approval:approved`, `approval:rejected`
 
-See [Architecture](docs/reference/architecture.md) for a deep dive.
+See [Architecture](docs/architecture.md) for a deep dive.
 
 ## Configuration
 
-All configuration via environment variables. The config file lives at `~/.kenobot/config/.env` (or `$KENOBOT_HOME/config/.env`).
+All configuration via environment variables. The config file lives at `~/.kenobot/config/.env`.
 
 Use `kenobot config edit` to open it, or pass `--config path/to/file.env` when running directly.
 
@@ -106,14 +104,14 @@ Use `kenobot config edit` to open it, or pass `--config path/to/file.env` when r
 | `PROVIDER` | `claude-cli` | `claude-api`, `claude-cli`, `gemini-api`, `gemini-cli`, or `mock` |
 | `MODEL` | `sonnet` | `sonnet`, `opus`, or `haiku` |
 | `ANTHROPIC_API_KEY` | — | Required for `claude-api` provider |
-| `IDENTITY_FILE` | `identities/kenobot` | Path to bot identity directory |
+| `GOOGLE_API_KEY` | — | Required for `gemini-api` provider |
 | `DATA_DIR` | `./data` | Where sessions, memory, and logs are stored |
 | `MEMORY_DAYS` | `3` | Days of recent notes to include in context |
 | `MEMORY_RETENTION_DAYS` | `30` | Days before memories are pruned |
 | `WORKING_MEMORY_STALE_DAYS` | `7` | Days before working memory entries go stale |
 | `SESSION_HISTORY_LIMIT` | `20` | Max messages per session in context |
-| `MAX_TOOL_ITERATIONS` | `20` | Safety limit for tool execution loops |
-| `FALLBACK_PROVIDER` | — | Provider to use when circuit breaker trips |
+| `ENABLE_SCHEDULER` | `true` | Set to `false` to disable cron tasks |
+| `TIMEZONE` | — | IANA timezone for cron (e.g. `America/Mexico_City`) |
 | `WATCHDOG_INTERVAL` | `60000` | Health monitoring interval (ms) |
 | `CIRCUIT_BREAKER_THRESHOLD` | `5` | Failures before circuit opens |
 | `CIRCUIT_BREAKER_COOLDOWN` | `60000` | Cooldown before circuit closes (ms) |
@@ -122,9 +120,8 @@ Use `kenobot config edit` to open it, or pass `--config path/to/file.env` when r
 | `HTTP_HOST` | `127.0.0.1` | HTTP server bind address |
 | `WEBHOOK_SECRET` | — | HMAC secret for webhook validation |
 | `HTTP_TIMEOUT` | `60000` | Webhook response timeout (ms) |
-| `PROJECTS_DIR` | — | Parent dir for workspace dev mode |
 
-See [Configuration Reference](docs/reference/configuration.md) for details.
+See [Configuration](docs/configuration.md) for details.
 
 ## Providers
 
@@ -136,19 +133,7 @@ See [Configuration Reference](docs/reference/configuration.md) for details.
 | `gemini-cli` | Using existing Gemini CLI | ~15s | CLI subscription |
 | `mock` | Testing, development | Instant | Free |
 
-Switch providers by changing `PROVIDER` in `.env`. The agent loop doesn't know or care which provider it's using. Circuit breaker protects against provider failures with automatic fallback.
-
-## Multi-Instance
-
-Run multiple bot instances with different identities, providers, and data:
-
-```bash
-kenobot start --config config/main.env       # @kenobot_main (Claude, Opus)
-kenobot start --config config/designer.env   # @kenobot_design (Gemini, Flash)
-kenobot start --config config/quick.env      # @kenobot_quick (Claude, Haiku)
-```
-
-Each instance gets its own Telegram bot, identity file, data directory, and provider. Zero code changes needed.
+Switch providers by changing `PROVIDER` in `.env`. The agent loop doesn't know or care which provider it's using. Circuit breaker protects against provider failures.
 
 ## Project Structure
 
@@ -159,7 +144,7 @@ kenobot/                       # Engine (framework code, updatable)
     app.js                     # Composition root factory: { bus, agent, channels, cognitive, start(), stop() }
     index.js                   # Bot entry point, signals, provider registration
     config.js                  # Env-based config with --config flag
-    paths.js                   # Path resolution (~/.kenobot/ or $KENOBOT_HOME)
+    paths.js                   # Path resolution (~/.kenobot/)
     logger.js                  # Structured JSONL logger
     health.js                  # PID management + health status
     watchdog.js                # Health monitoring
@@ -175,7 +160,6 @@ kenobot/                       # Engine (framework code, updatable)
       logs.js                  # Tail log files
       dev.js                   # Run with --watch
       config-cmd.js            # Show/edit config
-      init-cognitive.js        # Initialize cognitive system
       reset.js                 # Reset cognitive system
       doctor.js                # Diagnose common problems
       update.js                # Update to latest release
@@ -198,7 +182,7 @@ kenobot/                       # Engine (framework code, updatable)
         procedural-memory.js   # Learned patterns
       identity/                # Identity system
         identity-manager.js    # Identity orchestrator
-        core-loader.js         # Load SOUL + IDENTITY + USER files
+        core-loader.js         # Load core.md + rules.json + preferences.md
         bootstrap-orchestrator.js  # First-conversation onboarding
         preferences-manager.js # User preference learning
         profile-inferrer.js    # Infer user profile from context
@@ -222,7 +206,6 @@ kenobot/                       # Engine (framework code, updatable)
       context.js               # Prompt assembly: identity + memory + history
       post-processors.js       # Response processing pipeline
       typing-indicator.js      # Typing indicator middleware
-      identity.js              # Legacy identity loader
       memory-extractor.js      # Extracts <memory> tags
       chat-memory-extractor.js # Extracts <chat-memory> tags
       working-memory-extractor.js  # Extracts <working-memory> tags
@@ -253,45 +236,34 @@ kenobot/                       # Engine (framework code, updatable)
       safe-path.js             # Path traversal protection
   templates/                   # Default files copied by kenobot setup
     env.example                # Config template
-    identities/kenobot/        # Default bot identity (SOUL.md, IDENTITY.md, USER.md, BOOTSTRAP.md)
+    identity/                  # Default bot identity (core.md, rules.json, BOOTSTRAP.md)
     memory/MEMORY.md           # Starter memory file
     HEARTBEAT.md               # Dev session continuity template
     AGENTS.md                  # Workspace template
   bin/                         # Dev/ops scripts
-  docs/                        # Documentation (two-track: quickstart + reference)
+  docs/                        # Documentation
   test/                        # Test suite (mirrors src/ structure)
 
 ~/.kenobot/                    # User home (persistent across updates)
   config/
     .env                       # Bot configuration
-    identities/kenobot/        # Bot identity (SOUL.md, IDENTITY.md, USER.md)
   data/
     sessions/                  # Per-chat JSONL history
     memory/                    # Cognitive system memory store
+      identity/                # Bot identity (core.md, rules.json, preferences.md)
     logs/                      # Structured JSONL logs
     scheduler/                 # Persistent task definitions
 ```
 
 ## Documentation
 
-- [Getting Started](docs/quickstart/getting-started.md) — Step-by-step first-time setup
-- [Architecture](docs/reference/architecture.md) — How the system works internally
-- [Configuration](docs/reference/configuration.md) — Complete environment variable reference
-- [Events](docs/reference/events.md) — Signal schema and contracts
-- [Deployment](docs/deployment.md) — VPS setup, systemd, auto-recovery, backups
+- [Getting Started](docs/getting-started.md) — Step-by-step first-time setup
+- [Architecture](docs/architecture.md) — How the system works internally
+- [Configuration](docs/configuration.md) — Complete environment variable reference
+- [Events](docs/events.md) — Signal schema and contracts
+- [Memory System](docs/memory.md) — Four-tier memory architecture
+- [Identity System](docs/identity.md) — Modular identity, bootstrap, preferences
 - [Security](SECURITY.md) — Security model, best practices, deployment checklist
-
-### Feature Guides
-
-- [Nervous System](docs/features/nervous-system/) — Signal-aware event bus with middleware, tracing, and audit
-- [Cognitive System](docs/features/cognitive-system/) — Memory, identity, retrieval, and consolidation
-  - [Memory System](docs/features/cognitive-system/memory.md) — Four-tier memory architecture
-  - [Identity System](docs/features/cognitive-system/identity.md) — Modular identity, bootstrap, preferences
-
-### How-To Guides
-
-- [VPS Setup](docs/guides/vps-setup.md) — Deploy to a production server
-- [Cloudflare Tunnel](docs/guides/cloudflared.md) — Expose your bot securely
 
 ## Tech Stack
 
@@ -307,8 +279,7 @@ Contributions are welcome! We organize contribution opportunities by **impact le
 ### 🟢 Low-Risk Contributions (Great First Issues)
 
 **Documentation** - Improve clarity, fix typos, add examples:
-- Quickstart guides ([docs/quickstart/](docs/quickstart/))
-- Reference documentation ([docs/reference/](docs/reference/))
+- Guides and references ([docs/](docs/))
 - Code comments and JSDoc
 
 **Tests** - Increase coverage, improve reliability:
@@ -351,7 +322,7 @@ Contributions are welcome! We organize contribution opportunities by **impact le
 
 We're actively looking for help with:
 
-1. **📝 Documentation** - Completing two-track docs (beginner/advanced)
+1. **📝 Documentation** - Improving docs clarity and completeness
 2. **🧪 Testing** - Reaching 90% code coverage
 3. **🤖 Providers** - Adding Ollama, OpenAI support
 4. **🧠 Cognitive System** - Improving memory consolidation and retrieval

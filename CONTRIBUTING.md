@@ -58,7 +58,7 @@ See `AGENTS.md` for test conventions and coverage thresholds.
 kenobot start           # Production-like (no auto-reload)
 kenobot status          # Health check + uptime
 kenobot logs            # Tail latest log
-kenobot purge           # Reset runtime data
+kenobot reset           # Reset runtime data
 kenobot help            # All commands
 ```
 
@@ -326,7 +326,7 @@ These thresholds will increase as the project matures. Coverage reports are in `
 
 If you're an AI assistant (Claude Code, etc.):
 
-1. Read `CLAUDE.md` first — it will chain you to `AGENTS.md` (project context) and `identities/kenobot/` (bot identity directory)
+1. Read `CLAUDE.md` first — it will chain you to `AGENTS.md` (project context) and `templates/identity/` (bot identity directory)
 2. Follow the commit conventions above
 3. **Do not add co-author tags to commits** — all commits should be single-authored
 4. Never hardcode secrets — always use environment variables
