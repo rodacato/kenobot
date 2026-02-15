@@ -186,7 +186,108 @@ Send a notification to the bot owner.
 }
 ```
 
-**Use cases:** Health alerts, system events.
+**Use cases:** Health alerts, system events, approval notifications.
+
+---
+
+### Task Lifecycle (Motor System)
+
+Task signals track background task execution. Fired by `TaskRunner` and consumed by `app.js` (translates to `message:out` for Telegram delivery).
+
+#### `task:queued`
+
+**Fired by:** AgentLoop (when background task detected)
+**Consumed by:** TaskStore (logging)
+
+```typescript
+{
+  taskId: string,     // Unique task ID (hex)
+  chatId: number,     // User's chat ID
+  channel: string,    // "telegram" or "http"
+  input: string       // Original user message
+}
+```
+
+#### `task:started`
+
+**Fired by:** TaskRunner (on execution begin)
+
+```typescript
+{ taskId: string, chatId: number, channel: string }
+```
+
+#### `task:progress`
+
+**Fired by:** TaskRunner (when LLM sends progress alongside tool calls)
+**Consumed by:** app.js → `message:out` → Telegram
+
+```typescript
+{ taskId: string, chatId: number, text: string, channel: string }
+```
+
+#### `task:completed`
+
+**Fired by:** TaskRunner (task finished)
+**Consumed by:** app.js → `message:out` → Telegram
+
+```typescript
+{ taskId: string, chatId: number, text: string, channel: string }
+```
+
+#### `task:failed`
+
+**Fired by:** TaskRunner (task error)
+**Consumed by:** app.js → `message:out` → Telegram
+
+```typescript
+{ taskId: string, chatId: number, error: string, channel: string }
+```
+
+#### `task:cancelled`
+
+**Fired by:** AgentLoop (user sends cancel keyword)
+
+```typescript
+{ taskId: string, chatId: number, channel: string }
+```
+
+---
+
+### Approval Workflow
+
+Approval signals coordinate the self-improvement PR review process. `approval:proposed` is fired by the SelfImprover during sleep cycle. The user reviews on GitHub directly (v1.0).
+
+#### `approval:proposed`
+
+**Fired by:** SelfImprover (after creating improvement PR)
+**Consumed by:** Notification system → Telegram, Logger (audit)
+
+```typescript
+{
+  type: string,          // "self-improvement"
+  proposalCount: number, // Number of proposals
+  priorities: string[],  // e.g. ["high", "medium"]
+  prUrl: string | null   // GitHub PR URL (null if PR creation failed)
+}
+```
+
+#### `approval:approved`
+
+**Fired by:** (future: webhook or manual trigger)
+**Consumed by:** Notification system, Logger (audit)
+
+```typescript
+{ type: string, prUrl: string | null }
+```
+
+#### `approval:rejected`
+
+**Fired by:** (future: webhook or manual trigger)
+**Consumed by:** Notification system, Logger (audit)
+
+```typescript
+{ type: string, prUrl: string | null }
+```
 
 ---
 
@@ -210,6 +311,40 @@ User → Telegram/HTTP
      [message:out]  ← middleware (trace propagation links to original message:in)
          ↓
     Telegram/HTTP → User
+```
+
+### Background Task Flow
+
+```
+User message → AgentLoop → Provider → tool_use (github_setup_workspace)
+                  ↓
+            [task:queued]
+                  ↓
+           [message:out] (confirmation)
+                  ↓
+            TaskRunner (background)
+                  ↓
+            [task:started]
+                  ↓
+        ┌── tool call → Provider → tool_use ─┐
+        │   [task:progress] (optional text)   │ (up to 30 iterations)
+        └─────────────────────────────────────┘
+                  ↓
+     [task:completed] or [task:failed]
+                  ↓
+           [message:out] → Telegram → User
+```
+
+### Approval Flow
+
+```
+SleepCycle → SelfImprover → Motor System (create PR)
+                  ↓
+         [approval:proposed]
+                  ↓
+         Notification system
+                  ↓
+         [notification] → Telegram → Owner
 ```
 
 ### Error Flow

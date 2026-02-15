@@ -340,13 +340,24 @@ All signal types are defined in `src/infrastructure/events.js` and re-exported f
 | `health:unhealthy` | Watchdog | Notifications | `{ previous, detail }` |
 | `health:recovered` | Watchdog | Notifications | `{ previous, detail }` |
 
-#### Approval Workflow (Reserved)
+#### Task Lifecycle (Motor System)
 
 | Signal | Source | Consumers | Payload |
 |--------|--------|-----------|---------|
-| `approval:proposed` | (future) | Notifications | `{ id, type, name }` |
-| `approval:approved` | (future) | (future) | -- |
-| `approval:rejected` | (future) | (future) | -- |
+| `task:queued` | AgentLoop | TaskStore | `{ taskId, chatId, channel, input }` |
+| `task:started` | TaskRunner | TaskStore | `{ taskId, chatId, channel }` |
+| `task:progress` | TaskRunner | app.js → message:out | `{ taskId, chatId, text, channel }` |
+| `task:completed` | TaskRunner | app.js → message:out | `{ taskId, chatId, text, channel }` |
+| `task:failed` | TaskRunner | app.js → message:out | `{ taskId, chatId, error, channel }` |
+| `task:cancelled` | AgentLoop | -- | `{ taskId, chatId, channel }` |
+
+#### Approval Workflow
+
+| Signal | Source | Consumers | Payload |
+|--------|--------|-----------|---------|
+| `approval:proposed` | SelfImprover | Notifications, Logger | `{ type, proposalCount, priorities, prUrl }` |
+| `approval:approved` | (future: webhook) | Notifications, Logger | `{ type, prUrl }` |
+| `approval:rejected` | (future: webhook) | Notifications, Logger | `{ type, prUrl }` |
 
 ### Middleware Pipeline
 
@@ -1002,6 +1013,103 @@ For detailed API reference of each sub-system, see:
 | Max facts | `RETRIEVAL_LIMIT_FACTS` | 10 | Facts per retrieval |
 | Max episodes | `RETRIEVAL_LIMIT_EPISODES` | 3 | Episodes per retrieval |
 | Identity path | `IDENTITY_PATH` | `~/.kenobot/memory/identity` | Identity files location |
+
+---
+
+## Motor System
+
+The Motor System gives KenoBot the ability to take actions in the world: execute shell commands, read/write files, clone repos, and create PRs.
+
+### Architecture
+
+```
+src/domain/motor/
+├── index.js          # ToolRegistry + createToolRegistry() factory
+├── task.js           # Task entity (state machine: queued → started → completed|failed|cancelled)
+├── workspace.js      # parseRepo(), resolveWorkspace(), sshUrl()
+└── tools.js          # Information tools (search_web, fetch_url)
+
+src/adapters/actions/
+├── github.js         # github_setup_workspace (clone, branch, pre-commit hook)
+├── shell.js          # run_command (sudo block, timeout, output cap, audit trail)
+└── file.js           # read_file, write_file, list_files (safePath protection)
+
+src/application/
+├── loop.js           # AgentLoop: detects background tasks, spawns TaskRunner
+├── task-runner.js    # Background ReAct loop (up to 30 iterations)
+└── tool-executor.js  # Executes tool calls from provider responses
+```
+
+### Tools (7 total)
+
+| Tool | Type | Guardrails |
+|------|------|-----------|
+| `search_web` | Information | Rate limited |
+| `fetch_url` | Information | Size limited |
+| `github_setup_workspace` | Action | SSH-only, pre-commit hook, triggers background |
+| `run_command` | Action | No sudo, timeout 60s/300s, output cap 100KB, full audit trail |
+| `read_file` | Action | safePath traversal protection, 50K char limit |
+| `write_file` | Action | safePath traversal protection |
+| `list_files` | Action | Scoped to workspace, max 500 entries |
+
+### Background Tasks
+
+When `github_setup_workspace` is called, AgentLoop spawns a TaskRunner that runs in the background:
+1. Creates Task entity (state machine)
+2. Sends LLM confirmation to user immediately
+3. TaskRunner executes ReAct loop (tool calls → provider → tool calls)
+4. Fires `task:progress`/`task:completed`/`task:failed` signals → translated to Telegram messages
+5. User can cancel with "para"/"stop"/"cancel"/"cancelar"
+
+### Self-Improvement Integration
+
+During sleep cycle, the SelfImprover uses Motor System tools to create improvement PRs:
+1. `github_setup_workspace` → clone/checkout branch
+2. `write_file` → write proposals
+3. `run_command` → git commit, push, `gh pr create`
+4. Fires `approval:proposed` → user notified via Telegram
+
+**Config**: `MOTOR_SELF_REPO` (e.g., `owner/kenobot`) — required for self-improvement PRs.
+
+---
+
+## Immune System
+
+The Immune System protects KenoBot from security threats and behavioral drift.
+
+### Architecture
+
+```
+src/domain/immune/
+├── secret-scanner.js      # Secret pattern catalog + scanForSecrets() + generatePreCommitHook()
+└── integrity-checker.js   # Heuristic identity drift detection (zero LLM cost)
+
+src/infrastructure/
+└── safe-path.js           # Path traversal protection (used by file tools)
+```
+
+### Secret Scanner
+
+5 patterns (AWS keys, GitHub tokens, PATs, private keys, generic secrets):
+- `scanForSecrets(text)` — scan arbitrary text for secrets
+- `generatePreCommitHook()` — generate bash hook from patterns (single source of truth)
+- Used by `github_setup_workspace` to install pre-commit hooks in cloned repos
+
+### Integrity Checker
+
+Heuristic identity drift detection during sleep cycle:
+- Loads `rules.json` from identity directory
+- Checks recent bot responses for forbidden patterns (e.g., filler phrases)
+- Detects verbosity drift (average response length)
+- Returns `{ driftDetected, score, findings }` — zero LLM cost
+
+### Shell Audit Trail
+
+Every `run_command` execution is logged with full context:
+- `shell_exec`: command, CWD, timeout at start
+- `shell_completed`: exit code, duration, output size, truncation status
+- `shell_blocked`: sudo attempts
+- `shell_timeout`: timed out commands
 
 ---
 

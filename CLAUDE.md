@@ -46,16 +46,20 @@ Hexagonal architecture (Ports & Adapters) with strict ESLint-enforced boundaries
 src/
 ├── domain/           → can import: domain, infrastructure
 │   ├── nervous/      # Signal-aware event bus, middleware, audit trail
-│   └── cognitive/    # 4-tier memory, identity, retrieval, consolidation, metacognition
+│   ├── cognitive/    # 4-tier memory, identity, retrieval, consolidation, metacognition
+│   ├── motor/        # Tool registry, task entity, workspace helpers, ReAct loop support
+│   └── immune/       # Secret scanner, integrity checker, path traversal protection
 ├── application/      → can import: application, domain, infrastructure
-│   ├── loop.js       # Core: message:in → context → provider → memory → message:out
+│   ├── loop.js       # Core: message:in → context → provider → [inline tools | background task] → message:out
+│   ├── task-runner.js # Background ReAct loop for long-running tasks
 │   ├── context.js    # System prompt assembly (identity + memory + history)
 │   ├── post-processors.js  # Tag extraction pipeline
 │   └── extractors/   # Parse <memory>, <chat-memory>, <working-memory>, <user>, <bootstrap-complete/>
 ├── adapters/         → can import: adapters, infrastructure
 │   ├── channels/     # Telegram (Grammy), HTTP webhook
 │   ├── providers/    # Claude API/CLI, Gemini API/CLI, Mock — all implement chat()
-│   ├── storage/      # Filesystem (JSONL sessions), MemoryStore
+│   ├── storage/      # Filesystem (JSONL sessions), MemoryStore, TaskStore
+│   ├── actions/      # Motor System tools: github, shell, file operations
 │   └── scheduler/    # Cron jobs (node-cron)
 ├── infrastructure/   → can import: infrastructure only
 │   ├── config.js     # Pure function createConfig(env), no side effects
@@ -81,9 +85,11 @@ User ← Telegram ← bus.fire('message:out') ← AgentLoop (extract tags → sa
 
 - **Providers**: All implement `chat(messages, options)` returning `{ content, toolCalls, stopReason, usage? }`. Never `complete()`.
 - **Composition root**: `createApp()` in `app.js` is a pure factory — use it in E2E tests for isolated instances.
-- **Two bounded contexts**: Nervous System (event bus with middleware/tracing/audit) and Cognitive System (memory + identity + retrieval + consolidation).
+- **Four bounded contexts**: Nervous System (event bus with middleware/tracing/audit), Cognitive System (memory + identity + retrieval + consolidation), Motor System (tools + tasks + background execution), Immune System (secret scanning + integrity checking).
+- **Motor System**: 7 tools via factory pattern. `github_setup_workspace` triggers background TaskRunner. Tools: `search_web`, `fetch_url`, `github_setup_workspace`, `run_command`, `read_file`, `write_file`, `list_files`.
+- **Self-Improvement**: Sleep cycle generates proposals → creates PR via Motor System → fires `approval:proposed` → user notified via Telegram.
 
-**Signals**: `message:in`, `message:out`, `thinking:start`, `error`, `notification`, `config:changed`, `health:degraded`, `health:unhealthy`, `health:recovered`, `approval:proposed`, `approval:approved`, `approval:rejected`
+**Signals**: `message:in`, `message:out`, `thinking:start`, `error`, `notification`, `config:changed`, `health:degraded`, `health:unhealthy`, `health:recovered`, `approval:proposed`, `approval:approved`, `approval:rejected`, `task:queued`, `task:started`, `task:progress`, `task:completed`, `task:failed`, `task:cancelled`
 
 ## Tech Stack
 
