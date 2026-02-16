@@ -3,7 +3,7 @@ import { ToolRegistry } from '../../src/domain/motor/index.js'
 import { executeToolCalls } from '../../src/application/tool-executor.js'
 
 vi.mock('../../src/infrastructure/logger.js', () => ({
-  default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+  default: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 }))
 
 describe('executeToolCalls', () => {
@@ -13,7 +13,7 @@ describe('executeToolCalls', () => {
     return registry
   }
 
-  const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+  const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 
   it('executes each tool call in sequence and returns results array', async () => {
     const echoTool = {

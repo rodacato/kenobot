@@ -7,6 +7,7 @@ import { APPROVAL_PROPOSED } from '../../../../src/infrastructure/events.js'
 
 vi.mock('../../../../src/infrastructure/logger.js', () => ({
   default: {
+    debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn()

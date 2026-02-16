@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import ConsciousnessGateway from '../../../src/domain/consciousness/gateway.js'
 
 vi.mock('../../../src/infrastructure/logger.js', () => ({
-  default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+  default: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 }))
 
 const profilesDir = join(import.meta.dirname, '..', '..', '..', 'templates', 'experts')

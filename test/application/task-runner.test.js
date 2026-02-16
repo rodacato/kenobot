@@ -7,7 +7,7 @@ import BaseProvider from '../../src/adapters/providers/base.js'
 import { TASK_STARTED, TASK_PROGRESS, TASK_COMPLETED, TASK_FAILED } from '../../src/infrastructure/events.js'
 
 vi.mock('../../src/infrastructure/logger.js', () => ({
-  default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+  default: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 }))
 
 vi.mock('../../src/infrastructure/config.js', () => ({

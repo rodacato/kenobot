@@ -12,7 +12,7 @@ vi.mock('@google/genai', () => ({
 
 // Suppress logger
 vi.mock('../../../src/infrastructure/logger.js', () => ({
-  default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+  default: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 }))
 
 import GeminiAPIProvider from '../../../src/adapters/providers/gemini-api.js'

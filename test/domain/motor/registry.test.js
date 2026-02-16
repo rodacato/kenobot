@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 
 vi.mock('../../../src/infrastructure/logger.js', () => ({
-  default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+  default: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 }))
 
 import { ToolRegistry, createToolRegistry } from '../../../src/domain/motor/index.js'

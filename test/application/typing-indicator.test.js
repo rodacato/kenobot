@@ -4,7 +4,7 @@ import { withTypingIndicator } from '../../src/application/typing-indicator.js'
 import { THINKING_START } from '../../src/infrastructure/events.js'
 
 vi.mock('../../src/infrastructure/logger.js', () => ({
-  default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+  default: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 }))
 
 describe('withTypingIndicator', () => {

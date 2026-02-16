@@ -6,7 +6,7 @@ import BaseProvider from '../../src/adapters/providers/base.js'
 import { MESSAGE_IN, MESSAGE_OUT, TASK_QUEUED, TASK_CANCELLED } from '../../src/infrastructure/events.js'
 
 vi.mock('../../src/infrastructure/logger.js', () => ({
-  default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+  default: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 }))
 
 vi.mock('../../src/infrastructure/config.js', () => ({
@@ -15,7 +15,7 @@ vi.mock('../../src/infrastructure/config.js', () => ({
   validateConfig: vi.fn()
 }))
 
-const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 
 class ScriptedProvider extends BaseProvider {
   constructor(responses) {

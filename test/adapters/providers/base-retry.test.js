@@ -4,6 +4,7 @@ import BaseProvider from '../../../src/adapters/providers/base.js'
 // Suppress logger output during tests
 vi.mock('../../../src/infrastructure/logger.js', () => ({
   default: {
+    debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn()

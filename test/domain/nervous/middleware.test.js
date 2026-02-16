@@ -61,7 +61,7 @@ describe('createTraceMiddleware', () => {
 
 describe('createLoggingMiddleware', () => {
   it('should log signal type and source', () => {
-    const logger = { info: vi.fn() }
+    const logger = { debug: vi.fn(), info: vi.fn() }
     const mw = createLoggingMiddleware(logger)
     const signal = new Signal('message:in', { text: 'hi' }, { source: 'telegram' })
 
@@ -74,7 +74,7 @@ describe('createLoggingMiddleware', () => {
   })
 
   it('should skip quiet signal types', () => {
-    const logger = { info: vi.fn() }
+    const logger = { debug: vi.fn(), info: vi.fn() }
     const mw = createLoggingMiddleware(logger)
     const signal = new Signal('thinking:start', { chatId: '1' }, { source: 'agent' })
 
@@ -84,7 +84,7 @@ describe('createLoggingMiddleware', () => {
   })
 
   it('should allow custom quiet set', () => {
-    const logger = { info: vi.fn() }
+    const logger = { debug: vi.fn(), info: vi.fn() }
     const mw = createLoggingMiddleware(logger, { quiet: new Set(['message:in']) })
 
     mw(new Signal('message:in', {}, { source: 'a' }))

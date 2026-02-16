@@ -6,6 +6,7 @@ import HTTPChannel from '../../../src/adapters/channels/http.js'
 
 vi.mock('../../../src/infrastructure/logger.js', () => ({
   default: {
+    debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn()

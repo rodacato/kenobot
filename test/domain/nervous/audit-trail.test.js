@@ -6,7 +6,7 @@ import Signal from '../../../src/domain/nervous/signal.js'
 import AuditTrail from '../../../src/domain/nervous/audit-trail.js'
 
 vi.mock('../../../src/infrastructure/logger.js', () => ({
-  default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+  default: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 }))
 
 describe('AuditTrail', () => {

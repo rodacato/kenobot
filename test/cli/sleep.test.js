@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 
 vi.mock('../../src/infrastructure/logger.js', () => ({
   default: {
+    debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn()

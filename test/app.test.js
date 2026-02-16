@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 vi.mock('../src/infrastructure/logger.js', () => ({
   default: {
+    debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
@@ -9,6 +10,7 @@ vi.mock('../src/infrastructure/logger.js', () => ({
   },
   Logger: class MockLogger {
     constructor() {
+      this.debug = vi.fn()
       this.info = vi.fn()
       this.warn = vi.fn()
       this.error = vi.fn()

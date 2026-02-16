@@ -8,6 +8,7 @@ import logger from '../../../src/infrastructure/logger.js'
 // Suppress logger console output during tests
 vi.mock('../../../src/infrastructure/logger.js', () => ({
   default: {
+    debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn()
