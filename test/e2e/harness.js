@@ -91,6 +91,7 @@ export async function createTestApp(overrides = {}, { setup } = {}) {
     WEBHOOK_SECRET,
     HTTP_TIMEOUT: '10000',
     WATCHDOG_INTERVAL: '60000',
+    CONSCIOUSNESS_ENABLED: 'false',
     ...overrides
   })
 
