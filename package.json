@@ -46,5 +46,8 @@
     "eslint": "^10.0.0",
     "eslint-plugin-boundaries": "^5.4.0",
     "vitest": "^4.0.18"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^12.6.2"
   }
 }
