@@ -95,6 +95,14 @@ export function createConfig(env = process.env) {
       provider: env.CONSCIOUSNESS_PROVIDER || 'gemini-cli',
       model: env.CONSCIOUSNESS_MODEL || 'gemini-2.0-flash',
       timeout: int('CONSCIOUSNESS_TIMEOUT', 30000, { min: 5000, max: 120000 }),
+    },
+
+    embedding: {
+      enabled: env.EMBEDDING_ENABLED === 'true',
+      provider: env.EMBEDDING_PROVIDER || 'gemini',
+      model: env.EMBEDDING_MODEL || 'gemini-embedding-001',
+      backend: env.EMBEDDING_BACKEND || 'jsonl',
+      dimensions: int('EMBEDDING_DIMENSIONS', 768, { min: 128, max: 3072 }),
     }
   }
 

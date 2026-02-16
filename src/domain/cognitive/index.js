@@ -1,5 +1,6 @@
 import MemorySystem from './memory/memory-system.js'
 import RetrievalEngine from './retrieval/retrieval-engine.js'
+import EmbeddingMatcher from './retrieval/embedding-matcher.js'
 import IdentityManager from './identity/identity-manager.js'
 import SleepCycle from './consolidation/sleep-cycle.js'
 import MetacognitionSystem from './metacognition/index.js'
@@ -23,16 +24,21 @@ import { homedir } from 'node:os'
  *   await cognitive.saveMemory(sessionId, memoryTags)
  */
 export default class CognitiveSystem {
-  constructor(config, memoryStore, provider, { logger = defaultLogger, identityPath: optIdentityPath, bus, toolRegistry, consciousness } = {}) {
+  constructor(config, memoryStore, provider, { logger = defaultLogger, identityPath: optIdentityPath, bus, toolRegistry, consciousness, embeddingProvider, embeddingStore } = {}) {
     this.config = config
     this.provider = provider
     this.logger = logger
 
-    // Memory System
-    this.memory = new MemorySystem(memoryStore, { logger })
+    // Memory System (with optional embedding for fire-and-forget writes)
+    this.memory = new MemorySystem(memoryStore, { logger, embeddingProvider, embeddingStore })
 
-    // Retrieval Engine (consciousness-enhanced keyword expansion)
-    this.retrieval = new RetrievalEngine(this.memory, { logger, consciousness })
+    // Embedding Matcher (optional, for hybrid retrieval)
+    const embeddingMatcher = embeddingProvider && embeddingStore
+      ? new EmbeddingMatcher({ embeddingProvider, embeddingStore, logger })
+      : null
+
+    // Retrieval Engine (consciousness-enhanced keyword expansion + optional embeddings)
+    this.retrieval = new RetrievalEngine(this.memory, { logger, consciousness, embeddingMatcher })
     this.useRetrieval = config.useRetrieval !== false // Default: true
 
     // Identity System

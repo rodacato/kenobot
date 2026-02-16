@@ -126,6 +126,9 @@ export function createApp(config, provider, options = {}) {
     enabled: config.consciousness?.enabled !== false
   })
 
+  // Embedding System: initialized lazily in start() via dynamic import
+  let embeddingStore = null
+
   // Cognitive System: Memory System + Identity System (with Motor System integration for self-improvement)
   const memoryStore = new MemoryStore(config.dataDir, { logger })
   const cognitiveOpts = { logger, bus, toolRegistry, consciousness }
@@ -230,6 +233,38 @@ export function createApp(config, provider, options = {}) {
   async function start() {
     await writePid()
 
+    // Embedding System (optional — initialized here because dynamic imports are async)
+    if (config.embedding?.enabled) {
+      try {
+        await import('./adapters/embeddings/gemini-embedding.js')
+        const { createEmbeddingProvider } = await import('./adapters/embeddings/registry.js')
+        const embeddingProvider = createEmbeddingProvider(config.embedding.provider, config)
+
+        if (config.embedding.backend === 'sqlite') {
+          const { default: SqliteStore } = await import('./adapters/storage/embedding-store-sqlite.js')
+          embeddingStore = new SqliteStore(config.dataDir, { logger })
+        } else {
+          const { default: JsonlStore } = await import('./adapters/storage/embedding-store-jsonl.js')
+          embeddingStore = new JsonlStore(config.dataDir, { logger })
+        }
+
+        // Wire into cognitive system (memory + retrieval)
+        memory.embeddingProvider = embeddingProvider
+        memory.embeddingStore = embeddingStore
+        cognitive.retrieval.embeddingMatcher = new (await import('./domain/cognitive/retrieval/embedding-matcher.js')).default({
+          embeddingProvider, embeddingStore, logger
+        })
+
+        logger.info('system', 'embedding_system_ready', {
+          provider: config.embedding.provider,
+          backend: config.embedding.backend,
+          dimensions: config.embedding.dimensions
+        })
+      } catch (error) {
+        logger.warn('system', 'embedding_system_failed', { error: error.message })
+      }
+    }
+
     await scheduler.loadTasks()
     logger.info('system', 'scheduler_loaded', { tasks: scheduler.size })
 
@@ -258,6 +293,7 @@ export function createApp(config, provider, options = {}) {
     watchdog.stop()
     scheduler.stop()
     agent.stop()
+    if (embeddingStore) await embeddingStore.close()
     await Promise.all(channels.map(ch => ch.stop()))
   }
 
