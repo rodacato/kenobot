@@ -37,27 +37,16 @@ export default class GeminiEmbeddingProvider {
   async embed(texts, taskType = 'RETRIEVAL_DOCUMENT') {
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        if (texts.length === 1) {
-          const response = await this.client.models.embedContent({
-            model: this.model,
-            content: texts[0],
-            outputDimensionality: this.dimensions,
-            taskType
-          })
-          logger.debug('gemini-embedding', 'embedding_generated', {
-            count: 1, dimensions: response.embedding.values.length
-          })
-          return [response.embedding.values]
-        }
-
         const response = await this.client.models.embedContent({
           model: this.model,
-          contents: texts,
-          outputDimensionality: this.dimensions,
-          taskType
+          contents: texts.length === 1 ? texts[0] : texts,
+          config: {
+            outputDimensionality: this.dimensions,
+            taskType
+          }
         })
         logger.debug('gemini-embedding', 'embedding_generated', {
-          count: texts.length, dimensions: response.embeddings[0]?.values.length
+          count: texts.length, dimensions: response.embeddings?.[0]?.values?.length
         })
         return response.embeddings.map(e => e.values)
       } catch (error) {

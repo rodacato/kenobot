@@ -56,7 +56,7 @@ describe('GeminiEmbeddingProvider', () => {
   describe('embed - single text', () => {
     it('should return a single-element array of vectors', async () => {
       mockEmbedContent.mockResolvedValue({
-        embedding: { values: [0.1, 0.2, 0.3] }
+        embeddings: [{ values: [0.1, 0.2, 0.3] }]
       })
 
       const result = await provider.embed(['hello world'])
@@ -64,21 +64,25 @@ describe('GeminiEmbeddingProvider', () => {
       expect(result).toEqual([[0.1, 0.2, 0.3]])
       expect(mockEmbedContent).toHaveBeenCalledWith({
         model: 'gemini-embedding-001',
-        content: 'hello world',
-        outputDimensionality: 768,
-        taskType: 'RETRIEVAL_DOCUMENT'
+        contents: 'hello world',
+        config: {
+          outputDimensionality: 768,
+          taskType: 'RETRIEVAL_DOCUMENT'
+        }
       })
     })
 
     it('should pass custom taskType', async () => {
       mockEmbedContent.mockResolvedValue({
-        embedding: { values: [0.1, 0.2] }
+        embeddings: [{ values: [0.1, 0.2] }]
       })
 
       await provider.embed(['query text'], 'RETRIEVAL_QUERY')
 
       expect(mockEmbedContent).toHaveBeenCalledWith(
-        expect.objectContaining({ taskType: 'RETRIEVAL_QUERY' })
+        expect.objectContaining({
+          config: expect.objectContaining({ taskType: 'RETRIEVAL_QUERY' })
+        })
       )
     })
   })
@@ -99,8 +103,10 @@ describe('GeminiEmbeddingProvider', () => {
       expect(mockEmbedContent).toHaveBeenCalledWith({
         model: 'gemini-embedding-001',
         contents: ['one', 'two', 'three'],
-        outputDimensionality: 768,
-        taskType: 'RETRIEVAL_DOCUMENT'
+        config: {
+          outputDimensionality: 768,
+          taskType: 'RETRIEVAL_DOCUMENT'
+        }
       })
     })
   })
@@ -120,7 +126,7 @@ describe('GeminiEmbeddingProvider', () => {
 
       mockEmbedContent
         .mockRejectedValueOnce(rateLimitError)
-        .mockResolvedValueOnce({ embedding: { values: [0.1] } })
+        .mockResolvedValueOnce({ embeddings: [{ values: [0.1] }] })
 
       const result = await provider.embed(['retry me'])
 
