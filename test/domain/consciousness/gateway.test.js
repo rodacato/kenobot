@@ -144,4 +144,76 @@ describe('ConsciousnessGateway', () => {
       expect(result).toEqual({ category: 'external', confidence: 0.9 })
     })
   })
+
+  describe('getStats', () => {
+    it('returns initial stats with zero counters', () => {
+      const stats = gateway.getStats()
+
+      expect(stats.enabled).toBe(true)
+      expect(stats.profiles).toContain('semantic-analyst')
+      expect(stats.calls).toBe(0)
+      expect(stats.successes).toBe(0)
+      expect(stats.failures).toBe(0)
+      expect(stats.fallbackRate).toBe('0.0')
+      expect(stats.avgLatencyMs).toBe(0)
+      expect(stats.lastCallAt).toBeNull()
+    })
+
+    it('tracks successful calls', async () => {
+      mockAdapter.call.mockResolvedValue('{"expanded": ["a"]}')
+
+      await gateway.evaluate('semantic-analyst', 'expand_keywords', { keywords: 'test', chatContext: '' })
+
+      const stats = gateway.getStats()
+      expect(stats.calls).toBe(1)
+      expect(stats.successes).toBe(1)
+      expect(stats.failures).toBe(0)
+      expect(stats.fallbackRate).toBe('0.0')
+      expect(stats.lastCallAt).toBeGreaterThan(0)
+    })
+
+    it('tracks failed calls', async () => {
+      mockAdapter.call.mockRejectedValue(new Error('boom'))
+
+      await gateway.evaluate('semantic-analyst', 'expand_keywords', { keywords: 'test', chatContext: '' })
+
+      const stats = gateway.getStats()
+      expect(stats.calls).toBe(1)
+      expect(stats.successes).toBe(0)
+      expect(stats.failures).toBe(1)
+      expect(stats.fallbackRate).toBe('100.0')
+    })
+
+    it('tracks JSON parse failures', async () => {
+      mockAdapter.call.mockResolvedValue('not json')
+
+      await gateway.evaluate('semantic-analyst', 'expand_keywords', { keywords: 'test', chatContext: '' })
+
+      const stats = gateway.getStats()
+      expect(stats.calls).toBe(1)
+      expect(stats.failures).toBe(1)
+    })
+
+    it('calculates average latency', async () => {
+      mockAdapter.call.mockResolvedValue('{"expanded": ["a"]}')
+
+      await gateway.evaluate('semantic-analyst', 'expand_keywords', { keywords: 'test', chatContext: '' })
+      await gateway.evaluate('semantic-analyst', 'expand_keywords', { keywords: 'test2', chatContext: '' })
+
+      const stats = gateway.getStats()
+      expect(stats.calls).toBe(2)
+      expect(stats.avgLatencyMs).toBeGreaterThanOrEqual(0)
+    })
+
+    it('reports disabled status', () => {
+      const disabledGw = new ConsciousnessGateway({
+        adapter: mockAdapter,
+        profilesDir,
+        enabled: false
+      })
+
+      const stats = disabledGw.getStats()
+      expect(stats.enabled).toBe(false)
+    })
+  })
 })

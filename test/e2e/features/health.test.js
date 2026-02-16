@@ -21,12 +21,23 @@ describe('Feature: Health endpoint', () => {
     const res = await harness.getHealth()
 
     expect(res.status).toBe(200)
-    expect(res.body.status).toBe('ok')
-    expect(res.body.pid).toBe(process.pid)
-    expect(res.body.uptime).toBeGreaterThanOrEqual(0)
-    expect(res.body.memory).toHaveProperty('rss')
-    expect(res.body.memory).toHaveProperty('heap')
-    expect(res.body.timestamp).toBeGreaterThan(0)
+
+    // Process info (nested under process when stats function is available)
+    const proc = res.body.process || res.body
+    expect(proc.status).toBe('ok')
+    expect(proc.pid).toBe(process.pid)
+    expect(proc.uptime).toBeGreaterThanOrEqual(0)
+    expect(proc.memory).toHaveProperty('rss')
+    expect(proc.memory).toHaveProperty('heap')
+    expect(proc.timestamp).toBeGreaterThan(0)
+
+    // Stats sections should be present when stats function is wired
+    if (res.body.process) {
+      expect(res.body).toHaveProperty('nervous')
+      expect(res.body).toHaveProperty('responses')
+      expect(res.body).toHaveProperty('consciousness')
+      expect(res.body).toHaveProperty('watchdog')
+    }
   })
 })
 
