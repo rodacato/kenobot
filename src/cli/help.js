@@ -23,6 +23,7 @@ Commands:
   memory [opts]       Show memory statistics
                       --health      Run memory health checks
                       --prune       Run memory pruner
+  stats               Show runtime statistics and health
   doctor              Diagnose common problems (config, disk)
   update [--check]    Update to latest release tag
   version             Show version

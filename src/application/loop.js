@@ -17,7 +17,7 @@ const BACKGROUND_TRIGGER_TOOLS = new Set(['github_setup_workspace'])
  * Flow: message:in → build context → provider.chat → [inline tool loop | background task] → message:out
  */
 export default class AgentLoop {
-  constructor(bus, provider, contextBuilder, storage, memoryManager, { logger = defaultLogger, toolRegistry = null, taskStore = null } = {}) {
+  constructor(bus, provider, contextBuilder, storage, memoryManager, { logger = defaultLogger, toolRegistry = null, taskStore = null, responseTracker = null } = {}) {
     this.bus = bus
     this.provider = provider
     this.contextBuilder = contextBuilder
@@ -26,6 +26,7 @@ export default class AgentLoop {
     this.logger = logger
     this.toolRegistry = toolRegistry
     this.taskStore = taskStore
+    this.responseTracker = responseTracker
     this._handler = null
     this._activeTasks = new Map() // sessionId → Task
   }
@@ -80,10 +81,10 @@ export default class AgentLoop {
     if (this._handleCancel(sessionId, message)) return
 
     const typingPayload = { chatId: message.chatId, channel: message.channel }
+    const start = Date.now()
 
     try {
       await withTypingIndicator(this.bus, typingPayload, async () => {
-        const start = Date.now()
 
         // Load history (needed for bootstrap profile inference)
         const historyLimit = this.contextBuilder.config?.sessionHistoryLimit ?? 20
@@ -140,6 +141,7 @@ export default class AgentLoop {
         }
 
         const durationMs = Date.now() - start
+        this.responseTracker?.record({ durationMs, toolIterations: iterations })
 
         // Run post-processor pipeline: extract tags, persist, clean text
         const { cleanText, stats } = await runPostProcessors(response.content, {
@@ -177,6 +179,7 @@ export default class AgentLoop {
         }, { source: 'agent' })
       })
     } catch (error) {
+      this.responseTracker?.record({ durationMs: Date.now() - start, error: true })
       this.logger.error('agent', 'message_failed', {
         sessionId,
         error: error.message

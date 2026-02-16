@@ -16,6 +16,7 @@ export default class ConsciousnessGateway {
     this.logger = logger
     this.enabled = enabled
     this.profiles = new Map()
+    this._stats = { calls: 0, successes: 0, failures: 0, totalLatencyMs: 0, lastCallAt: null }
 
     if (profilesDir) {
       this._loadProfiles(profilesDir)
@@ -47,14 +48,40 @@ export default class ConsciousnessGateway {
 
     const taskPrompt = this._interpolate(task.promptTemplate, data)
 
+    this._stats.calls++
+    const evalStart = Date.now()
     try {
       const raw = await this.adapter.call(profile.systemPrompt, taskPrompt)
-      return this._parseJSON(raw)
+      const result = this._parseJSON(raw)
+      this._stats.successes++
+      return result
     } catch (error) {
+      this._stats.failures++
       this.logger.warn('consciousness', 'evaluation_failed', {
         expertName, taskName, error: error.message
       })
       return null
+    } finally {
+      this._stats.totalLatencyMs += Date.now() - evalStart
+      this._stats.lastCallAt = Date.now()
+    }
+  }
+
+  /**
+   * Get runtime statistics for observability.
+   * @returns {Object} Stats snapshot
+   */
+  getStats() {
+    const { calls, successes, failures, totalLatencyMs, lastCallAt } = this._stats
+    return {
+      enabled: this.enabled,
+      profiles: [...this.profiles.keys()],
+      calls,
+      successes,
+      failures,
+      fallbackRate: calls > 0 ? ((failures / calls) * 100).toFixed(1) : '0.0',
+      avgLatencyMs: calls > 0 ? Math.round(totalLatencyMs / calls) : 0,
+      lastCallAt
     }
   }
 

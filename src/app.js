@@ -13,7 +13,7 @@ import AgentLoop from './application/loop.js'
 import Scheduler from './adapters/scheduler/scheduler.js'
 import CircuitBreakerProvider from './adapters/providers/circuit-breaker.js'
 import Watchdog from './infrastructure/watchdog.js'
-import { writePid, removePid } from './infrastructure/health.js'
+import { writePid, removePid, getStatus } from './infrastructure/health.js'
 import { setupNotifications } from './infrastructure/notifications.js'
 import {
   ERROR, MESSAGE_OUT,
@@ -24,6 +24,8 @@ import { createToolRegistry } from './domain/motor/index.js'
 import TaskStore from './adapters/storage/task-store.js'
 import { ConsciousnessGateway } from './domain/consciousness/index.js'
 import CLIConsciousnessAdapter from './adapters/consciousness/cli-adapter.js'
+import ResponseTracker from './domain/nervous/response-tracker.js'
+import CostTracker from './domain/cognitive/utils/cost-tracker.js'
 
 /**
  * Create a fully wired KenoBot application instance.
@@ -78,6 +80,23 @@ export function createApp(config, provider, options = {}) {
     return { status: 'ok', detail: `last run: ${state.lastRun || 'never'}` }
   })
 
+  watchdog.registerCheck('cost', () => {
+    const s = costTracker.getStats()
+    if (s.daily.percent >= 100) return { status: 'fail', detail: `daily budget exceeded: $${s.daily.cost.toFixed(2)}` }
+    if (s.daily.percent >= 80) return { status: 'warn', detail: `daily budget at ${s.daily.percent.toFixed(0)}%` }
+    return { status: 'ok', detail: `$${s.daily.cost.toFixed(2)}/$${s.daily.budget}` }
+  })
+
+  watchdog.registerCheck('consciousness', () => {
+    const s = consciousness.getStats()
+    if (!s.enabled) return { status: 'ok', detail: 'disabled' }
+    if (s.calls === 0) return { status: 'ok', detail: 'no calls yet' }
+    const rate = parseFloat(s.fallbackRate)
+    if (rate > 80) return { status: 'fail', detail: `${rate}% fallback rate` }
+    if (rate > 50) return { status: 'warn', detail: `${rate}% fallback rate` }
+    return { status: 'ok', detail: `${s.calls} calls, ${s.fallbackRate}% fallback` }
+  })
+
   // Notifications
   setupNotifications(bus, config)
 
@@ -126,9 +145,13 @@ export function createApp(config, provider, options = {}) {
   // Motor System: Task persistence
   const taskStore = new TaskStore(config.dataDir, { logger })
 
+  // Observability: response metrics + cost tracking
+  const responseTracker = new ResponseTracker()
+  const costTracker = new CostTracker({ logger })
+
   // ContextBuilder: Uses Cognitive System for identity and memory
   const contextBuilder = new ContextBuilder(config, storage, cognitive, { logger })
-  const agent = new AgentLoop(bus, circuitBreaker, contextBuilder, storage, memory, { logger, toolRegistry, taskStore })
+  const agent = new AgentLoop(bus, circuitBreaker, contextBuilder, storage, memory, { logger, toolRegistry, taskStore, responseTracker })
 
   // Channels
   const channels = []
@@ -145,7 +168,7 @@ export function createApp(config, provider, options = {}) {
     if (!config.http.webhookSecret) {
       throw new Error('WEBHOOK_SECRET is required when HTTP_ENABLED=true')
     }
-    const httpChannel = new HTTPChannel(bus, { ...config.http, logger })
+    const httpChannel = new HTTPChannel(bus, { ...config.http, logger, stats })
     channels.push(httpChannel)
   }
 
@@ -187,6 +210,19 @@ export function createApp(config, provider, options = {}) {
   bus.on(APPROVAL_REJECTED, (payload) => {
     logger.info('approval', 'rejected', { type: payload.type, prUrl: payload.prUrl })
   })
+
+  // Stats aggregator: collects metrics from all subsystems
+  function stats() {
+    return {
+      process: getStatus(),
+      nervous: bus.getStats(),
+      responses: responseTracker.getStats(),
+      consciousness: consciousness.getStats(),
+      cost: costTracker.getStats(),
+      watchdog: watchdog.getStatus(),
+      circuitBreaker: circuitBreaker.getStatus(),
+    }
+  }
 
   // Lifecycle methods
   let sleepInterval = null
@@ -235,7 +271,10 @@ export function createApp(config, provider, options = {}) {
     cognitive,
     consciousness,
     sleepCycle,
+    responseTracker,
+    costTracker,
     logger,
+    stats,
     start,
     stop,
   }

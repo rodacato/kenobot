@@ -29,6 +29,7 @@ export default class HTTPChannel extends BaseChannel {
     this._pendingRequests = new Map()
     this._responseHandler = null
     this._sockets = new Set()
+    this._stats = config.stats || null
   }
 
   get name() { return 'http' }
@@ -295,8 +296,9 @@ export default class HTTPChannel extends BaseChannel {
    * @private
    */
   _handleHealth(res) {
+    const data = this._stats ? this._stats() : getStatus()
     res.writeHead(200, { 'Content-Type': 'application/json' })
-    res.end(JSON.stringify(getStatus()))
+    res.end(JSON.stringify(data))
   }
 
   /**
