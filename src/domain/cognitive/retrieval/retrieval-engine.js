@@ -1,23 +1,27 @@
 import KeywordMatcher from './keyword-matcher.js'
+import EmbeddingMatcher from './embedding-matcher.js'
 import ConfidenceScorer from './confidence-scorer.js'
 import defaultLogger from '../../../infrastructure/logger.js'
 
 /**
  * RetrievalEngine - Selective memory retrieval system
  *
- * Phase 2: Keyword-based retrieval with scoring
- * Phase 4+: Could add embeddings-based retrieval if needed
+ * Supports keyword-only or hybrid (keyword + embedding) retrieval.
+ * When an embeddingMatcher is provided, runs both in parallel and
+ * merges results using Reciprocal Rank Fusion (RRF).
  *
  * Orchestrates:
  * - Keyword extraction and matching
+ * - Embedding-based semantic search (optional)
  * - Confidence scoring
  * - Result limiting and prioritization
  */
 export default class RetrievalEngine {
-  constructor(memorySystem, { logger = defaultLogger, consciousness } = {}) {
+  constructor(memorySystem, { logger = defaultLogger, consciousness, embeddingMatcher } = {}) {
     this.memorySystem = memorySystem
     this.keywordMatcher = new KeywordMatcher({ logger, consciousness })
     this.confidenceScorer = new ConfidenceScorer({ logger })
+    this.embeddingMatcher = embeddingMatcher || null
     this.logger = logger
   }
 
@@ -49,17 +53,18 @@ export default class RetrievalEngine {
         messageLength: messageText.length
       })
 
-      // 2. Retrieve from each memory type
+      // 2. Retrieve from each memory type (pass messageText for hybrid search)
       const [facts, procedures, episodes] = await Promise.all([
-        this._retrieveFacts(keywords, maxFacts),
+        this._retrieveFacts(keywords, maxFacts, messageText),
         this._retrieveProcedures(keywords, maxProcedures),
-        this._retrieveEpisodes(sessionId, keywords, maxEpisodes)
+        this._retrieveEpisodes(sessionId, keywords, maxEpisodes, messageText)
       ])
 
       // 3. Score confidence
       const confidence = this.confidenceScorer.score({ facts, procedures, episodes })
 
       // 4. Build result
+      const mode = this.embeddingMatcher ? 'hybrid' : 'keyword_only'
       const result = {
         facts,
         procedures,
@@ -67,6 +72,7 @@ export default class RetrievalEngine {
         confidence,
         metadata: {
           keywords,
+          mode,
           latency: Date.now() - startTime,
           timestamp: Date.now(),
           sessionId
@@ -107,20 +113,22 @@ export default class RetrievalEngine {
 
   /**
    * Retrieve facts from semantic memory.
+   * Uses hybrid search (keyword + embedding) when embeddingMatcher is available.
    * @private
    */
-  async _retrieveFacts(keywords, limit) {
-    // Phase 2: Use existing getLongTermMemory (returns markdown string)
-    // Phase 3: Will use semantic memory methods
+  async _retrieveFacts(keywords, limit, messageText) {
     const factsText = await this.memorySystem.getLongTermMemory()
-
     if (!factsText) return []
 
-    // Parse markdown into sections (simple split by headings)
     const facts = this._parseMarkdownSections(factsText)
+    const keywordResults = this.keywordMatcher.search(facts, keywords, limit)
 
-    // Search with keywords
-    return this.keywordMatcher.search(facts, keywords, limit)
+    if (!this.embeddingMatcher || !messageText) return keywordResults
+
+    const embeddingResults = await this.embeddingMatcher.search(messageText, 'semantic', limit)
+    if (embeddingResults.length === 0) return keywordResults
+
+    return EmbeddingMatcher.mergeWithRRF(keywordResults, embeddingResults).slice(0, limit)
   }
 
   /**
@@ -136,20 +144,24 @@ export default class RetrievalEngine {
 
   /**
    * Retrieve episodes from episodic memory.
+   * Uses hybrid search (keyword + embedding) when embeddingMatcher is available.
    * @private
    */
-  async _retrieveEpisodes(sessionId, keywords, limit) {
-    // Phase 2: Use existing getRecentDays
-    // Phase 3: Will use episodic memory methods
+  async _retrieveEpisodes(sessionId, keywords, limit, messageText) {
     const episodesText = await this.memorySystem.getChatRecentDays(sessionId, 7)
-
     if (!episodesText) return []
 
-    // Parse daily logs into sections
     const episodes = this._parseMarkdownSections(episodesText)
+    const keywordResults = this.keywordMatcher.search(episodes, keywords, limit)
 
-    // Search with keywords
-    return this.keywordMatcher.search(episodes, keywords, limit)
+    if (!this.embeddingMatcher || !messageText) return keywordResults
+
+    const embeddingResults = await this.embeddingMatcher.search(
+      messageText, 'episodic', limit, { sessionId }
+    )
+    if (embeddingResults.length === 0) return keywordResults
+
+    return EmbeddingMatcher.mergeWithRRF(keywordResults, embeddingResults).slice(0, limit)
   }
 
   /**

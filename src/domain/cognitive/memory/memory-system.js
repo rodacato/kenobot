@@ -16,9 +16,11 @@ import defaultLogger from '../../../infrastructure/logger.js'
  * Each memory type delegates to MemoryStore for persistence.
  */
 export default class MemorySystem {
-  constructor(memoryStore, { logger = defaultLogger, workingStaleThreshold = 7 } = {}) {
+  constructor(memoryStore, { logger = defaultLogger, workingStaleThreshold = 7, embeddingProvider, embeddingStore } = {}) {
     this.store = memoryStore
     this.logger = logger
+    this.embeddingProvider = embeddingProvider || null
+    this.embeddingStore = embeddingStore || null
 
     // Initialize 4 memory types
     this.working = new WorkingMemory(memoryStore, { logger, staleThreshold: workingStaleThreshold })
@@ -48,6 +50,7 @@ export default class MemorySystem {
    */
   async addFact(fact) {
     await this.semantic.addFact(fact)
+    this._embedAsync(fact, 'semantic')
   }
 
   // --- Episodic Memory (chat-specific events) ---
@@ -71,6 +74,7 @@ export default class MemorySystem {
    */
   async addChatFact(sessionId, fact) {
     await this.episodic.addChatEpisode(sessionId, fact)
+    this._embedAsync(fact, 'episodic', sessionId)
   }
 
   // --- Chat Context ---
@@ -147,5 +151,33 @@ export default class MemorySystem {
    */
   async writeLongTermMemory(content) {
     await this.semantic.writeLongTerm(content)
+  }
+
+  // --- Embedding (fire-and-forget) ---
+
+  /**
+   * Generate and store embedding for text asynchronously.
+   * Failures are logged but never block the caller.
+   * @private
+   */
+  _embedAsync(text, type, sessionId) {
+    if (!this.embeddingProvider || !this.embeddingStore) return
+
+    const id = `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
+    this.embeddingProvider.embed([text]).then(vectors => {
+      if (!vectors) return
+      return this.embeddingStore.add({
+        id,
+        text,
+        vector: vectors[0],
+        type,
+        sessionId,
+        dimensions: vectors[0].length,
+        createdAt: Date.now()
+      })
+    }).catch(err => {
+      this.logger.warn('memory-system', 'embedding_failed', { type, error: err.message })
+    })
   }
 }
