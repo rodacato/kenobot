@@ -12,8 +12,9 @@ import defaultLogger from '../../../infrastructure/logger.js'
  * - Case-insensitive matching
  */
 export default class KeywordMatcher {
-  constructor({ logger = defaultLogger } = {}) {
+  constructor({ logger = defaultLogger, consciousness } = {}) {
     this.logger = logger
+    this.consciousness = consciousness || null
   }
 
   /**
@@ -101,6 +102,40 @@ export default class KeywordMatcher {
 
     // Remove duplicates
     return [...new Set(words)]
+  }
+
+  /**
+   * Extract keywords with optional consciousness-enhanced expansion.
+   * Falls back to heuristic extractKeywords() on any failure.
+   *
+   * @param {string} text - Text to extract keywords from
+   * @param {{ chatContext?: string }} context - Optional context for expansion
+   * @returns {Promise<string[]>} Array of keywords (possibly expanded)
+   */
+  async extractKeywordsEnhanced(text, context = {}) {
+    const heuristicKeywords = this.extractKeywords(text)
+
+    if (!this.consciousness) return heuristicKeywords
+    if (heuristicKeywords.length === 0) return heuristicKeywords
+
+    try {
+      const result = await this.consciousness.evaluate('semantic-analyst', 'expand_keywords', {
+        keywords: heuristicKeywords.join(', '),
+        chatContext: context.chatContext || ''
+      })
+
+      if (result?.expanded && Array.isArray(result.expanded) && result.expanded.length > 0) {
+        this.logger.info('keyword-matcher', 'consciousness_expanded', {
+          original: heuristicKeywords,
+          expanded: result.expanded
+        })
+        return result.expanded
+      }
+    } catch (error) {
+      this.logger.warn('keyword-matcher', 'consciousness_failed', { error: error.message })
+    }
+
+    return heuristicKeywords
   }
 
   /**

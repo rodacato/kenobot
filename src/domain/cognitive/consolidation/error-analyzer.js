@@ -13,9 +13,10 @@ import defaultLogger from '../../../infrastructure/logger.js'
  * Phase 6: Root cause analysis with LLM
  */
 export default class ErrorAnalyzer {
-  constructor(memorySystem, { logger = defaultLogger } = {}) {
+  constructor(memorySystem, { logger = defaultLogger, consciousness } = {}) {
     this.memory = memorySystem
     this.logger = logger
+    this.consciousness = consciousness || null
   }
 
   /**
@@ -41,7 +42,7 @@ export default class ErrorAnalyzer {
       if (!hasError) continue
       errorsFound++
 
-      const category = this.classifyError(entry)
+      const category = await this.classifyErrorEnhanced(entry)
 
       // Only extract lessons from internal/configuration errors (actionable)
       if (category === 'internal' || category === 'configuration') {
@@ -97,6 +98,37 @@ export default class ErrorAnalyzer {
     }
 
     return 'internal'
+  }
+
+  /**
+   * Classify error with consciousness-enhanced understanding.
+   * Falls back to heuristic classifyError() on any failure.
+   *
+   * @param {string} errorMessage - Error message to classify
+   * @returns {Promise<string>} Error category
+   */
+  async classifyErrorEnhanced(errorMessage) {
+    if (!this.consciousness) return this.classifyError(errorMessage)
+
+    const validCategories = ['external', 'configuration', 'user', 'internal']
+
+    try {
+      const result = await this.consciousness.evaluate('reliability-engineer', 'classify_error', {
+        errorMessage: errorMessage.slice(0, 500)
+      })
+
+      if (result?.category && validCategories.includes(result.category)) {
+        this.logger.info('error-analyzer', 'consciousness_classified', {
+          category: result.category,
+          confidence: result.confidence
+        })
+        return result.category
+      }
+    } catch (error) {
+      this.logger.warn('error-analyzer', 'consciousness_failed', { error: error.message })
+    }
+
+    return this.classifyError(errorMessage)
   }
 
   /**

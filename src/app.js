@@ -22,6 +22,8 @@ import {
 } from './infrastructure/events.js'
 import { createToolRegistry } from './domain/motor/index.js'
 import TaskStore from './adapters/storage/task-store.js'
+import { ConsciousnessGateway } from './domain/consciousness/index.js'
+import CLIConsciousnessAdapter from './adapters/consciousness/cli-adapter.js'
 
 /**
  * Create a fully wired KenoBot application instance.
@@ -88,9 +90,26 @@ export function createApp(config, provider, options = {}) {
   // Motor System: Tool registry for ReAct loop (created before Cognitive to wire into sleep cycle)
   const toolRegistry = createToolRegistry(config)
 
+  // Consciousness Layer: fast secondary model for semantic evaluation
+  const consciousnessAdapter = config.consciousness?.enabled !== false
+    ? new CLIConsciousnessAdapter({
+      command: config.consciousness?.provider === 'gemini-cli' ? 'gemini' : config.consciousness?.provider,
+      model: config.consciousness?.model,
+      timeout: config.consciousness?.timeout,
+      logger
+    })
+    : null
+  const profilesDir = join(import.meta.dirname, '..', 'templates', 'experts')
+  const consciousness = new ConsciousnessGateway({
+    adapter: consciousnessAdapter,
+    profilesDir,
+    logger,
+    enabled: config.consciousness?.enabled !== false
+  })
+
   // Cognitive System: Memory System + Identity System (with Motor System integration for self-improvement)
   const memoryStore = new MemoryStore(config.dataDir, { logger })
-  const cognitiveOpts = { logger, bus, toolRegistry }
+  const cognitiveOpts = { logger, bus, toolRegistry, consciousness }
   if (options.homePath) {
     cognitiveOpts.identityPath = join(options.homePath, 'memory', 'identity')
   }
@@ -214,6 +233,7 @@ export function createApp(config, provider, options = {}) {
     storage,
     memory,
     cognitive,
+    consciousness,
     sleepCycle,
     logger,
     start,

@@ -14,9 +14,9 @@ import defaultLogger from '../../../infrastructure/logger.js'
  * - Result limiting and prioritization
  */
 export default class RetrievalEngine {
-  constructor(memorySystem, { logger = defaultLogger } = {}) {
+  constructor(memorySystem, { logger = defaultLogger, consciousness } = {}) {
     this.memorySystem = memorySystem
-    this.keywordMatcher = new KeywordMatcher({ logger })
+    this.keywordMatcher = new KeywordMatcher({ logger, consciousness })
     this.confidenceScorer = new ConfidenceScorer({ logger })
     this.logger = logger
   }
@@ -32,14 +32,16 @@ export default class RetrievalEngine {
    * @param {number} [limits.maxEpisodes=3] - Max episodes to retrieve
    * @returns {Promise<{facts: Array, procedures: Array, episodes: Array, confidence: Object, metadata: Object}>}
    */
-  async retrieve(sessionId, messageText, limits = {}) {
+  async retrieve(sessionId, messageText, limits = {}, context = {}) {
     const { maxFacts = 10, maxProcedures = 5, maxEpisodes = 3 } = limits
 
     const startTime = Date.now()
 
     try {
-      // 1. Extract keywords from message
-      const keywords = this.keywordMatcher.extractKeywords(messageText)
+      // 1. Extract keywords from message (consciousness-enhanced if available)
+      const keywords = await this.keywordMatcher.extractKeywordsEnhanced(messageText, {
+        chatContext: context.chatContext || ''
+      })
 
       this.logger.info('retrieval-engine', 'keywords_extracted', {
         sessionId,

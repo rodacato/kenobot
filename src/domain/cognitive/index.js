@@ -23,7 +23,7 @@ import { homedir } from 'node:os'
  *   await cognitive.saveMemory(sessionId, memoryTags)
  */
 export default class CognitiveSystem {
-  constructor(config, memoryStore, provider, { logger = defaultLogger, identityPath: optIdentityPath, bus, toolRegistry } = {}) {
+  constructor(config, memoryStore, provider, { logger = defaultLogger, identityPath: optIdentityPath, bus, toolRegistry, consciousness } = {}) {
     this.config = config
     this.provider = provider
     this.logger = logger
@@ -31,8 +31,8 @@ export default class CognitiveSystem {
     // Memory System
     this.memory = new MemorySystem(memoryStore, { logger })
 
-    // Retrieval Engine
-    this.retrieval = new RetrievalEngine(this.memory, { logger })
+    // Retrieval Engine (consciousness-enhanced keyword expansion)
+    this.retrieval = new RetrievalEngine(this.memory, { logger, consciousness })
     this.useRetrieval = config.useRetrieval !== false // Default: true
 
     // Identity System
@@ -42,7 +42,7 @@ export default class CognitiveSystem {
 
     // Sleep Cycle (consolidation + self-improvement with Motor System integration)
     const selfRepo = config.motor?.selfRepo || ''
-    this.sleepCycle = new SleepCycle(this.memory, { logger, dataDir: config.dataDir, bus, toolRegistry, repo: selfRepo })
+    this.sleepCycle = new SleepCycle(this.memory, { logger, dataDir: config.dataDir, bus, toolRegistry, repo: selfRepo, consciousness })
 
     // Metacognition (self-monitoring, confidence, reflection)
     this.metacognition = new MetacognitionSystem({ logger })
@@ -95,7 +95,7 @@ export default class CognitiveSystem {
         maxEpisodes: this.config.maxEpisodes ?? 3
       }
 
-      const retrieved = await this.retrieval.retrieve(sessionId, messageText, limits)
+      const retrieved = await this.retrieval.retrieve(sessionId, messageText, limits, { chatContext })
 
       this.logger.info('cognitive', 'retrieval_used', {
         sessionId,
