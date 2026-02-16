@@ -1,13 +1,18 @@
 import { appendFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
+const LEVELS = { debug: 0, info: 1, warn: 2, error: 3 }
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 /**
  * Structured Logger - JSONL to file + condensed console output
  *
- * Levels: info, warn, error
+ * Levels: debug, info, warn, error
  * Console: "19:12:30 [info] telegram: message_received userId=123456789"
  * File: {"ts":"...","level":"info","subsystem":"telegram","event":"message_received","data":{}}
  *
+ * Console output is filtered by log level (default: info).
+ * JSONL file always receives ALL levels for full observability.
  * Works before configure() is called (console-only, file writes buffered).
  */
 class Logger {
@@ -15,10 +20,12 @@ class Logger {
     this._logDir = null
     this._ready = false
     this._pending = []
+    this._level = LEVELS.info
   }
 
-  configure({ dataDir }) {
+  configure({ dataDir, logLevel = 'info' }) {
     this._logDir = join(dataDir, 'logs')
+    this._level = LEVELS[logLevel] ?? LEVELS.info
     this._ensureDir().then(() => {
       this._ready = true
       for (const entry of this._pending) {
@@ -28,6 +35,10 @@ class Logger {
     }).catch(err => {
       process.stderr.write(`Logger init failed: ${err.message}\n`)
     })
+  }
+
+  debug(subsystem, event, data = {}) {
+    this._log('debug', subsystem, event, data)
   }
 
   info(subsystem, event, data = {}) {
@@ -43,12 +54,17 @@ class Logger {
   }
 
   _log(level, subsystem, event, data) {
+    const cleanData = {}
+    for (const [k, v] of Object.entries(data)) {
+      if (v !== undefined && v !== null) cleanData[k] = v
+    }
+
     const entry = {
       ts: new Date().toISOString(),
       level,
       subsystem,
       event,
-      ...(Object.keys(data).length > 0 ? { data } : {})
+      ...(Object.keys(cleanData).length > 0 ? { data: cleanData } : {})
     }
 
     this._writeToConsole(entry)
@@ -61,13 +77,13 @@ class Logger {
   }
 
   _writeToConsole(entry) {
+    if (LEVELS[entry.level] < this._level) return
+
     const time = entry.ts.slice(11, 19)
     const dataStr = entry.data ? ' ' + this._formatData(entry.data) : ''
     const line = `${time} [${entry.level}] ${entry.subsystem}: ${entry.event}${dataStr}`
 
-    if (entry.level === 'error') {
-      process.stderr.write(line + '\n')
-    } else if (entry.level === 'warn') {
+    if (entry.level === 'error' || entry.level === 'warn') {
       process.stderr.write(line + '\n')
     } else {
       process.stdout.write(line + '\n')
@@ -76,8 +92,22 @@ class Logger {
 
   _formatData(data) {
     return Object.entries(data)
-      .map(([k, v]) => `${k}=${v}`)
+      .map(([k, v]) => `${k}=${this._formatValue(v)}`)
       .join(' ')
+  }
+
+  _formatValue(v) {
+    if (typeof v === 'string' && UUID_RE.test(v)) {
+      return v.slice(0, 8)
+    }
+    if (Array.isArray(v)) {
+      if (v.length <= 3) return v.join(',')
+      return `[${v.slice(0, 2).join(',')}...+${v.length - 2}]`
+    }
+    if (typeof v === 'string' && v.length > 80) {
+      return v.slice(0, 77) + '...'
+    }
+    return v
   }
 
   async _writeToFile(entry) {

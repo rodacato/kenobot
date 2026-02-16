@@ -21,10 +21,6 @@ export default class ContextBuilder {
     this.cognitive = cognitive
     this.memory = cognitive ? cognitive.getMemorySystem() : null
     this.logger = logger
-
-    if (cognitive) {
-      logger.info('context', 'cognitive_system_ready')
-    }
   }
 
   /**
@@ -76,7 +72,7 @@ export default class ContextBuilder {
 
       // During bootstrap: Skip preferences, only show bootstrap instructions
       if (isBootstrapping && bootstrap) {
-        this.logger.info('context', 'bootstrap_mode', {
+        this.logger.debug('context', 'bootstrap_mode', {
           message: 'First conversation - skipping preferences and memory'
         })
         parts.push('\n---\n\n## First Conversation — Bootstrap\n' + bootstrap)
@@ -108,7 +104,7 @@ export default class ContextBuilder {
         })
       }
     } else if (isBootstrapping) {
-      this.logger.info('context', 'memory_skipped', {
+      this.logger.debug('context', 'memory_skipped', {
         reason: 'bootstrap_in_progress'
       })
     }

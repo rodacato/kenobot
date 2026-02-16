@@ -1,8 +1,15 @@
 import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { parseArgs } from 'node:util'
 
 export default async function dev(args, paths) {
+  const { values } = parseArgs({
+    args,
+    options: { verbose: { type: 'boolean', short: 'v', default: false } },
+    strict: false,
+  })
+
   if (!existsSync(paths.envFile)) {
     console.error('Error: ~/.kenobot/ not initialized. Run `kenobot setup` first.')
     process.exit(1)
@@ -17,6 +24,7 @@ export default async function dev(args, paths) {
       KENOBOT_CONFIG: paths.envFile,
       DATA_DIR: paths.data,
       KENOBOT_PID_FILE: paths.pidFile,
+      ...(values.verbose ? { LOG_LEVEL: 'debug' } : {}),
     },
   })
 

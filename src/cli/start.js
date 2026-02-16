@@ -6,7 +6,10 @@ import { existsSync, openSync, mkdirSync } from 'node:fs'
 export default async function start(args, paths) {
   const { values } = parseArgs({
     args,
-    options: { daemon: { type: 'boolean', short: 'd', default: false } },
+    options: {
+      daemon: { type: 'boolean', short: 'd', default: false },
+      verbose: { type: 'boolean', short: 'v', default: false },
+    },
     strict: false,
   })
 
@@ -17,6 +20,7 @@ export default async function start(args, paths) {
   }
 
   // Set env vars from resolved paths BEFORE importing index.js
+  if (values.verbose) process.env.LOG_LEVEL = 'debug'
   process.env.KENOBOT_CONFIG = paths.envFile
   if (!process.env.DATA_DIR) process.env.DATA_DIR = paths.data
   process.env.KENOBOT_PID_FILE = paths.pidFile

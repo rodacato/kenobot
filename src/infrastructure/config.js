@@ -41,7 +41,11 @@ export function createConfig(env = process.env) {
     return value
   }
 
+  const rawLogLevel = (env.LOG_LEVEL || 'info').toLowerCase()
+  const validLogLevels = ['debug', 'info', 'warn', 'error']
+
   const config = {
+    logLevel: validLogLevels.includes(rawLogLevel) ? rawLogLevel : 'info',
     provider: env.PROVIDER || 'claude-cli',
     model: env.MODEL || 'sonnet',
     telegram: {

@@ -41,7 +41,7 @@ import CostTracker from './domain/cognitive/utils/cost-tracker.js'
 export function createApp(config, provider, options = {}) {
   // Per-instance logger (isolates log output between createApp() calls)
   const logger = options.logger || new Logger()
-  logger.configure({ dataDir: config.dataDir })
+  logger.configure({ dataDir: config.dataDir, logLevel: config.logLevel })
 
   // Nervous System: signal-aware event bus with middleware and audit
   const bus = new NervousSystem({ logger, dataDir: config.dataDir })
@@ -248,6 +248,8 @@ export function createApp(config, provider, options = {}) {
         }
       }
     }, 60 * 60 * 1000) // Check every hour
+
+    logger.info('system', 'ready')
   }
 
   async function stop() {
