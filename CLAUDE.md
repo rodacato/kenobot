@@ -119,10 +119,10 @@ Two deployment modes — code changes must work in both:
 - **`gemini-cli`** wraps the Google Gemini CLI (`@google/gemini-cli`). Uses `--approval-mode yolo` and `--output-format text` for headless operation. Requires `gemini` installed globally.
 - **`gemini-api`** uses `model` instead of `assistant` as the role, and function calls have no `id` field — synthetic IDs are generated.
 - **Non-root devcontainer**: running as `node` user (uid=1000).
-- **Identity templates**: `templates/identity/` contains `core.md`, `rules.json`, `BOOTSTRAP.md`. At runtime, identity loads from `~/.kenobot/data/memory/identity/` (with `core.md`, `rules.json`, `preferences.md`).
+- **Identity templates**: `templates/identity/` contains `core.md`, `rules.json`, `BOOTSTRAP.md`. At runtime, identity loads from `~/.kenobot/memory/identity/` (with `core.md`, `rules.json`, `preferences.md`).
 - **BOOTSTRAP.md** in the identity dir triggers first-conversation onboarding; deleted when response includes `<bootstrap-complete/>`.
 - **Cognitive System** is always enabled. Uses `MemoryStore` for persistence, `IdentityManager` for personality.
-- **Two memory directory structures**: `~/.kenobot/data/memory/` (active runtime, MemoryStore) vs `~/.kenobot/memory/` (templates/scaffold). Both must be handled by `kenobot reset`.
+- **Memory directory**: All runtime memory lives in `~/.kenobot/memory/` (MEMORY.md, daily logs, working/, chats/, embeddings.db, identity/). `MemoryStore` receives `memoryDir` directly in its constructor.
 
 ## Development Conventions
 

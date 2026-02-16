@@ -73,13 +73,15 @@ export default async function reset(args, paths) {
         join(paths.home, 'memory', 'semantic'),
         join(paths.home, 'memory', 'working'),
         join(paths.home, 'memory', 'procedural'),
-        join(paths.home, 'data', 'memory', 'working'),
-        join(paths.home, 'data', 'memory', 'MEMORY.md')
+        join(paths.home, 'memory', 'chats'),
+        join(paths.home, 'memory', 'MEMORY.md'),
+        join(paths.home, 'memory', 'embeddings'),
+        join(paths.home, 'memory', 'embeddings.db'),
       ],
-      description: 'All episodes, facts, working memory, and learned patterns',
+      description: 'All episodes, facts, working memory, embeddings, and learned patterns',
       recreate: [
         {
-          path: join(paths.home, 'data', 'memory', 'MEMORY.md'),
+          path: join(paths.home, 'memory', 'MEMORY.md'),
           template: join(paths.templates, 'memory', 'MEMORY.md')
         }
       ]

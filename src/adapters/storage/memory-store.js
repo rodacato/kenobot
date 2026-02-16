@@ -6,18 +6,17 @@ import defaultLogger from '../../infrastructure/logger.js'
  * MemoryStore - Persistence layer for the Memory System
  *
  * Filesystem-backed storage for all memory types:
- *   data/memory/MEMORY.md                  — global long-term facts
- *   data/memory/YYYY-MM-DD.md              — global daily logs
- *   data/memory/chats/{id}/                — per-chat memory
- *   data/memory/working/{id}.md            — session scratchpad
- *   data/memory/procedural/patterns.json   — learned behavioral patterns
+ *   {memoryDir}/MEMORY.md                  — global long-term facts
+ *   {memoryDir}/YYYY-MM-DD.md              — global daily logs
+ *   {memoryDir}/chats/{id}/                — per-chat memory
+ *   {memoryDir}/working/{id}.md            — session scratchpad
+ *   {memoryDir}/procedural/patterns.json   — learned behavioral patterns
  *
  * Consumed by MemorySystem (via cognitive sub-classes).
  */
 export default class MemoryStore {
-  constructor(dataDir, { logger = defaultLogger } = {}) {
-    this.dataDir = dataDir
-    this.memoryDir = join(dataDir, 'memory')
+  constructor(memoryDir, { logger = defaultLogger } = {}) {
+    this.memoryDir = memoryDir
     this.logger = logger
     this._dirReady = false
   }

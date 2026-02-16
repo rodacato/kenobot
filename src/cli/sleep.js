@@ -9,7 +9,8 @@ import { BOLD, GREEN, YELLOW, DIM, NC } from './utils.js'
  */
 export default async function sleep(args, paths) {
   const dataDir = join(paths.home, 'data')
-  const memoryStore = new MemoryStore(dataDir)
+  const memoryDir = join(paths.home, 'memory')
+  const memoryStore = new MemoryStore(memoryDir)
   const config = { dataDir, useRetrieval: false, useIdentity: false }
   const cognitive = new CognitiveSystem(config, memoryStore, {})
   const sleepCycle = cognitive.getSleepCycle()

@@ -253,7 +253,7 @@ async function checkDiskUsage(paths) {
   const dirs = [
     { path: join(paths.data, 'sessions'), name: 'sessions/' },
     { path: join(paths.data, 'logs'), name: 'logs/' },
-    { path: join(paths.data, 'memory'), name: 'memory/' },
+    { path: join(paths.home, 'memory'), name: 'memory/' },
     { path: paths.backups, name: 'backups/' },
   ]
 

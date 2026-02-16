@@ -20,7 +20,7 @@ describe.each(backends)('EmbeddingStore contract [%s]', (name, factory) => {
 
   beforeEach(async () => {
     tmpDir = await mkdtemp(join(tmpdir(), `embed-contract-${name}-`))
-    store = factory(tmpDir)
+    store = factory(join(tmpDir, 'memory'))
   })
 
   afterEach(async () => {

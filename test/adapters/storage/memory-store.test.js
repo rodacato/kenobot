@@ -21,7 +21,7 @@ describe('MemoryStore', () => {
 
   beforeEach(async () => {
     tmpDir = await mkdtemp(join(tmpdir(), 'kenobot-store-'))
-    store = new MemoryStore(tmpDir)
+    store = new MemoryStore(join(tmpDir, 'memory'))
     vi.clearAllMocks()
   })
 

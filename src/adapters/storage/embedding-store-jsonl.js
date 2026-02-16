@@ -6,14 +6,14 @@ import defaultLogger from '../../infrastructure/logger.js'
 /**
  * JSONL-backed embedding store.
  *
- * Storage layout: {dataDir}/memory/embeddings/{type}.jsonl
+ * Storage layout: {memoryDir}/embeddings/{type}.jsonl
  * Each line is a JSON object with { id, text, vector, type, sessionId, model, dimensions, createdAt }.
  * Entries loaded lazily into an in-memory Map on first access per type.
  */
 export default class EmbeddingStoreJsonl extends EmbeddingStore {
-  constructor(dataDir, { logger = defaultLogger } = {}) {
+  constructor(memoryDir, { logger = defaultLogger } = {}) {
     super()
-    this.embeddingsDir = join(dataDir, 'memory', 'embeddings')
+    this.embeddingsDir = join(memoryDir, 'embeddings')
     this.logger = logger
     /** @type {Map<string, Map<string, object>>} type → (id → entry) */
     this._cache = new Map()

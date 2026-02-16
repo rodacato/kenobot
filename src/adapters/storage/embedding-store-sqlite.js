@@ -6,15 +6,15 @@ import defaultLogger from '../../infrastructure/logger.js'
 /**
  * SQLite-backed embedding store using better-sqlite3.
  *
- * Storage: {dataDir}/memory/embeddings.db
+ * Storage: {memoryDir}/embeddings.db
  * Vectors stored as Float32Array BLOBs for compact storage.
  * Dynamic import so the app works without better-sqlite3 installed.
  */
 export default class EmbeddingStoreSqlite extends EmbeddingStore {
-  constructor(dataDir, { logger = defaultLogger } = {}) {
+  constructor(memoryDir, { logger = defaultLogger } = {}) {
     super()
-    this.dbPath = join(dataDir, 'memory', 'embeddings.db')
-    this.dataDir = dataDir
+    this.dbPath = join(memoryDir, 'embeddings.db')
+    this.memoryDir = memoryDir
     this.logger = logger
     this.db = null
     this._initPromise = null
@@ -116,7 +116,7 @@ export default class EmbeddingStoreSqlite extends EmbeddingStore {
   }
 
   async _initDb() {
-    await mkdir(join(this.dataDir, 'memory'), { recursive: true })
+    await mkdir(this.memoryDir, { recursive: true })
 
     let Database
     try {

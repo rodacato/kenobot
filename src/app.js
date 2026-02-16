@@ -129,12 +129,14 @@ export function createApp(config, provider, options = {}) {
   // Embedding System: initialized lazily in start() via dynamic import
   let embeddingStore = null
 
+  // Resolve memory directory: config override > homePath > dataDir fallback
+  const memoryDir = config.memoryDir
+    || (options.homePath ? join(options.homePath, 'memory') : join(config.dataDir, 'memory'))
+
   // Cognitive System: Memory System + Identity System (with Motor System integration for self-improvement)
-  const memoryStore = new MemoryStore(config.dataDir, { logger })
+  const memoryStore = new MemoryStore(memoryDir, { logger })
   const cognitiveOpts = { logger, bus, toolRegistry, consciousness }
-  if (options.homePath) {
-    cognitiveOpts.identityPath = join(options.homePath, 'memory', 'identity')
-  }
+  cognitiveOpts.identityPath = join(memoryDir, 'identity')
   const cognitive = new CognitiveSystem(config, memoryStore, circuitBreaker, cognitiveOpts)
   const memory = cognitive.getMemorySystem()
   const sleepCycle = cognitive.getSleepCycle()
@@ -242,10 +244,10 @@ export function createApp(config, provider, options = {}) {
 
         if (config.embedding.backend === 'sqlite') {
           const { default: SqliteStore } = await import('./adapters/storage/embedding-store-sqlite.js')
-          embeddingStore = new SqliteStore(config.dataDir, { logger })
+          embeddingStore = new SqliteStore(memoryDir, { logger })
         } else {
           const { default: JsonlStore } = await import('./adapters/storage/embedding-store-jsonl.js')
-          embeddingStore = new JsonlStore(config.dataDir, { logger })
+          embeddingStore = new JsonlStore(memoryDir, { logger })
         }
 
         // Wire into cognitive system (memory + retrieval)

@@ -23,6 +23,7 @@ export default async function start(args, paths) {
   if (values.verbose) process.env.LOG_LEVEL = 'debug'
   process.env.KENOBOT_CONFIG = paths.envFile
   if (!process.env.DATA_DIR) process.env.DATA_DIR = paths.data
+  if (!process.env.MEMORY_DIR) process.env.MEMORY_DIR = paths.memory
   process.env.KENOBOT_PID_FILE = paths.pidFile
 
   if (values.daemon) {

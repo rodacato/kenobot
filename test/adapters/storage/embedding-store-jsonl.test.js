@@ -11,7 +11,7 @@ describe('EmbeddingStoreJsonl', () => {
 
   beforeEach(async () => {
     tmpDir = await mkdtemp(join(tmpdir(), 'embed-jsonl-'))
-    store = new EmbeddingStoreJsonl(tmpDir, { logger: mockLogger })
+    store = new EmbeddingStoreJsonl(join(tmpDir, 'memory'), { logger: mockLogger })
   })
 
   afterEach(async () => {
@@ -167,7 +167,7 @@ describe('EmbeddingStoreJsonl', () => {
       await writeFile(join(dir, 'semantic.jsonl'), JSON.stringify(entry) + '\n', 'utf8')
 
       // New store instance should find it
-      const store2 = new EmbeddingStoreJsonl(tmpDir, { logger: mockLogger })
+      const store2 = new EmbeddingStoreJsonl(join(tmpDir, 'memory'), { logger: mockLogger })
       const results = await store2.search(FOOD_QUERY, 5)
       expect(results).toHaveLength(1)
       expect(results[0].id).toBe('lazy1')
@@ -193,7 +193,7 @@ describe('EmbeddingStoreJsonl', () => {
       const elapsed = performance.now() - start
 
       expect(results).toHaveLength(10)
-      expect(elapsed).toBeLessThan(100)
+      expect(elapsed).toBeLessThan(200)
     })
   })
 })

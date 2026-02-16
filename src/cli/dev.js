@@ -23,6 +23,7 @@ export default async function dev(args, paths) {
       ...process.env,
       KENOBOT_CONFIG: paths.envFile,
       DATA_DIR: paths.data,
+      MEMORY_DIR: paths.memory,
       KENOBOT_PID_FILE: paths.pidFile,
       ...(values.verbose ? { LOG_LEVEL: 'debug' } : {}),
     },

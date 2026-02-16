@@ -11,12 +11,12 @@ import { BOLD, GREEN, YELLOW, DIM, NC, formatBytes } from './utils.js'
  * kenobot memory --prune  — Run pruner only
  */
 export default async function memory(args, paths) {
-  const dataDir = join(paths.home, 'data')
-  const memoryStore = new MemoryStore(dataDir)
+  const memoryDir = join(paths.home, 'memory')
+  const memoryStore = new MemoryStore(memoryDir)
   const memorySystem = new MemorySystem(memoryStore)
 
   if (args.includes('--health')) {
-    return showHealth(memorySystem, dataDir)
+    return showHealth(memorySystem, join(paths.home, 'data'))
   }
 
   if (args.includes('--prune')) {

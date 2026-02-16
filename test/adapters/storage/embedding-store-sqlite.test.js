@@ -11,7 +11,7 @@ describe('EmbeddingStoreSqlite', () => {
 
   beforeEach(async () => {
     tmpDir = await mkdtemp(join(tmpdir(), 'embed-sqlite-'))
-    store = new EmbeddingStoreSqlite(tmpDir, { logger: mockLogger })
+    store = new EmbeddingStoreSqlite(join(tmpDir, 'memory'), { logger: mockLogger })
   })
 
   afterEach(async () => {

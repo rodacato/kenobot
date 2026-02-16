@@ -12,7 +12,6 @@ export function requiredDirs(paths) {
     { path: join(paths.home, 'memory', 'identity'), label: 'memory/identity/' },
     { path: paths.data, label: 'data/' },
     { path: join(paths.data, 'sessions'), label: 'data/sessions/' },
-    { path: join(paths.data, 'memory'), label: 'data/memory/' },
     { path: join(paths.data, 'logs'), label: 'data/logs/' },
     { path: join(paths.data, 'scheduler'), label: 'data/scheduler/' },
     { path: paths.backups, label: 'backups/' },

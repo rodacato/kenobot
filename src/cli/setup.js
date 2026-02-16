@@ -118,8 +118,8 @@ export default async function init(args, paths) {
 
   await copyIfMissing(
     join(tpl, 'memory', 'MEMORY.md'),
-    join(paths.data, 'memory', 'MEMORY.md'),
-    'data/memory/MEMORY.md'
+    join(paths.home, 'memory', 'MEMORY.md'),
+    'memory/MEMORY.md'
   )
 
   console.log(`\nNext steps:`)

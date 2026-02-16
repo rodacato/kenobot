@@ -21,6 +21,7 @@ const paths = {
 
   // Runtime data
   data: join(home, 'data'),
+  memory: join(home, 'memory'),
   backups: join(home, 'backups'),
   pidFile: join(home, 'data', 'kenobot.pid'),
 
