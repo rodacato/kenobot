@@ -36,7 +36,7 @@ export default class PreferencesManager {
     try {
       const content = await fs.readFile(this.preferencesPath, 'utf-8')
 
-      this.logger.info('preferences-manager', 'loaded', {
+      this.logger.debug('preferences-manager', 'loaded', {
         length: content.length,
         path: this.preferencesPath
       })

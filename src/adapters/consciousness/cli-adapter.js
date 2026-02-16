@@ -35,7 +35,7 @@ export default class CLIConsciousnessAdapter {
     const { stdout, stderr } = await this._spawn(this.command, args)
 
     if (stderr) {
-      this.logger.warn('consciousness', 'cli_stderr', { stderr: stderr.slice(0, 200) })
+      this.logger.debug('consciousness', 'cli_stderr', { stderr: stderr.slice(0, 200) })
     }
 
     return stdout.trim()

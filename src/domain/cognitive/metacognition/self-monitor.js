@@ -92,7 +92,7 @@ export default class SelfMonitor {
     if (score < 0.5) quality = 'poor'
     else if (score < 0.7) quality = 'uncertain'
 
-    this.logger.info('self-monitor', 'evaluated', { quality, score: Math.round(score * 100) / 100, signals })
+    this.logger.debug('self-monitor', 'evaluated', { quality, score: Math.round(score * 100) / 100, signals })
 
     return { quality, signals, score: Math.round(score * 100) / 100 }
   }

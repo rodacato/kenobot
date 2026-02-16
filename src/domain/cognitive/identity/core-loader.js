@@ -35,7 +35,7 @@ export default class CoreLoader {
       const content = await fs.readFile(this.corePath, 'utf-8')
       this.cache = content.trim()
 
-      this.logger.info('core-loader', 'loaded', {
+      this.logger.debug('core-loader', 'loaded', {
         length: this.cache.length,
         path: this.corePath
       })

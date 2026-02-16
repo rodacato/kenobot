@@ -43,7 +43,7 @@ export default class RetrievalEngine {
         chatContext: context.chatContext || ''
       })
 
-      this.logger.info('retrieval-engine', 'keywords_extracted', {
+      this.logger.debug('retrieval-engine', 'keywords_extracted', {
         sessionId,
         keywords,
         messageLength: messageText.length
@@ -73,7 +73,7 @@ export default class RetrievalEngine {
         }
       }
 
-      this.logger.info('retrieval-engine', 'retrieve_complete', {
+      this.logger.debug('retrieval-engine', 'retrieve_complete', {
         sessionId,
         confidence: confidence.level,
         latency: result.metadata.latency,

@@ -97,7 +97,7 @@ export default class CognitiveSystem {
 
       const retrieved = await this.retrieval.retrieve(sessionId, messageText, limits, { chatContext })
 
-      this.logger.info('cognitive', 'retrieval_used', {
+      this.logger.debug('cognitive', 'retrieval_used', {
         sessionId,
         confidence: retrieved.confidence.level,
         resultCount: retrieved.facts.length + retrieved.procedures.length + retrieved.episodes.length

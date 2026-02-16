@@ -44,7 +44,7 @@ export default class RulesEngine {
       const content = await fs.readFile(this.rulesPath, 'utf-8')
       this.cache = JSON.parse(content)
 
-      this.logger.info('rules-engine', 'loaded', {
+      this.logger.debug('rules-engine', 'loaded', {
         behavioralCount: this.cache.behavioral?.length || 0,
         forbiddenCount: this.cache.forbidden?.length || 0,
         path: this.rulesPath

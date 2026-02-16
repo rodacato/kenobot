@@ -67,7 +67,7 @@ export default class KeywordMatcher {
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)
 
-    this.logger.info('keyword-matcher', 'search_complete', {
+    this.logger.debug('keyword-matcher', 'search_complete', {
       totalItems: items.length,
       keywords: normalizedKeywords,
       matchedCount: results.length,
@@ -125,7 +125,7 @@ export default class KeywordMatcher {
       })
 
       if (result?.expanded && Array.isArray(result.expanded) && result.expanded.length > 0) {
-        this.logger.info('keyword-matcher', 'consciousness_expanded', {
+        this.logger.debug('keyword-matcher', 'consciousness_expanded', {
           original: heuristicKeywords,
           expanded: result.expanded
         })

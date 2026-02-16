@@ -49,7 +49,7 @@ export default class IdentityManager {
     // Check if bootstrap is complete
     this.isBootstrapped = await this.preferencesManager.isBootstrapped()
 
-    this.logger.info('identity-manager', 'loaded', {
+    this.logger.debug('identity-manager', 'loaded', {
       hasCore: !!core,
       rulesCount: rules?.behavioral?.length || 0,
       hasPreferences: !!preferences,
@@ -77,12 +77,12 @@ export default class IdentityManager {
     let bootstrap = null
     if (isBootstrapping) {
       bootstrap = await this.preferencesManager.getBootstrapInstructions()
-      this.logger.info('identity-manager', 'bootstrap_loading', {
+      this.logger.debug('identity-manager', 'bootstrap_loading', {
         hasBootstrap: !!bootstrap,
         length: bootstrap?.length || 0
       })
     } else {
-      this.logger.info('identity-manager', 'bootstrap_skipped', {
+      this.logger.debug('identity-manager', 'bootstrap_skipped', {
         reason: 'already_bootstrapped'
       })
     }
