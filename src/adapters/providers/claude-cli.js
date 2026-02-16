@@ -47,8 +47,9 @@ export default class ClaudeCLIProvider extends BaseProvider {
     }
 
     // Build prompt (now without system context, just messages)
+    // Use -- to separate options from positional args (prevents --debug [filter] from swallowing the prompt)
     const prompt = this._buildPrompt(messages)
-    args.push(prompt)
+    args.push('--', prompt)
 
     // CWD: dev mode passes explicit cwd, assistant mode defaults to $HOME
     const cwd = options.cwd || process.env.HOME
