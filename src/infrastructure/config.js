@@ -84,6 +84,13 @@ export function createConfig(env = process.env) {
       shellMaxOutput: int('MOTOR_SHELL_MAX_OUTPUT', 102400, { min: 1024 }),
       maxTaskIterations: int('MAX_TASK_ITERATIONS', 30, { min: 1, max: 50 }),
       maxConcurrentTasks: int('MAX_CONCURRENT_TASKS', 1, { min: 1, max: 5 }),
+    },
+
+    consciousness: {
+      enabled: env.CONSCIOUSNESS_ENABLED !== 'false',
+      provider: env.CONSCIOUSNESS_PROVIDER || 'gemini-cli',
+      model: env.CONSCIOUSNESS_MODEL || 'gemini-2.0-flash',
+      timeout: int('CONSCIOUSNESS_TIMEOUT', 30000, { min: 5000, max: 120000 }),
     }
   }
 
