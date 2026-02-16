@@ -19,6 +19,7 @@ import './adapters/providers/claude-cli.js'
 import './adapters/providers/claude-api.js'
 import './adapters/providers/gemini-cli.js'
 import './adapters/providers/gemini-api.js'
+import './adapters/providers/cerebras-api.js'
 import { createProvider } from './adapters/providers/registry.js'
 import { createApp } from './app.js'
 

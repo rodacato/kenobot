@@ -1,6 +1,7 @@
-import { describe, test, expect, beforeEach, vi } from 'vitest'
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest'
 import ClaudeAPIProvider from '../../../src/adapters/providers/claude-api.js'
 import GeminiAPIProvider from '../../../src/adapters/providers/gemini-api.js'
+import CerebrasAPIProvider from '../../../src/adapters/providers/cerebras-api.js'
 
 /**
  * Provider Contract Tests
@@ -41,6 +42,7 @@ vi.mock('@google/genai', () => ({
 // Set fake API keys for testing (providers validate these exist)
 process.env.ANTHROPIC_API_KEY = 'sk-test-fake-key-for-testing-only'
 process.env.GEMINI_API_KEY = 'fake-gemini-key-for-testing-only'
+process.env.CEREBRAS_API_KEY = 'csk-test-fake-key-for-testing-only'
 
 // Provider configurations for testing
 const PROVIDER_CONFIGS = [
@@ -53,10 +55,35 @@ const PROVIDER_CONFIGS = [
     name: 'gemini-api',
     Provider: GeminiAPIProvider,
     config: { apiKey: process.env.GEMINI_API_KEY, model: 'gemini-2.0-flash-exp' }
+  },
+  {
+    name: 'cerebras-api',
+    Provider: CerebrasAPIProvider,
+    config: { model: '120b' }
   }
 ]
 
+// Helper: mock fetch for cerebras-api tests
+function mockCerebrasResponse(response) {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+    ok: true,
+    json: async () => response
+  })
+}
+
+function mockCerebrasError(error) {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+    ok: false,
+    status: error.status || 500,
+    text: async () => error.message
+  })
+}
+
 describe('Provider Contract Tests', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   PROVIDER_CONFIGS.forEach(({ name, Provider, config }) => {
     describe(`${name} provider`, () => {
       let provider
@@ -102,6 +129,14 @@ describe('Provider Contract Tests', () => {
             }
           }
           provider.client.models.generateContent.mockResolvedValueOnce(mockResponse)
+        } else if (name === 'cerebras-api') {
+          mockCerebrasResponse({
+            choices: [{
+              message: { role: 'assistant', content: 'Test response' },
+              finish_reason: 'stop'
+            }],
+            usage: { prompt_tokens: 10, completion_tokens: 5 }
+          })
         }
 
         const result = await provider.chat(
@@ -149,6 +184,14 @@ describe('Provider Contract Tests', () => {
             }
           }
           provider.client.models.generateContent.mockResolvedValueOnce(mockResponse)
+        } else if (name === 'cerebras-api') {
+          mockCerebrasResponse({
+            choices: [{
+              message: { role: 'assistant', content: 'No tools needed' },
+              finish_reason: 'stop'
+            }],
+            usage: { prompt_tokens: 10, completion_tokens: 5 }
+          })
         }
 
         const result = await provider.chat(
@@ -167,6 +210,8 @@ describe('Provider Contract Tests', () => {
           provider.client.messages.create.mockRejectedValueOnce(apiError)
         } else if (name === 'gemini-api') {
           provider.client.models.generateContent.mockRejectedValueOnce(apiError)
+        } else if (name === 'cerebras-api') {
+          mockCerebrasError({ status: 500, message: 'API Error' })
         }
 
         await expect(provider.chat(
@@ -257,6 +302,14 @@ describe('Provider Contract Tests', () => {
             }
           }
           provider.client.models.generateContent.mockResolvedValueOnce(mockResponse)
+        } else if (name === 'cerebras-api') {
+          mockCerebrasResponse({
+            choices: [{
+              message: { role: 'assistant', content: 'Response' },
+              finish_reason: 'stop'
+            }],
+            usage: { prompt_tokens: 10, completion_tokens: 5 }
+          })
         }
 
         const result = await provider.chat(
@@ -297,6 +350,8 @@ describe('Provider Contract Tests', () => {
             provider.client.models.generateContent.mockRejectedValueOnce(
               new Error('Invalid request')
             )
+          } else if (name === 'cerebras-api') {
+            mockCerebrasError({ status: 400, message: 'Invalid request' })
           }
 
           await provider.chat([], {})
