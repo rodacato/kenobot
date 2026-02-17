@@ -14,11 +14,11 @@ import defaultLogger from '../../../infrastructure/logger.js'
  * All evaluation is heuristic-based (zero LLM calls, zero latency cost).
  */
 export default class MetacognitionSystem {
-  constructor({ logger = defaultLogger } = {}) {
+  constructor({ logger = defaultLogger, consciousness } = {}) {
     this.logger = logger
-    this.selfMonitor = new SelfMonitor({ logger })
+    this.selfMonitor = new SelfMonitor({ logger, consciousness })
     this.confidenceEstimator = new ConfidenceEstimator({ logger })
-    this.reflectionEngine = new ReflectionEngine({ logger })
+    this.reflectionEngine = new ReflectionEngine({ logger, consciousness })
   }
 
   /**
@@ -46,6 +46,18 @@ export default class MetacognitionSystem {
   }
 
   /**
+   * Evaluate response quality with consciousness-enhanced understanding.
+   * Falls back to heuristic evaluateResponse() on any failure.
+   *
+   * @param {string} response - The assistant's response text
+   * @param {Object} [context] - Interaction context
+   * @returns {Promise<{ quality: 'good'|'uncertain'|'poor', signals: string[], score: number }>}
+   */
+  async evaluateResponseEnhanced(response, context = {}) {
+    return this.selfMonitor.evaluateEnhanced(response, context)
+  }
+
+  /**
    * Reflect on sleep cycle results (runs during sleep).
    *
    * @param {Object} sleepResults - Results from sleep cycle phases
@@ -53,5 +65,16 @@ export default class MetacognitionSystem {
    */
   reflect(sleepResults) {
     return this.reflectionEngine.reflect(sleepResults)
+  }
+
+  /**
+   * Reflect on sleep cycle results with consciousness-enhanced analysis.
+   * Falls back to heuristic reflect() on any failure.
+   *
+   * @param {Object} sleepResults - Results from sleep cycle phases
+   * @returns {Promise<{ insights: string[], adjustments: Object[] }>}
+   */
+  async reflectEnhanced(sleepResults) {
+    return this.reflectionEngine.reflectEnhanced(sleepResults)
   }
 }

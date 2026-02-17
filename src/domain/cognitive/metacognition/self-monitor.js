@@ -7,8 +7,9 @@ import defaultLogger from '../../../infrastructure/logger.js'
  * Detects hedging, repetition, length anomalies, and missing context.
  */
 export default class SelfMonitor {
-  constructor({ logger = defaultLogger } = {}) {
+  constructor({ logger = defaultLogger, consciousness } = {}) {
     this.logger = logger
+    this.consciousness = consciousness || null
   }
 
   /**
@@ -95,5 +96,46 @@ export default class SelfMonitor {
     this.logger.debug('self-monitor', 'evaluated', { quality, score: Math.round(score * 100) / 100, signals })
 
     return { quality, signals, score: Math.round(score * 100) / 100 }
+  }
+
+  /**
+   * Evaluate response quality with consciousness-enhanced understanding.
+   * Falls back to heuristic evaluate() on any failure.
+   *
+   * @param {string} response - The assistant's response text
+   * @param {Object} context - Context about the interaction
+   * @returns {Promise<{ quality: 'good'|'uncertain'|'poor', signals: string[], score: number }>}
+   */
+  async evaluateEnhanced(response, context = {}) {
+    const heuristicResult = this.evaluate(response, context)
+
+    if (!this.consciousness) return heuristicResult
+    if (!response || response.trim().length < 10) return heuristicResult
+
+    const validQualities = ['good', 'uncertain', 'poor']
+
+    try {
+      const result = await this.consciousness.evaluate('quality-reviewer', 'evaluate_response', {
+        response: response.slice(0, 1000),
+        userMessage: (context.userMessage || '').slice(0, 500)
+      })
+
+      if (result?.quality && validQualities.includes(result.quality) &&
+          typeof result.score === 'number' && Array.isArray(result.signals)) {
+        this.logger.debug('self-monitor', 'consciousness_evaluated', {
+          quality: result.quality,
+          score: result.score
+        })
+        return {
+          quality: result.quality,
+          signals: result.signals,
+          score: Math.max(0, Math.min(1, Math.round(result.score * 100) / 100))
+        }
+      }
+    } catch (error) {
+      this.logger.warn('self-monitor', 'consciousness_failed', { error: error.message })
+    }
+
+    return heuristicResult
   }
 }

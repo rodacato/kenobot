@@ -7,8 +7,9 @@ import defaultLogger from '../../../infrastructure/logger.js'
  * interaction patterns, quality trends, and potential improvements.
  */
 export default class ReflectionEngine {
-  constructor({ logger = defaultLogger } = {}) {
+  constructor({ logger = defaultLogger, consciousness } = {}) {
     this.logger = logger
+    this.consciousness = consciousness || null
   }
 
   /**
@@ -70,5 +71,47 @@ export default class ReflectionEngine {
     })
 
     return { insights, adjustments }
+  }
+
+  /**
+   * Reflect with consciousness-enhanced analysis.
+   * Falls back to heuristic reflect() on any failure.
+   *
+   * @param {Object} sleepResults - Results from sleep cycle phases
+   * @returns {Promise<{ insights: string[], adjustments: Object[] }>}
+   */
+  async reflectEnhanced(sleepResults = {}) {
+    const heuristicResult = this.reflect(sleepResults)
+
+    if (!this.consciousness) return heuristicResult
+
+    try {
+      const summary = JSON.stringify({
+        consolidation: sleepResults.consolidation || {},
+        errorAnalysis: sleepResults.errorAnalysis || {},
+        pruning: sleepResults.pruning || {}
+      })
+
+      const result = await this.consciousness.evaluate('strategist', 'generate_reflection', {
+        summary
+      })
+
+      if (result?.insights && Array.isArray(result.insights) &&
+          result?.adjustments && Array.isArray(result.adjustments)) {
+        this.logger.debug('reflection-engine', 'consciousness_reflected', {
+          insightCount: result.insights.length,
+          adjustmentCount: result.adjustments.length
+        })
+
+        return {
+          insights: result.insights.filter(i => typeof i === 'string' && i.length > 0),
+          adjustments: result.adjustments.filter(a => a.type && a.suggestion)
+        }
+      }
+    } catch (error) {
+      this.logger.warn('reflection-engine', 'consciousness_failed', { error: error.message })
+    }
+
+    return heuristicResult
   }
 }

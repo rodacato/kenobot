@@ -50,8 +50,8 @@ export default class CognitiveSystem {
     const selfRepo = config.motor?.selfRepo || ''
     this.sleepCycle = new SleepCycle(this.memory, { logger, dataDir: config.dataDir, bus, toolRegistry, repo: selfRepo, consciousness })
 
-    // Metacognition (self-monitoring, confidence, reflection)
-    this.metacognition = new MetacognitionSystem({ logger })
+    // Metacognition (self-monitoring, confidence, reflection — with consciousness for enhanced evaluation)
+    this.metacognition = new MetacognitionSystem({ logger, consciousness })
   }
 
   /**
