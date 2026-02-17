@@ -24,6 +24,7 @@ import { createToolRegistry } from './domain/motor/index.js'
 import TaskStore from './adapters/storage/task-store.js'
 import { ConsciousnessGateway } from './domain/consciousness/index.js'
 import CLIConsciousnessAdapter from './adapters/consciousness/cli-adapter.js'
+import APIConsciousnessAdapter from './adapters/consciousness/api-adapter.js'
 import ResponseTracker from './domain/nervous/response-tracker.js'
 import CostTracker from './domain/cognitive/utils/cost-tracker.js'
 
@@ -110,14 +111,23 @@ export function createApp(config, provider, options = {}) {
   const toolRegistry = createToolRegistry(config)
 
   // Consciousness Layer: fast secondary model for semantic evaluation
-  const consciousnessAdapter = config.consciousness?.enabled !== false
-    ? new CLIConsciousnessAdapter({
-      command: config.consciousness?.provider === 'gemini-cli' ? 'gemini' : config.consciousness?.provider,
-      model: config.consciousness?.model,
-      timeout: config.consciousness?.timeout,
-      logger
-    })
-    : null
+  let consciousnessAdapter = null
+  if (config.consciousness?.enabled !== false) {
+    if (config.consciousness?.provider === 'gemini-api') {
+      consciousnessAdapter = new APIConsciousnessAdapter({
+        model: config.consciousness?.model,
+        timeout: config.consciousness?.timeout,
+        logger
+      })
+    } else {
+      consciousnessAdapter = new CLIConsciousnessAdapter({
+        command: config.consciousness?.provider === 'gemini-cli' ? 'gemini' : config.consciousness?.provider,
+        model: config.consciousness?.model,
+        timeout: config.consciousness?.timeout,
+        logger
+      })
+    }
+  }
   const profilesDir = join(import.meta.dirname, '..', 'templates', 'experts')
   const consciousness = new ConsciousnessGateway({
     adapter: consciousnessAdapter,
