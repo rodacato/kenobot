@@ -11,11 +11,12 @@ import defaultLogger from '../../../infrastructure/logger.js'
  * Phase 6: Semantic deduplication with embeddings
  */
 export default class MemoryPruner {
-  constructor(memorySystem, { logger = defaultLogger, staleThreshold = 7, archiveThreshold = 30 } = {}) {
+  constructor(memorySystem, { logger = defaultLogger, staleThreshold = 7, archiveThreshold = 30, consciousness } = {}) {
     this.memory = memorySystem
     this.logger = logger
     this.staleThreshold = staleThreshold // days
     this.archiveThreshold = archiveThreshold // days
+    this.consciousness = consciousness || null
   }
 
   /**
@@ -29,7 +30,7 @@ export default class MemoryPruner {
     const workingPruned = await this.pruneWorkingMemory()
     const patternsPruned = await this.prunePatterns()
     const episodesCompressed = await this.compressEpisodes()
-    const factsDeduped = await this.compactLongTermMemory()
+    const factsDeduped = await this.compactLongTermMemoryEnhanced()
 
     const result = { workingPruned, episodesCompressed, patternsPruned, factsDeduped }
     this.logger.info('memory-pruner', 'completed', result)
@@ -136,6 +137,76 @@ export default class MemoryPruner {
     await this.memory.writeLongTermMemory(newLines.join('\n'))
 
     this.logger.info('memory-pruner', 'long_term_compacted', { removed: toRemove.size })
+    return toRemove.size
+  }
+
+  /**
+   * Deduplicate facts with consciousness-enhanced semantic understanding.
+   * Falls back to Jaccard-based compactLongTermMemory() on any failure.
+   *
+   * @returns {Promise<number>} Number of duplicate facts removed
+   */
+  async compactLongTermMemoryEnhanced() {
+    if (!this.consciousness) return this.compactLongTermMemory()
+
+    const content = await this.memory.getLongTermMemory()
+    if (!content) return 0
+
+    const lines = content.split('\n')
+    const factLines = []
+    const factIndices = []
+
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].startsWith('- ')) {
+        factLines.push(lines[i].slice(2))
+        factIndices.push(i)
+      }
+    }
+
+    if (factLines.length < 2) return 0
+
+    // First pass: find candidates via Jaccard (fast filter)
+    const candidates = this.findSimilarEpisodes(factLines)
+
+    // Second pass: use consciousness to verify and merge
+    const toRemove = new Set()
+    const replacements = new Map() // lineIndex → merged text
+
+    for (const group of candidates) {
+      for (let i = 1; i < group.length; i++) {
+        const factA = factLines[group[0]]
+        const factB = factLines[group[i]]
+
+        try {
+          const result = await this.consciousness.evaluate('semantic-analyst', 'deduplicate_facts', {
+            factA, factB
+          })
+
+          if (result?.duplicate === true) {
+            toRemove.add(factIndices[group[i]])
+            if (result.merged && result.merged.length > 0) {
+              replacements.set(factIndices[group[0]], result.merged)
+            }
+          }
+        } catch {
+          // On failure for this pair, fall back to Jaccard (already detected as similar)
+          toRemove.add(factIndices[group[i]])
+        }
+      }
+    }
+
+    if (toRemove.size === 0) return 0
+
+    // Rebuild content with merged facts and removed duplicates
+    const newLines = lines.map((line, i) => {
+      if (toRemove.has(i)) return null
+      if (replacements.has(i)) return `- ${replacements.get(i)}`
+      return line
+    }).filter(line => line !== null)
+
+    await this.memory.writeLongTermMemory(newLines.join('\n'))
+
+    this.logger.info('memory-pruner', 'long_term_compacted_enhanced', { removed: toRemove.size })
     return toRemove.size
   }
 

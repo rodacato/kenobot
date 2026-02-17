@@ -9,9 +9,10 @@ import defaultLogger from '../../../infrastructure/logger.js'
  * 3. Extract patterns → ProceduralMemory
  */
 export default class Consolidator {
-  constructor(memorySystem, { logger = defaultLogger } = {}) {
+  constructor(memorySystem, { logger = defaultLogger, consciousness } = {}) {
     this.memory = memorySystem
     this.logger = logger
+    this.consciousness = consciousness || null
   }
 
   /**
@@ -44,7 +45,7 @@ export default class Consolidator {
     }
 
     // 4. Extract patterns from error+resolution episodes
-    const patterns = this.extractPatterns(salient)
+    const patterns = await this.extractPatternsEnhanced(salient)
     for (const pattern of patterns) {
       await this.memory.procedural.add(pattern)
     }
@@ -193,6 +194,51 @@ export default class Consolidator {
     }
 
     return patterns
+  }
+
+  /**
+   * Extract patterns with consciousness-enhanced understanding.
+   * Falls back to heuristic extractPatterns() on any failure.
+   *
+   * @param {Array<string>} episodes - Salient episodes
+   * @returns {Promise<Array<Object>>} Extracted patterns
+   */
+  async extractPatternsEnhanced(episodes) {
+    const heuristicPatterns = this.extractPatterns(episodes)
+
+    if (!this.consciousness) return heuristicPatterns
+    if (!episodes || episodes.length === 0) return heuristicPatterns
+
+    try {
+      const result = await this.consciousness.evaluate('semantic-analyst', 'extract_patterns', {
+        episodes: episodes.map(e => e.slice(0, 200)).join('\n---\n').slice(0, 2000)
+      })
+
+      if (result?.patterns && Array.isArray(result.patterns) && result.patterns.length > 0) {
+        const valid = result.patterns.filter(p =>
+          p.trigger && p.resolution && typeof p.confidence === 'number'
+        )
+
+        if (valid.length > 0) {
+          this.logger.debug('consolidator', 'consciousness_patterns', {
+            heuristic: heuristicPatterns.length,
+            consciousness: valid.length
+          })
+
+          return valid.map((p, i) => ({
+            id: `pattern-${Date.now()}-${i}`,
+            trigger: p.trigger.slice(0, 100),
+            response: p.resolution.slice(0, 200),
+            confidence: Math.max(0, Math.min(1, p.confidence)),
+            learnedFrom: 'consolidation-consciousness'
+          }))
+        }
+      }
+    } catch (error) {
+      this.logger.warn('consolidator', 'consciousness_failed', { error: error.message })
+    }
+
+    return heuristicPatterns
   }
 
   /**

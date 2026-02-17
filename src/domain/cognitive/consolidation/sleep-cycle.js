@@ -21,11 +21,11 @@ export default class SleepCycle {
     this.memory = memorySystem
     this.logger = logger
 
-    // Initialize consolidation components
-    this.consolidator = new Consolidator(memorySystem, { logger })
+    // Initialize consolidation components (all receive consciousness for enhanced analysis)
+    this.consolidator = new Consolidator(memorySystem, { logger, consciousness })
     this.errorAnalyzer = new ErrorAnalyzer(memorySystem, { logger, consciousness })
-    this.pruner = new MemoryPruner(memorySystem, { logger })
-    this.selfImprover = new SelfImprover(memorySystem, { logger, dataDir, bus, toolRegistry, repo })
+    this.pruner = new MemoryPruner(memorySystem, { logger, consciousness })
+    this.selfImprover = new SelfImprover(memorySystem, { logger, dataDir, bus, toolRegistry, repo, consciousness })
 
     this.state = {
       lastRun: null,

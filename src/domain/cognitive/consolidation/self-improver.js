@@ -17,13 +17,14 @@ import { APPROVAL_PROPOSED } from '../../../infrastructure/events.js'
  * Output: data/sleep/proposals/YYYY-MM-DD.md
  */
 export default class SelfImprover {
-  constructor(memorySystem, { logger = defaultLogger, dataDir, bus, toolRegistry, repo } = {}) {
+  constructor(memorySystem, { logger = defaultLogger, dataDir, bus, toolRegistry, repo, consciousness } = {}) {
     this.memory = memorySystem
     this.logger = logger
     this.proposalDir = dataDir ? join(dataDir, 'sleep', 'proposals') : null
     this.bus = bus || null
     this.toolRegistry = toolRegistry || null
     this.repo = repo || ''
+    this.consciousness = consciousness || null
   }
 
   /**
@@ -38,7 +39,7 @@ export default class SelfImprover {
   async run(sleepResults = {}) {
     this.logger.info('self-improver', 'started', {})
 
-    const proposals = this.generateProposals(sleepResults)
+    const proposals = await this.generateProposalsEnhanced(sleepResults)
 
     if (proposals.length > 0 && this.proposalDir) {
       await this._writeProposals(proposals)
@@ -130,6 +131,53 @@ export default class SelfImprover {
     }
 
     return proposals
+  }
+
+  /**
+   * Generate proposals with consciousness-enhanced analysis.
+   * Falls back to heuristic generateProposals() on any failure.
+   *
+   * @param {Object} sleepResults
+   * @returns {Promise<Array<{observation: string, suggestion: string, evidence: string, priority: string}>>}
+   */
+  async generateProposalsEnhanced(sleepResults = {}) {
+    const heuristicProposals = this.generateProposals(sleepResults)
+
+    if (!this.consciousness) return heuristicProposals
+
+    const validPriorities = ['high', 'medium', 'low']
+
+    try {
+      const result = await this.consciousness.evaluate('strategist', 'analyze_sleep_results', {
+        consolidation: JSON.stringify(sleepResults.consolidation || {}),
+        errorAnalysis: JSON.stringify(sleepResults.errorAnalysis || {}),
+        pruning: JSON.stringify(sleepResults.pruning || {})
+      })
+
+      if (result?.suggestions && Array.isArray(result.suggestions) && result.suggestions.length > 0) {
+        const valid = result.suggestions.filter(s =>
+          s.observation && s.suggestion && validPriorities.includes(s.priority)
+        )
+
+        if (valid.length > 0) {
+          this.logger.debug('self-improver', 'consciousness_proposals', {
+            heuristic: heuristicProposals.length,
+            consciousness: valid.length
+          })
+
+          return valid.map(s => ({
+            observation: s.observation,
+            suggestion: s.suggestion,
+            evidence: s.evidence || 'Identified by consciousness analysis',
+            priority: s.priority
+          }))
+        }
+      }
+    } catch (error) {
+      this.logger.warn('self-improver', 'consciousness_failed', { error: error.message })
+    }
+
+    return heuristicProposals
   }
 
   /**
