@@ -13,8 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Give node user sudo access (needed for occasional system tasks)
 RUN echo "node ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/node
 
-# Install Gemini CLI globally as root
-RUN npm install -g @google/gemini-cli
+# Install Gemini CLI and Codex CLI globally as root
+RUN npm install -g @google/gemini-cli @openai/codex
 
 # Fix permissions for global node modules
 RUN chown -R node:node /usr/local/lib/node_modules
