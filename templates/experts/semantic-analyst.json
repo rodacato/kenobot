@@ -15,6 +15,10 @@
     "extract_patterns": {
       "promptTemplate": "Analyze these episodes and extract error-resolution patterns.\n\nEpisodes:\n{episodes}\n\nFor each pattern found, identify the trigger (what went wrong) and the resolution (what fixed it).\n\nRespond with JSON only: {\"patterns\": [{\"trigger\": \"...\", \"resolution\": \"...\", \"confidence\": 0.0-1.0}]}",
       "outputFormat": { "patterns": [{ "trigger": "string", "resolution": "string", "confidence": "number" }] }
+    },
+    "evaluate_confidence": {
+      "promptTemplate": "Evaluate how relevant these retrieved memory results are to the user's query.\n\nUser query: {query}\n\nTop results:\n{results}\n\nRate the overall relevance. Level must be one of: none, low, medium, high.\n\nRespond with JSON only: {\"level\": \"high|medium|low|none\", \"score\": 0.0-1.0, \"reason\": \"brief explanation\"}",
+      "outputFormat": { "level": "string", "score": "number", "reason": "string" }
     }
   }
 }

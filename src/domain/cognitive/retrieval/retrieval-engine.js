@@ -20,7 +20,7 @@ export default class RetrievalEngine {
   constructor(memorySystem, { logger = defaultLogger, consciousness, embeddingMatcher } = {}) {
     this.memorySystem = memorySystem
     this.keywordMatcher = new KeywordMatcher({ logger, consciousness })
-    this.confidenceScorer = new ConfidenceScorer({ logger })
+    this.confidenceScorer = new ConfidenceScorer({ logger, consciousness })
     this.embeddingMatcher = embeddingMatcher || null
     this.logger = logger
   }
@@ -60,8 +60,8 @@ export default class RetrievalEngine {
         this._retrieveEpisodes(sessionId, keywords, maxEpisodes, messageText)
       ])
 
-      // 3. Score confidence
-      const confidence = this.confidenceScorer.score({ facts, procedures, episodes })
+      // 3. Score confidence (consciousness-enhanced if available)
+      const confidence = await this.confidenceScorer.scoreEnhanced({ facts, procedures, episodes }, messageText)
 
       // 4. Build result
       const mode = this.embeddingMatcher ? 'hybrid' : 'keyword_only'

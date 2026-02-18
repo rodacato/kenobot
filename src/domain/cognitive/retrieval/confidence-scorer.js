@@ -12,8 +12,9 @@ import defaultLogger from '../../../infrastructure/logger.js'
  * Used to help the LLM understand how confident it should be in retrieved context.
  */
 export default class ConfidenceScorer {
-  constructor({ logger = defaultLogger } = {}) {
+  constructor({ logger = defaultLogger, consciousness } = {}) {
     this.logger = logger
+    this.consciousness = consciousness || null
   }
 
   /**
@@ -137,5 +138,58 @@ export default class ConfidenceScorer {
     }
 
     return descriptions[level] || descriptions.none
+  }
+
+  /**
+   * Score confidence with consciousness-enhanced relevance evaluation.
+   * Falls back to heuristic score() on any failure.
+   *
+   * @param {Object} results - Retrieval results
+   * @param {string} query - The user's original query
+   * @returns {Promise<{level: string, score: number, breakdown: Object, metadata: Object}>}
+   */
+  async scoreEnhanced(results, query) {
+    const heuristicResult = this.score(results)
+
+    if (!this.consciousness) return heuristicResult
+    if (heuristicResult.level === 'none') return heuristicResult
+
+    const validLevels = ['none', 'low', 'medium', 'high']
+
+    try {
+      const topResults = [
+        ...results.facts?.slice(0, 3).map(f => f.content || '') || [],
+        ...results.episodes?.slice(0, 2).map(e => e.content || '') || []
+      ].filter(r => r.length > 0).join('\n---\n').slice(0, 1500)
+
+      if (!topResults) return heuristicResult
+
+      const result = await this.consciousness.evaluate('semantic-analyst', 'evaluate_confidence', {
+        query: (query || '').slice(0, 500),
+        results: topResults
+      })
+
+      if (result?.level && validLevels.includes(result.level) &&
+          typeof result.score === 'number') {
+        this.logger.debug('confidence-scorer', 'consciousness_scored', {
+          level: result.level,
+          score: result.score,
+          reason: result.reason
+        })
+        return {
+          ...heuristicResult,
+          level: result.level,
+          score: Math.max(0, Math.min(1, Math.round(result.score * 100) / 100)),
+          metadata: {
+            ...heuristicResult.metadata,
+            consciousnessReason: result.reason || ''
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.warn('confidence-scorer', 'consciousness_failed', { error: error.message })
+    }
+
+    return heuristicResult
   }
 }
