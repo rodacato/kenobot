@@ -62,6 +62,7 @@ describe('SleepCycle', () => {
       expect(sleepCycle.errorAnalyzer).toBeDefined()
       expect(sleepCycle.pruner).toBeDefined()
       expect(sleepCycle.selfImprover).toBeDefined()
+      expect(sleepCycle.reflectionEngine).toBeDefined()
     })
   })
 
@@ -74,6 +75,7 @@ describe('SleepCycle', () => {
       expect(result.phases).toHaveProperty('errorAnalysis')
       expect(result.phases).toHaveProperty('pruning')
       expect(result.phases).toHaveProperty('selfImprovement')
+      expect(result.phases).toHaveProperty('reflection')
       expect(result.duration).toBeGreaterThanOrEqual(0)
     })
 

@@ -2,6 +2,7 @@ import Consolidator from './consolidator.js'
 import ErrorAnalyzer from './error-analyzer.js'
 import MemoryPruner from './memory-pruner.js'
 import SelfImprover from './self-improver.js'
+import ReflectionEngine from '../metacognition/reflection-engine.js'
 import defaultLogger from '../../../infrastructure/logger.js'
 
 /**
@@ -12,6 +13,7 @@ import defaultLogger from '../../../infrastructure/logger.js'
  * 2. Analyze errors and extract lessons
  * 3. Prune stale/redundant memory
  * 4. Generate self-improvement proposals
+ * 5. Reflect on results (consciousness-enhanced insights)
  *
  * Phase 4: Basic orchestration with resilience
  * Phase 6: ML-based consolidation (embeddings, clustering)
@@ -26,6 +28,7 @@ export default class SleepCycle {
     this.errorAnalyzer = new ErrorAnalyzer(memorySystem, { logger, consciousness })
     this.pruner = new MemoryPruner(memorySystem, { logger, consciousness })
     this.selfImprover = new SelfImprover(memorySystem, { logger, dataDir, bus, toolRegistry, repo, consciousness })
+    this.reflectionEngine = new ReflectionEngine({ logger, consciousness })
 
     this.state = {
       lastRun: null,
@@ -50,7 +53,8 @@ export default class SleepCycle {
       consolidation: null,
       errorAnalysis: null,
       pruning: null,
-      selfImprovement: null
+      selfImprovement: null,
+      reflection: null
     }
 
     try {
@@ -73,6 +77,11 @@ export default class SleepCycle {
       this.state.currentPhase = 'self-improvement'
       this.logger.info('sleep-cycle', 'phase_start', { phase: 'self-improvement' })
       results.selfImprovement = await this.selfImprover.run(results)
+
+      // Phase 5: Reflection (consciousness-enhanced meta-analysis)
+      this.state.currentPhase = 'reflection'
+      this.logger.info('sleep-cycle', 'phase_start', { phase: 'reflection' })
+      results.reflection = await this.reflectionEngine.reflectEnhanced(results)
 
       // Success
       this.state.status = 'success'

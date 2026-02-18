@@ -107,7 +107,7 @@ export const defaultPostProcessors = [
       const metacognition = cognitive.getMetacognition()
       if (!metacognition) return
 
-      const evaluation = metacognition.evaluateResponse(responseText, {
+      const evaluation = await metacognition.evaluateResponseEnhanced(responseText, {
         userMessage,
         hadMemory: true
       })
