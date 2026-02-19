@@ -27,7 +27,8 @@ export default class ProceduralMemory {
   async _ensureLoaded() {
     if (this._loaded) return
     if (this.store.readPatterns) {
-      this.patterns = await this.store.readPatterns()
+      const loaded = await this.store.readPatterns()
+      this.patterns = Array.isArray(loaded) ? loaded : []
     }
     this._loaded = true
   }
