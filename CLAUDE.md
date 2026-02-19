@@ -47,6 +47,7 @@ src/
 ├── domain/           → can import: domain, infrastructure
 │   ├── nervous/      # Signal-aware event bus, middleware, audit trail
 │   ├── cognitive/    # 4-tier memory, identity, retrieval, consolidation, metacognition
+│   ├── consciousness/ # Gateway (port) for fast secondary LLM evaluations
 │   ├── motor/        # Tool registry, task entity, workspace helpers, ReAct loop support
 │   └── immune/       # Secret scanner, integrity checker, path traversal protection
 ├── application/      → can import: application, domain, infrastructure
@@ -58,6 +59,7 @@ src/
 ├── adapters/         → can import: adapters, infrastructure
 │   ├── channels/     # Telegram (Grammy), HTTP webhook
 │   ├── providers/    # Claude API/CLI, Gemini API/CLI, Mock — all implement chat()
+│   ├── consciousness/ # Gemini API, Cerebras, CLI adapters for the consciousness gateway
 │   ├── storage/      # Filesystem (JSONL sessions), MemoryStore, TaskStore
 │   ├── actions/      # Motor System tools: github, shell, file operations
 │   └── scheduler/    # Cron jobs (node-cron)
@@ -73,6 +75,8 @@ src/
 
 Root files (`app.js`, `index.js`) can import from all layers.
 
+Expert profiles for consciousness live in `templates/experts/*.json` (loaded at runtime). Full architecture, configuration reference, and memory system docs are in `docs/`.
+
 ### Message Flow
 
 ```
@@ -86,6 +90,7 @@ User ← Telegram ← bus.fire('message:out') ← AgentLoop (extract tags → sa
 - **Providers**: All implement `chat(messages, options)` returning `{ content, toolCalls, stopReason, usage? }`. Never `complete()`.
 - **Composition root**: `createApp()` in `app.js` is a pure factory — use it in E2E tests for isolated instances.
 - **Four bounded contexts**: Nervous System (event bus with middleware/tracing/audit), Cognitive System (memory + identity + retrieval + consolidation), Motor System (tools + tasks + background execution), Immune System (secret scanning + integrity checking).
+- **Consciousness Gateway**: `evaluate(expertName, taskName, data)` → `Object|null`. One-shot fast LLM calls using expert profiles. Returns `null` on any failure — callers fall back to heuristics. Adapters in `src/adapters/consciousness/`.
 - **Motor System**: 7 tools via factory pattern. `github_setup_workspace` triggers background TaskRunner. Tools: `search_web`, `fetch_url`, `github_setup_workspace`, `run_command`, `read_file`, `write_file`, `list_files`.
 - **Self-Improvement**: Sleep cycle generates proposals → creates PR via Motor System → fires `approval:proposed` → user notified via Telegram.
 
@@ -126,4 +131,34 @@ Two deployment modes — code changes must work in both:
 
 ## Development Conventions
 
-Read `AGENTS.md` for development conventions (commits, testing, branching, language rules) and `IDENTITY.md` for working style.
+All code, comments, commit messages, and docs must be in English. Linear history (rebase, not merge). Branches: `master` (stable), `feature/*`, `fix/*`.
+
+### Commits
+
+Enforced by `.githooks/commit-msg`. First-time setup: `git config core.hooksPath .githooks`
+
+```
+type(scope): description    # max 72 chars, imperative mood, no period
+
+Optional body.
+
+[changelog]                 # OR [no-changelog] — one is REQUIRED
+fixed: User-facing description
+```
+
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `ci`, `perf`, `build`, `release`
+Changelog categories: `added`, `changed`, `deprecated`, `removed`, `fixed`, `security`, `release`
+
+The `pre-commit` hook blocks secrets and forbidden files (`.env`, `.pem`, `.key`).
+
+### Testing
+
+Coverage thresholds: lines 50%, functions 35%, branches 55%, statements 50%.
+
+**Use real implementations for**: filesystem I/O (real temp dirs with `mkdtemp` + cleanup in `afterEach`), `NervousSystem` bus, `ContextBuilder`, `IdentityManager`, `MemorySystem`, `RetrievalEngine`.
+
+**Always mock**: `logger.js` (suppresses noise), `config.js` (has side effects at import time — never import in tests), network boundaries (`fetch`, Anthropic SDK, Google GenAI SDK, Grammy bot).
+
+Anti-patterns to avoid: `vi.mock('node:fs/promises')`, asserting `mkdir` was called instead of verifying the file exists, mutating `_privateField` to skip real logic.
+
+See `AGENTS.md` for full conventions and `IDENTITY.md` for working style.
