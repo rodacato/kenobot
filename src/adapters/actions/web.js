@@ -4,6 +4,43 @@ const SEARCH_TIMEOUT_MS = 10_000
 const FETCH_TIMEOUT_MS = 15_000
 const FETCH_MAX_CHARS = 8000
 
+// --- SSRF protection ---
+
+const PRIVATE_HOST_PATTERNS = [
+  /^localhost$/i,
+  /^127\./,
+  /^10\./,
+  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^192\.168\./,
+  /^::1$/,
+  /^fc[0-9a-f]{2}:/i,
+  /^fd[0-9a-f]{2}:/i,
+]
+
+/**
+ * Validate a URL before fetching.
+ * Blocks private/internal hosts and non-http(s) schemes.
+ * @param {string} rawUrl
+ * @throws {Error} if the URL is unsafe
+ */
+function validateUrl(rawUrl) {
+  let parsed
+  try {
+    parsed = new URL(rawUrl)
+  } catch {
+    throw new Error(`Invalid URL: ${rawUrl}`)
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error(`Blocked URL scheme: ${parsed.protocol} (only http/https allowed)`)
+  }
+  const host = parsed.hostname
+  if (PRIVATE_HOST_PATTERNS.some(p => p.test(host))) {
+    throw new Error(`Blocked private/internal host: ${host}`)
+  }
+}
+
+// --- Tools ---
+
 export const searchWeb = {
   definition: {
     name: 'search_web',
@@ -73,6 +110,8 @@ export const fetchUrl = {
   },
 
   async execute({ url }, { logger = defaultLogger } = {}) {
+    validateUrl(url)
+
     const response = await fetch(url, {
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       headers: { 'User-Agent': 'KenoBot/1.0' }

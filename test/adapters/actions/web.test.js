@@ -4,7 +4,7 @@ vi.mock('../../../src/infrastructure/logger.js', () => ({
   default: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 }))
 
-import { searchWeb, fetchUrl } from '../../../src/domain/motor/tools.js'
+import { searchWeb, fetchUrl } from '../../../src/adapters/actions/web.js'
 
 describe('searchWeb', () => {
   let originalFetch
@@ -140,6 +140,59 @@ describe('fetchUrl', () => {
 
       await expect(fetchUrl.execute({ url: 'https://example.com/missing' }))
         .rejects.toThrow('Fetch failed: HTTP 404 Not Found')
+    })
+
+    describe('SSRF protection', () => {
+      it('should block file:// scheme', async () => {
+        await expect(fetchUrl.execute({ url: 'file:///etc/passwd' }))
+          .rejects.toThrow('Blocked URL scheme')
+      })
+
+      it('should block ftp:// scheme', async () => {
+        await expect(fetchUrl.execute({ url: 'ftp://example.com/file' }))
+          .rejects.toThrow('Blocked URL scheme')
+      })
+
+      it('should block localhost', async () => {
+        await expect(fetchUrl.execute({ url: 'http://localhost:8080/api' }))
+          .rejects.toThrow('Blocked private/internal host')
+      })
+
+      it('should block 127.x.x.x', async () => {
+        await expect(fetchUrl.execute({ url: 'http://127.0.0.1/admin' }))
+          .rejects.toThrow('Blocked private/internal host')
+      })
+
+      it('should block 192.168.x.x', async () => {
+        await expect(fetchUrl.execute({ url: 'http://192.168.1.1' }))
+          .rejects.toThrow('Blocked private/internal host')
+      })
+
+      it('should block 10.x.x.x', async () => {
+        await expect(fetchUrl.execute({ url: 'http://10.0.0.1' }))
+          .rejects.toThrow('Blocked private/internal host')
+      })
+
+      it('should block 172.16-31.x.x range', async () => {
+        await expect(fetchUrl.execute({ url: 'http://172.20.0.1' }))
+          .rejects.toThrow('Blocked private/internal host')
+      })
+
+      it('should allow public https URLs', async () => {
+        global.fetch.mockResolvedValue({
+          ok: true,
+          headers: { get: () => 'text/plain' },
+          text: async () => 'public content'
+        })
+
+        const result = await fetchUrl.execute({ url: 'https://example.com' })
+        expect(result).toContain('public content')
+      })
+
+      it('should throw on invalid URL', async () => {
+        await expect(fetchUrl.execute({ url: 'not-a-url' }))
+          .rejects.toThrow('Invalid URL')
+      })
     })
   })
 })
