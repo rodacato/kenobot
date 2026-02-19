@@ -545,3 +545,64 @@ describe('AgentLoop background tasks', () => {
     loop.stop()
   })
 })
+
+describe('AgentLoop.getActiveTasks()', () => {
+  it('returns empty array when no tasks are active', () => {
+    const bus = new NervousSystem()
+    const provider = new ScriptedProvider([])
+    const loop = new AgentLoop(bus, provider, createContextBuilder(), createStorage(), null, { logger })
+    expect(loop.getActiveTasks()).toEqual([])
+    loop.stop()
+  })
+
+  it('returns projection of active tasks', () => {
+    const bus = new NervousSystem()
+    const provider = new ScriptedProvider([])
+    const loop = new AgentLoop(bus, provider, createContextBuilder(), createStorage(), null, { logger })
+
+    const fakeTask = {
+      id: 'task-123',
+      isActive: true,
+      chatId: 'chat-abc',
+      startedAt: 1234567890,
+      cancel: vi.fn()
+    }
+    loop._activeTasks.set('api-chat-abc', fakeTask)
+
+    const result = loop.getActiveTasks()
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({
+      taskId: 'task-123',
+      sessionId: 'api-chat-abc',
+      chatId: 'chat-abc',
+      startedAt: 1234567890,
+    })
+    loop.stop()
+  })
+
+  it('excludes tasks where isActive is false', () => {
+    const bus = new NervousSystem()
+    const provider = new ScriptedProvider([])
+    const loop = new AgentLoop(bus, provider, createContextBuilder(), createStorage(), null, { logger })
+
+    loop._activeTasks.set('api-s1', { id: 't1', isActive: true, chatId: 'c1', startedAt: 1, cancel: vi.fn() })
+    loop._activeTasks.set('api-s2', { id: 't2', isActive: false, chatId: 'c2', startedAt: 2, cancel: vi.fn() })
+
+    const result = loop.getActiveTasks()
+    expect(result).toHaveLength(1)
+    expect(result[0].taskId).toBe('t1')
+    loop.stop()
+  })
+
+  it('returns multiple active tasks', () => {
+    const bus = new NervousSystem()
+    const provider = new ScriptedProvider([])
+    const loop = new AgentLoop(bus, provider, createContextBuilder(), createStorage(), null, { logger })
+
+    loop._activeTasks.set('api-s1', { id: 't1', isActive: true, chatId: 'c1', startedAt: 1, cancel: vi.fn() })
+    loop._activeTasks.set('api-s2', { id: 't2', isActive: true, chatId: 'c2', startedAt: 2, cancel: vi.fn() })
+
+    expect(loop.getActiveTasks()).toHaveLength(2)
+    loop.stop()
+  })
+})

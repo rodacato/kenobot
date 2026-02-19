@@ -111,7 +111,16 @@ export function createConfig(env = process.env) {
       model: env.EMBEDDING_MODEL || 'gemini-embedding-001',
       backend: env.EMBEDDING_BACKEND || 'jsonl',
       dimensions: int('EMBEDDING_DIMENSIONS', 768, { min: 128, max: 3072 }),
-    }
+    },
+
+    api: {
+      enabled: env.API_ENABLED === 'true',
+      apiKey: env.API_KEY || '',
+      corsOrigin: env.API_CORS_ORIGIN || '*',
+      timeout: int('API_TIMEOUT', 120000, { min: 5000 }),
+      rateLimit: int('API_RATE_LIMIT', 60, { min: 1, max: 600 }),
+      distPath: env.API_DIST_PATH || '',
+    },
   }
 
   return { config, errors }

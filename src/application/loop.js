@@ -65,6 +65,20 @@ export default class AgentLoop {
   }
 
   /**
+   * Get all currently active background tasks (read-only projection).
+   * @returns {Array<{taskId, sessionId, chatId, startedAt}>}
+   */
+  getActiveTasks() {
+    const tasks = []
+    for (const [sessionId, task] of this._activeTasks) {
+      if (task.isActive) {
+        tasks.push({ taskId: task.id, sessionId, chatId: task.chatId, startedAt: task.startedAt })
+      }
+    }
+    return tasks
+  }
+
+  /**
    * Handle an incoming message.
    * @private
    */
