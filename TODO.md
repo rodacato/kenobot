@@ -2,7 +2,7 @@
 
 > Current version: v0.6.0
 
-**Updated**: 2026-02-18
+**Updated**: 2026-02-19
 
 ---
 
@@ -40,13 +40,13 @@
 
 ## Next Up — Finish Consciousness Wiring
 
-Most consciousness integrations are done. Three gaps remain before this phase is complete.
+Most consciousness integrations are done. One gap remains before this phase is complete.
 
 ### Expert Profiles Status
 
 ```
 templates/experts/
-├── semantic-analyst.json     ✅ Done (expand_keywords, deduplicate_facts, extract_patterns)
+├── semantic-analyst.json     ✅ Done (expand_keywords, deduplicate_facts, extract_patterns, evaluate_confidence)
 ├── reliability-engineer.json ✅ Done (classify_error, extract_lesson)
 ├── quality-reviewer.json     ✅ Done (evaluate_response, detect_hedging)
 └── strategist.json           ✅ Done (analyze_sleep_results, generate_reflection)
@@ -56,9 +56,7 @@ templates/experts/
 
 | # | Gap | Description | File |
 |---|-----|-------------|------|
-| 1 | **Wire `evaluateResponseEnhanced`** | Enhanced method exists in `self-monitor.js` but `post-processors.js` still calls heuristic `evaluateResponse()` | `post-processors.js` |
-| 2 | **Wire `reflectEnhanced`** | Enhanced method exists in `reflection-engine.js` but sleep cycle never invokes it | `sleep-cycle.js` |
-| 3 | **Confidence scoring** | No `evaluate_confidence` task template in `semantic-analyst.json`, no consciousness in `confidence-scorer.js` | `confidence-scorer.js` |
+| 1 | **Wire `estimateConfidenceEnhanced`** | `evaluate_confidence` template exists in `semantic-analyst.json` but `ConfidenceEstimator` has no consciousness and no enhanced method | `confidence-estimator.js` |
 
 ---
 
