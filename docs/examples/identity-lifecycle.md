@@ -529,7 +529,7 @@ System prompt assembled (NORMAL mode):
 
 Identity isn't frozen after bootstrap. It evolves through three mechanisms:
 
-### 9.1 — `<user-update>` Tags (Immediate Update)
+### 9.1 — `<user>` Tags (Immediate Update)
 
 **March 2026** — Adrian says:
 
@@ -540,7 +540,7 @@ The LLM recognizes a preference update and responds:
 ```
 Got it! I'll switch to English for technical discussions.
 
-<user-update>Prefers English for code discussions, Spanish for personal topics</user-update>
+<user>Prefers English for code discussions, Spanish for personal topics</user>
 ```
 
 **Post-processor pipeline:**
@@ -548,7 +548,7 @@ Got it! I'll switch to English for technical discussions.
 ```
 [4. user post-processor]
   ├─ extractUserUpdates(text)
-  │   → regex: /<user-update>([\s\S]*?)<\/user-update>/g
+  │   → regex: /<user>([\s\S]*?)<\/user>/g
   │   → finds: "Prefers English for code discussions..."
   │
   └─ apply({ updates }, { cognitive, bus })
@@ -595,7 +595,7 @@ Consolidator.run()
   → The LLM sees this in its memory context, reinforcing the preference
 ```
 
-Identity files themselves (`core.md`, `rules.json`) are NOT modified by the sleep cycle. Only `preferences.md` changes through explicit `<user-update>` tags.
+Identity files themselves (`core.md`, `rules.json`) are NOT modified by the sleep cycle. Only `preferences.md` changes through explicit `<user>` tags.
 
 ### 9.3 — Accumulation Pattern
 
@@ -633,7 +633,7 @@ Nunca hagas push sin preguntarme...
 - Prefers flat directory structures over deep nesting
 ```
 
-**Each `<user-update>` tag appends to the "Learned" section.** The file grows but never shrinks (no deduplication of preferences). This is by design — preferences are explicit and should not be pruned automatically.
+**Each `<user>` tag appends to the "Learned" section.** The file grows but never shrinks (no deduplication of preferences). This is by design — preferences are explicit and should not be pruned automatically.
 
 ### 9.4 — Caching Behavior Summary
 
@@ -641,7 +641,7 @@ Nunca hagas push sin preguntarme...
 |-----------|---------|-----|-------------|
 | `core.md` | YES | Immutable personality | Only on `reload()` |
 | `rules.json` | YES | Static guidelines | Only on `reload()` |
-| `preferences.md` | NO | Changes via `<user-update>` tags | Every message |
+| `preferences.md` | NO | Changes via `<user>` tags | Every message |
 
 This design means preference updates take effect **immediately** on the next message — no restart needed.
 
@@ -697,7 +697,7 @@ Day 0+, Messages 9+ — NORMAL OPERATION
   └─ Memory system fully active
 
 Over time — IDENTITY EVOLUTION
-  ├─ <user-update> tags → append to preferences.md → immediate effect
+  ├─ <user> tags → append to preferences.md → immediate effect
   ├─ Consolidation → reinforces in MEMORY.md → indirect
   └─ preferences.md grows with learned knowledge
 ```
@@ -733,7 +733,7 @@ Over time — IDENTITY EVOLUTION
 
 | Actor | File | Role |
 |-------|------|------|
-| `extractUserUpdates` | `src/application/extractors/user.js` | Parses `<user-update>` tags |
+| `extractUserUpdates` | `src/application/extractors/user.js` | Parses `<user>` tags |
 | `runPostProcessors` | `src/application/post-processors.js` | Routes updates to identity |
 | `IdentityManager.updatePreference()` | `src/domain/cognitive/identity/identity-manager.js` | Appends to preferences.md |
 | `PreferencesManager.updatePreference()` | `src/domain/cognitive/identity/preferences-manager.js` | Filesystem write |
@@ -744,4 +744,4 @@ Over time — IDENTITY EVOLUTION
 |-------|------|-----------|---------|
 | Core (who the bot is) | `core.md` | Immutable | Cached forever |
 | Rules (how to behave) | `rules.json` | Static (manual edit only) | Cached forever |
-| Preferences (user adaptation) | `preferences.md` | Dynamic (`<user-update>` tags) | Never cached |
+| Preferences (user adaptation) | `preferences.md` | Dynamic (`<user>` tags) | Never cached |

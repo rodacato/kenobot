@@ -62,7 +62,9 @@ Every research document follows this structure:
 |---|------|-------|--------|------|
 | 1 | 2026-02-13 | Cognitive Architecture | Implemented | [cognitive-architecture.md](cognitive-architecture.md) |
 | 2 | 2026-02-14 | Nervous System | Implemented | [nervous-system.md](nervous-system.md) |
-| 3 | 2026-02-14 | Metacognition | Designed | [metacognition.md](metacognition.md) |
+| 3 | 2026-02-14 | Metacognition | Implemented | [metacognition.md](metacognition.md) |
 | 4 | 2026-02-14 | Body Systems Survey | Research | [body-systems.md](body-systems.md) |
 | 5 | 2026-02-14 | Developer Experience | Designed | [developer-experience.md](developer-experience.md) |
 | 6 | 2026-02-14 | Documentation Taxonomy | Implemented | [documentation.md](documentation.md) |
+| 7 | 2026-02-15 | Motor System | Implemented | [motor-system.md](motor-system.md) |
+| 8 | 2026-02-15 | Chat Context | Implemented | [chat-context.md](chat-context.md) |

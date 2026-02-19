@@ -236,7 +236,7 @@ runPostProcessors(text, deps)
         │   └─ (no signal fired — scratchpad is transient)
         │
         ├─ 4. user post-processor
-        │   ├─ extractUserUpdates(text) → no <user-update> tags found
+        │   ├─ extractUserUpdates(text) → no <user> tags found
         │   └─ (skip)
         │
         ├─ 5. bootstrap post-processor

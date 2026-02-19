@@ -3,7 +3,7 @@
 > Gives the bot the ability to take actions in the world beyond talking: write code, create PRs, execute commands, and improve itself — with an iterative reasoning loop (ReAct) and human-controlled autonomy levels.
 
 **Date**: 2026-02-15
-**Status**: Design
+**Status**: Implemented
 **Builds on**: [body-systems.md](body-systems.md) (section 5), [nervous-system.md](nervous-system.md)
 
 ## Experts Consulted
@@ -487,7 +487,7 @@ Bot:  "Tests pasan (4/4). PR listo: github.com/kenobot-tools/pull/5"
 **What's built**:
 - Bot can create PRs to its own `kenobot` repo (always pr-required)
 - Integration with existing self-improver proposals: instead of just writing markdown, the bot can implement the fix
-- Identity protection: PRs that modify `templates/identity/` or `~/.kenobot/data/memory/identity/` require explicit user confirmation before even creating the PR
+- Identity protection: PRs that modify `templates/identity/` or `~/.kenobot/memory/identity/` require explicit user confirmation before even creating the PR
 
 **User experience**:
 ```

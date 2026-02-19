@@ -26,7 +26,7 @@ A single-user bot that remembers your conversations, learns your preferences, an
 >
 > **KenoBot**: "Done. I'll ping you Mondays at 9:00 America/Mexico_City."
 
-Under the hood: a 4-tier memory system (working, episodic, semantic, procedural), a customizable identity with preference learning, a nightly sleep cycle that consolidates what it learned, and 5 swappable LLM providers. Single Node.js process, 4 runtime dependencies, no build step.
+Under the hood: a 4-tier memory system (working, episodic, semantic, procedural), a customizable identity with preference learning, a nightly sleep cycle that consolidates what it learned, and 7 swappable LLM providers. Single Node.js process, 4 runtime dependencies, no build step.
 
 ## Quickstart
 
@@ -46,8 +46,7 @@ Set the minimum in your `.env`:
 ```bash
 TELEGRAM_BOT_TOKEN=your-token-from-botfather
 TELEGRAM_ALLOWED_USERS=your-telegram-id
-PROVIDER=claude-api
-ANTHROPIC_API_KEY=sk-ant-...
+PROVIDER=claude-cli
 ```
 
 ```bash
@@ -79,7 +78,7 @@ You (Telegram) → Channel → Nervous System (signal bus) → Agent Loop
                                                     (identity + memory)
                                                               │
                                                         LLM Provider
-                                                   (Claude / Gemini / Mock)
+                                              (Claude / Gemini / Cerebras / Mock)
                                                               │
                                                       Memory extraction
                                                     (save what it learned)
@@ -89,8 +88,11 @@ You (Telegram) ← Channel ← Nervous System ←──────────�
 
 - **Nervous System** — Event bus with middleware, tracing, and audit trail. All components communicate through signals.
 - **Cognitive System** — 4-tier memory, identity, retrieval, metacognition, and a nightly sleep cycle.
-- **Providers** — Claude API, Claude CLI, Gemini API, Gemini CLI, or mock. All implement the same `chat()` interface.
-- **Channels** — Telegram (primary) and HTTP webhooks. Adding a new channel is ~100 lines.
+- **Motor System** — 7 tools, background tasks with ReAct loop, and self-improvement via PRs.
+- **Immune System** — Secret scanning, integrity checking, path traversal protection.
+- **Consciousness Gateway** — Fast secondary LLM for real-time evaluations (keyword expansion, confidence scoring, error analysis).
+- **Providers** — Claude API/CLI, Gemini API/CLI, Cerebras API, Codex CLI, or mock. All implement the same `chat()` interface.
+- **Channels** — Telegram (primary), HTTP webhooks, and REST API. Adding a new channel is ~100 lines.
 
 Deep dive: [Architecture](docs/architecture.md) | [Memory](docs/memory.md) | [Identity](docs/identity.md) | [Events](docs/events.md)
 
@@ -102,7 +104,7 @@ All config lives in `~/.kenobot/config/.env`. The minimum:
 |----------|----------|-------------|
 | `TELEGRAM_BOT_TOKEN` | Yes | From [@BotFather](https://t.me/botfather) |
 | `TELEGRAM_ALLOWED_USERS` | Yes | Your Telegram user ID |
-| `PROVIDER` | No | `claude-api` (default), `gemini-api`, `claude-cli`, `gemini-cli`, `mock` |
+| `PROVIDER` | No | `claude-cli` (default), `claude-api`, `gemini-api`, `gemini-cli`, `cerebras-api`, `codex-cli`, `mock` |
 | `ANTHROPIC_API_KEY` | For `claude-api` | From [console.anthropic.com](https://console.anthropic.com) |
 | `GEMINI_API_KEY` | For `gemini-api`, `gemini-cli`, consciousness | From [AI Studio](https://aistudio.google.com) |
 | `CEREBRAS_API_KEY` | For `cerebras-api` | From [cloud.cerebras.ai](https://cloud.cerebras.ai) |
@@ -118,6 +120,7 @@ All config lives in `~/.kenobot/config/.env`. The minimum:
 | `gemini-api` | Google AI alternative, production | ~3s | Per-token (Google billing) |
 | `gemini-cli` | Using existing Gemini CLI | ~15s | CLI subscription |
 | `cerebras-api` | Ultra-fast inference (Llama models) | <1s | Per-token (Cerebras billing) |
+| `codex-cli` | OpenAI Codex CLI (GPT models) | ~10s | CLI subscription |
 | `mock` | Testing, development | Instant | Free |
 
 ## CLI

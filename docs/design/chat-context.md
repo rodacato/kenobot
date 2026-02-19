@@ -56,7 +56,7 @@ Chat context is a **static description**, not a temporal event. It doesn't have 
 ### Storage
 
 ```
-~/.kenobot/data/memory/chats/{sessionId}/context.md
+~/.kenobot/memory/chats/{sessionId}/context.md
 ```
 
 Content is raw markdown, typically 3-5 lines:

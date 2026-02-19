@@ -1,6 +1,6 @@
 # Architecture
 
-> Event-driven architecture with two bounded contexts: the **Nervous System** (signaling) and the **Cognitive System** (memory & identity). Every piece is swappable without touching the core.
+> Event-driven architecture with four bounded contexts — **Nervous System** (signaling), **Cognitive System** (memory & identity), **Motor System** (tools & tasks), and **Immune System** (security) — plus a **Consciousness Gateway** for fast secondary LLM evaluations. Every piece is swappable without touching the core.
 >
 > Design rationale and research notes are in `docs/design/`.
 
@@ -11,12 +11,14 @@
 3. [Core Components](#core-components)
 4. [Nervous System](#nervous-system)
 5. [Cognitive System](#cognitive-system)
-6. [Interfaces & Contracts](#interfaces--contracts)
-7. [Design Patterns](#design-patterns)
-8. [Data Flow](#data-flow)
-9. [Limits & Constraints](#limits--constraints)
-10. [Composition Root](#composition-root)
-11. [Extending KenoBot](#extending-kenobot)
+6. [Motor System](#motor-system)
+7. [Immune System](#immune-system)
+8. [Interfaces & Contracts](#interfaces--contracts)
+9. [Design Patterns](#design-patterns)
+10. [Data Flow](#data-flow)
+11. [Limits & Constraints](#limits--constraints)
+12. [Composition Root](#composition-root)
+13. [Extending KenoBot](#extending-kenobot)
 
 ---
 
@@ -25,28 +27,35 @@
 KenoBot follows an **event-driven architecture** where all components communicate through the Nervous System — a signal-aware event bus with middleware, tracing, and audit. No component calls another directly — they fire and listen to signals.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                       KenoBot Core                          │
-│                                                             │
-│  ┌────────────┐  ┌───────────┐  ┌──────────────────────┐   │
-│  │  Context    │  │   Agent   │  │   Cognitive System   │   │
-│  │  Builder    │  │   Loop    │  │                      │   │
-│  │            │  │           │  │ working memory       │   │
-│  │ identity   │  │ receive   │  │ episodic memory      │   │
-│  │ memory     │  │ build     │  │ semantic memory      │   │
-│  │ history    │  │ execute   │  │ procedural memory    │   │
-│  └────────────┘  └─────┬─────┘  └──────────────────────┘   │
-│                        │                                    │
-│              ┌─────────┴──────────┐                         │
-│              │  Nervous System    │                          │
-│              │  (signal bus)      │                          │
-│              │                    │                          │
-│  Signals:    │ middleware pipeline│                          │
-│  message:in  │ audit trail (JSONL)│                          │
-│  message:out │ trace correlation  │                          │
-│  health:*    │ dead-signal detect │                          │
-│              └─────────┬──────────┘                         │
-└────────────────────────┼────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                          KenoBot Core                                │
+│                                                                      │
+│  ┌────────────┐  ┌───────────┐  ┌──────────────────────┐            │
+│  │  Context    │  │   Agent   │  │   Cognitive System   │            │
+│  │  Builder    │  │   Loop    │  │                      │            │
+│  │            │  │           │  │ working memory       │            │
+│  │ identity   │  │ receive   │  │ episodic memory      │            │
+│  │ memory     │  │ build     │  │ semantic memory      │            │
+│  │ history    │  │ execute   │  │ procedural memory    │            │
+│  └────────────┘  └─────┬─────┘  │ metacognition        │            │
+│                        │        └──────────────────────┘            │
+│  ┌────────────┐  ┌─────┴──────┐  ┌──────────────────────┐          │
+│  │  Motor      │  │  Nervous   │  │  Immune System       │          │
+│  │  System     │  │  System    │  │                      │          │
+│  │            │  │ (signal    │  │ secret scanner       │          │
+│  │ 7 tools    │  │  bus)      │  │ integrity checker    │          │
+│  │ task runner │  │            │  │ path traversal guard │          │
+│  │ workspaces  │  │ middleware │  └──────────────────────┘          │
+│  └────────────┘  │ audit trail│                                     │
+│                  │ trace      │  ┌──────────────────────┐          │
+│                  │ dead-signal│  │ Consciousness        │          │
+│                  └─────┬──────┘  │ Gateway              │          │
+│                        │        │                      │          │
+│  Signals:              │        │ evaluate() → Object  │          │
+│  message:in/out        │        │ 4 expert profiles    │          │
+│  task:*  health:*      │        │ fallback → null      │          │
+│  approval:*            │        └──────────────────────┘          │
+└────────────────────────┼─────────────────────────────────────────┘
                          │
        ┌─────────────────┼─────────────────┐
        │                 │                 │
@@ -54,9 +63,11 @@ KenoBot follows an **event-driven architecture** where all components communicat
 │  Channels   │   │  Providers  │   │  Storage   │
 ├─────────────┤   ├─────────────┤   ├────────────┤
 │ Telegram    │   │ Claude API  │   │ Filesystem │
-│ HTTP        │   │ Claude CLI  │   │ (JSONL +   │
+│ HTTP/REST   │   │ Claude CLI  │   │ (JSONL +   │
 │             │   │ Gemini API  │   │  markdown) │
 │             │   │ Gemini CLI  │   │            │
+│             │   │ Cerebras API│   │            │
+│             │   │ Codex CLI   │   │            │
 │             │   │ Mock        │   │            │
 └─────────────┘   └─────────────┘   └────────────┘
        │
@@ -920,7 +931,7 @@ Response sent via Nervous System
 
 ### How the Bounded Contexts Interact
 
-The Nervous System and Cognitive System are complementary. They interact through the Agent Loop: the Nervous System delivers messages to the Agent Loop, which uses the Cognitive System to build context and save memories, then fires the response back through the Nervous System.
+The four bounded contexts interact through the Agent Loop and the Nervous System signal bus:
 
 ```
 Nervous System           Agent Loop              Cognitive System
@@ -930,17 +941,17 @@ bus.fire()    ───→  onMessage()
                                           ←─── { memory, identity }
                     provider.chat()
                     post-processors       ───→ cognitive.saveMemory()
+                    tool calls?           ───→ Motor System (inline or background)
 bus.fire()    ←───  emit response
 ```
 
-| | Nervous System | Cognitive System |
-|---|---|---|
-| **Metaphor** | Signal transmission | Thought and memory |
-| **Concern** | How components communicate | What the bot knows and remembers |
-| **API** | `bus.fire()`, `bus.on()` | `cognitive.buildContext()`, `cognitive.saveMemory()` |
-| **Persistence** | JSONL audit trail (signals) | Markdown + JSON files (memories) |
-| **Pattern** | EIP / Observer | Cognitive psychology models |
-| **Location** | `src/domain/nervous/` | `src/domain/cognitive/` |
+| Context | Metaphor | Concern | Location |
+|---|---|---|---|
+| **Nervous System** | Signal transmission | How components communicate | `src/domain/nervous/` |
+| **Cognitive System** | Thought and memory | What the bot knows and remembers | `src/domain/cognitive/` |
+| **Motor System** | Hands and tools | Taking actions in the world | `src/domain/motor/` |
+| **Immune System** | Immune defense | Security and behavioral integrity | `src/domain/immune/` |
+| **Consciousness Gateway** | Prefrontal cortex | Fast secondary LLM evaluations | `src/domain/consciousness/` |
 
 ### Cognitive System API Reference
 
@@ -1124,7 +1135,7 @@ class BaseProvider {
 }
 ```
 
-Five implementations: `claude-api` (Anthropic SDK), `claude-cli` (subprocess), `gemini-api` (Google GenAI SDK), `gemini-cli` (subprocess), `mock` (testing).
+Seven implementations: `claude-api` (Anthropic SDK), `claude-cli` (subprocess), `gemini-api` (Google GenAI SDK), `gemini-cli` (subprocess), `cerebras-api` (Cerebras SDK), `codex-cli` (subprocess), `mock` (testing).
 
 ### BaseChannel (`src/adapters/channels/base.js`)
 
@@ -1187,23 +1198,19 @@ If `allowFrom` is empty or missing, **all messages are rejected**. Fail closed, 
 
 ### 7. Max Iterations
 
-Tool execution loop has a configurable safety limit (default: 20). If the agent is still requesting tools after 20 iterations, it stops and returns an error message.
+Tool execution loop has a configurable safety limit (default: 15). If the agent is still requesting tools after 15 iterations, it stops and returns an error message.
 
 ---
 
 ## Data Flow
 
-All runtime data lives in `~/.kenobot/data/` (or `$KENOBOT_HOME/data/`):
+Non-memory runtime data lives in `~/.kenobot/data/`:
 
 ```
 ~/.kenobot/data/
   sessions/
     telegram-123456789.jsonl    # Per-chat append-only history
     http-request-uuid.jsonl     # Transient HTTP sessions
-  memory/
-    MEMORY.md                   # Long-term curated facts
-    2026-02-07.md               # Today's auto-extracted notes
-    2026-02-06.md               # Yesterday
   nervous/
     signals/
       2026-02-07.jsonl          # Nervous System audit trail (daily rotation)
@@ -1214,7 +1221,7 @@ All runtime data lives in `~/.kenobot/data/` (or `$KENOBOT_HOME/data/`):
   kenobot.pid                   # PID file (when running as daemon)
 ```
 
-Identity and cognitive runtime data lives in `~/.kenobot/memory/`:
+All memory and identity data lives in `~/.kenobot/memory/`:
 
 ```
 ~/.kenobot/memory/
@@ -1242,7 +1249,7 @@ Identity and cognitive runtime data lives in `~/.kenobot/memory/`:
 | Constraint | Value | Configurable |
 |-----------|-------|-------------|
 | Session history | Last 20 messages per session | Yes (`SESSION_HISTORY_LIMIT`) |
-| Max tool iterations | 20 rounds per message | Yes (`MAX_TOOL_ITERATIONS`) |
+| Max tool iterations | 15 rounds per message | Yes (`MAX_TOOL_ITERATIONS`) |
 | Telegram message chunk | 4000 characters | No (Telegram API limit) |
 | MEMORY.md size | Unlimited | No (grows with usage) |
 | Daily logs retention | 30 days (compacted into MEMORY.md) | Yes (`MEMORY_RETENTION_DAYS`) |
@@ -1324,15 +1331,21 @@ src/
   domain/                  # Bounded contexts — pure business logic, no I/O
     nervous/               # Signal bus with middleware, tracing, and audit trail
     cognitive/             # Memory (4-tier), identity, retrieval, metacognition, consolidation
+    motor/                 # Tool registry, task entity, workspace helpers
+    immune/                # Secret scanner, integrity checker
+    consciousness/         # Gateway (port) for fast secondary LLM evaluations
   application/             # Use cases and orchestration
     loop.js                # Agent loop: message:in → context → LLM → memory → message:out
+    task-runner.js         # Background ReAct loop for long-running tasks
     context.js             # Prompt assembly (identity + memory + history)
     post-processors.js     # Tag extraction pipeline (<memory>, <user>, etc.)
     extractors/            # Individual tag extractors
   adapters/                # External world interfaces (pluggable)
-    channels/              # Telegram, HTTP webhooks
-    providers/             # Claude API/CLI, Gemini API/CLI, mock — all implement chat()
+    channels/              # Telegram, HTTP webhook + REST API
+    providers/             # Claude API/CLI, Gemini API/CLI, Cerebras, Codex CLI, Mock
+    consciousness/         # Gemini API, Gemini CLI, Cerebras adapters
     storage/               # Filesystem: append-only JSONL sessions, markdown memory
+    actions/               # Motor System tools: github, shell, file operations
     scheduler/             # Cron-based tasks fired as synthetic signals
   infrastructure/          # Cross-cutting concerns
     config.js              # Env-based configuration
@@ -1347,9 +1360,10 @@ test/                      # Test suite (mirrors src/ structure)
 
 ~/.kenobot/                # User home — persistent across updates
   config/.env              # Bot configuration
+  memory/                  # All memory + identity (MEMORY.md, daily logs, working/, chats/, identity/)
   data/sessions/           # Per-chat JSONL conversation history
-  data/memory/             # Cognitive system memory store + identity files
   data/logs/               # Structured JSONL logs
+  data/nervous/            # Nervous System audit trail
   data/scheduler/          # Persistent task definitions
 ```
 
