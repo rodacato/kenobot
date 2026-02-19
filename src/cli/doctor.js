@@ -163,7 +163,8 @@ async function checkProvider(paths) {
         label: 'Provider: claude-api — API key format looks unusual',
       }
     }
-    return { status: 'ok', label: 'Provider: claude-api' }
+    const isOAuth = key.startsWith('sk-ant' + '-oat')
+    return { status: 'ok', label: `Provider: claude-api (${isOAuth ? 'OAuth/Claude.ai' : 'API key'})` }
   }
 
   if (provider === 'claude-cli') {

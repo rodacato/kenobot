@@ -9,21 +9,34 @@ import logger from '../../infrastructure/logger.js'
  * Uses the official Anthropic SDK to call Claude directly.
  * Requires ANTHROPIC_API_KEY environment variable.
  *
- * More control than ClaudeCLIProvider and works as root.
+ * Supports two token types:
+ * - API key (starts with "sk-ant-" then "api"): standard billing key from console.anthropic.com
+ * - OAuth token (starts with "sk-ant-" then "oat"): from `claude setup-token`, uses your Claude.ai subscription
  */
 export default class ClaudeAPIProvider extends BaseProvider {
   constructor(config) {
     super()
     this.config = config
 
-    // Validate API key
-    if (!process.env.ANTHROPIC_API_KEY) {
+    const key = process.env.ANTHROPIC_API_KEY
+    if (!key) {
       throw new Error('ANTHROPIC_API_KEY environment variable is required for claude-api provider')
     }
 
-    this.client = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY
-    })
+    const isOAuth = key.startsWith('sk-ant' + '-oat')
+    this.client = new Anthropic(
+      isOAuth
+        ? {
+            apiKey: null,
+            authToken: key,
+            defaultHeaders: {
+              'anthropic-beta': 'claude-code-20250219,oauth-2025-04-20',
+              'user-agent': 'claude-cli/1.0 (external, cli)',
+              'x-app': 'cli',
+            },
+          }
+        : { apiKey: key }
+    )
 
     // Model mapping: friendly names → API model IDs
     const modelMap = {
