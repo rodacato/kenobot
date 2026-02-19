@@ -4,7 +4,7 @@ vi.mock('../../../src/infrastructure/logger.js', () => ({
   default: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 }))
 
-import { ToolRegistry, createToolRegistry } from '../../../src/domain/motor/index.js'
+import { ToolRegistry } from '../../../src/domain/motor/index.js'
 
 function makeTool(name, result) {
   return {
@@ -68,41 +68,5 @@ describe('ToolRegistry', () => {
       expect(outcome.result).toBe('{"count":42}')
       expect(outcome.isError).toBe(false)
     })
-  })
-})
-
-describe('createToolRegistry', () => {
-  it('should return a registry with search_web and fetch_url tools when no config', () => {
-    const registry = createToolRegistry()
-
-    expect(registry.size).toBe(2)
-
-    const names = registry.getDefinitions().map(d => d.name)
-    expect(names).toContain('search_web')
-    expect(names).toContain('fetch_url')
-  })
-
-  it('should register action tools when motor config is present', () => {
-    const config = {
-      motor: {
-        githubUsername: 'testuser',
-        workspacesDir: '/tmp/test-workspaces',
-        shellTimeout: 60000,
-        shellMaxOutput: 102400,
-      }
-    }
-    const registry = createToolRegistry(config)
-
-    // 2 information + 5 action = 7 tools
-    expect(registry.size).toBe(7)
-
-    const names = registry.getDefinitions().map(d => d.name)
-    expect(names).toContain('search_web')
-    expect(names).toContain('fetch_url')
-    expect(names).toContain('run_command')
-    expect(names).toContain('read_file')
-    expect(names).toContain('write_file')
-    expect(names).toContain('list_files')
-    expect(names).toContain('github_setup_workspace')
   })
 })

@@ -20,7 +20,11 @@ import {
   TASK_QUEUED, TASK_STARTED, TASK_PROGRESS, TASK_COMPLETED, TASK_FAILED, TASK_CANCELLED,
   APPROVAL_PROPOSED, APPROVAL_APPROVED, APPROVAL_REJECTED
 } from './infrastructure/events.js'
-import { createToolRegistry } from './domain/motor/index.js'
+import { ToolRegistry } from './domain/motor/index.js'
+import { searchWeb, fetchUrl } from './adapters/actions/web.js'
+import { createRunCommand } from './adapters/actions/shell.js'
+import { createReadFile, createWriteFile, createListFiles } from './adapters/actions/file.js'
+import { createGithubSetupWorkspace } from './adapters/actions/github.js'
 import TaskStore from './adapters/storage/task-store.js'
 import { ConsciousnessGateway } from './domain/consciousness/index.js'
 import CLIConsciousnessAdapter from './adapters/consciousness/cli-adapter.js'
@@ -108,7 +112,17 @@ export function createApp(config, provider, options = {}) {
   const storage = new FilesystemStorage(config, { logger })
 
   // Motor System: Tool registry for ReAct loop (created before Cognitive to wire into sleep cycle)
-  const toolRegistry = createToolRegistry(config)
+  // Wired here (composition root) so domain/motor stays free of adapter imports
+  const toolRegistry = new ToolRegistry()
+  toolRegistry.register(searchWeb)
+  toolRegistry.register(fetchUrl)
+  if (config.motor) {
+    toolRegistry.register(createRunCommand(config.motor))
+    toolRegistry.register(createReadFile(config.motor))
+    toolRegistry.register(createWriteFile(config.motor))
+    toolRegistry.register(createListFiles(config.motor))
+    toolRegistry.register(createGithubSetupWorkspace(config.motor))
+  }
 
   // Consciousness Layer: fast secondary model for semantic evaluation
   let consciousnessAdapter = null

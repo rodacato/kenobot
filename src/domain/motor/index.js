@@ -1,8 +1,4 @@
 import defaultLogger from '../../infrastructure/logger.js'
-import { searchWeb, fetchUrl } from './tools.js'
-import { createRunCommand } from '../../adapters/actions/shell.js'
-import { createReadFile, createWriteFile, createListFiles } from '../../adapters/actions/file.js'
-import { createGithubSetupWorkspace } from '../../adapters/actions/github.js'
 
 /**
  * ToolRegistry - Catalog of tools the bot can use during conversations.
@@ -41,24 +37,4 @@ export class ToolRegistry {
   get size() {
     return this._tools.size
   }
-}
-
-export function createToolRegistry(config = {}) {
-  const registry = new ToolRegistry()
-
-  // Information tools (always available)
-  registry.register(searchWeb)
-  registry.register(fetchUrl)
-
-  // Action tools (require motor config)
-  const motor = config.motor
-  if (motor) {
-    registry.register(createRunCommand(motor))
-    registry.register(createReadFile(motor))
-    registry.register(createWriteFile(motor))
-    registry.register(createListFiles(motor))
-    registry.register(createGithubSetupWorkspace(motor))
-  }
-
-  return registry
 }
