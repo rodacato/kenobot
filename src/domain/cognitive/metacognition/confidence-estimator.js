@@ -7,8 +7,9 @@ import defaultLogger from '../../../infrastructure/logger.js'
  * an overall confidence assessment for a given interaction.
  */
 export default class ConfidenceEstimator {
-  constructor({ logger = defaultLogger } = {}) {
+  constructor({ logger = defaultLogger, consciousness } = {}) {
     this.logger = logger
+    this.consciousness = consciousness || null
   }
 
   /**
@@ -75,5 +76,71 @@ export default class ConfidenceEstimator {
       score: Math.round(score * 100) / 100,
       reason: `Estimated from ${factCount} retrieved facts`
     }
+  }
+
+  /**
+   * Estimate confidence with consciousness-enhanced relevance evaluation.
+   * Promotes the pre-computed consciousness reason from ConfidenceScorer when
+   * available (avoids a duplicate LLM call). Falls back to calling consciousness
+   * directly, then to heuristic estimate().
+   *
+   * @param {Object} retrievalResult - Full result from RetrievalEngine.retrieve()
+   * @param {string} [query] - The user's original query
+   * @returns {Promise<{ level: 'none'|'low'|'medium'|'high', score: number, reason: string }>}
+   */
+  async estimateEnhanced(retrievalResult, query = '') {
+    const heuristicResult = this.estimate(retrievalResult)
+
+    // ConfidenceScorer already ran consciousness during retrieval — promote that result
+    const consciousnessReason = retrievalResult?.confidence?.metadata?.consciousnessReason
+    if (consciousnessReason) {
+      const { level, score } = retrievalResult.confidence
+      this.logger.debug('confidence-estimator', 'promoted_scorer_result', { level, score })
+      return {
+        level,
+        score: Math.max(0, Math.min(1, Math.round(score * 100) / 100)),
+        reason: consciousnessReason
+      }
+    }
+
+    // ConfidenceScorer ran heuristic-only (e.g. it failed) — try calling consciousness here
+    if (!this.consciousness) return heuristicResult
+
+    const totalResults = (retrievalResult?.facts?.length || 0) +
+      (retrievalResult?.procedures?.length || 0) +
+      (retrievalResult?.episodes?.length || 0)
+    if (totalResults === 0) return heuristicResult
+
+    const validLevels = ['none', 'low', 'medium', 'high']
+
+    try {
+      const topContent = [
+        ...(retrievalResult.facts?.slice(0, 3).map(f => f.content || '') || []),
+        ...(retrievalResult.episodes?.slice(0, 2).map(e => e.content || '') || [])
+      ].filter(r => r.length > 0).join('\n---\n').slice(0, 1500)
+
+      if (!topContent) return heuristicResult
+
+      const result = await this.consciousness.evaluate('semantic-analyst', 'evaluate_confidence', {
+        query: (query || '').slice(0, 500),
+        results: topContent
+      })
+
+      if (result?.level && validLevels.includes(result.level) && typeof result.score === 'number') {
+        this.logger.debug('confidence-estimator', 'consciousness_estimated', {
+          level: result.level,
+          score: result.score
+        })
+        return {
+          level: result.level,
+          score: Math.max(0, Math.min(1, Math.round(result.score * 100) / 100)),
+          reason: result.reason || heuristicResult.reason
+        }
+      }
+    } catch (error) {
+      this.logger.warn('confidence-estimator', 'consciousness_failed', { error: error.message })
+    }
+
+    return heuristicResult
   }
 }

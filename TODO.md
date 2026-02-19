@@ -21,7 +21,7 @@
 | **Observability** | Done (response tracking, cost tracking, `/health`, `kenobot stats`) | 10+ |
 | **CLI** | Done | — |
 
-**Total: 1300+ tests, 107 test files, 4 bounded contexts.**
+**Total: 1378+ tests, 114 test files, 4 bounded contexts.**
 
 ### What shipped since v0.6.0
 
@@ -38,25 +38,33 @@
 
 ---
 
-## Next Up — Finish Consciousness Wiring
+## Consciousness Wiring — Complete ✅
 
-Most consciousness integrations are done. One gap remains before this phase is complete.
+All expert profiles and wiring are done. Every enhanced method has a heuristic fallback.
 
-### Expert Profiles Status
+### Expert Profiles
 
 ```
 templates/experts/
-├── semantic-analyst.json     ✅ Done (expand_keywords, deduplicate_facts, extract_patterns, evaluate_confidence)
-├── reliability-engineer.json ✅ Done (classify_error, extract_lesson)
-├── quality-reviewer.json     ✅ Done (evaluate_response, detect_hedging)
-└── strategist.json           ✅ Done (analyze_sleep_results, generate_reflection)
+├── semantic-analyst.json     ✅ (expand_keywords, deduplicate_facts, extract_patterns, evaluate_confidence)
+├── reliability-engineer.json ✅ (classify_error, extract_lesson)
+├── quality-reviewer.json     ✅ (evaluate_response, detect_hedging)
+└── strategist.json           ✅ (analyze_sleep_results, generate_reflection)
 ```
 
-### Remaining Gaps
+### Wiring Map
 
-| # | Gap | Description | File |
-|---|-----|-------------|------|
-| 1 | **Wire `estimateConfidenceEnhanced`** | `evaluate_confidence` template exists in `semantic-analyst.json` but `ConfidenceEstimator` has no consciousness and no enhanced method | `confidence-estimator.js` |
+| Component | Enhanced method | Called from |
+|-----------|----------------|-------------|
+| `KeywordMatcher` | `extractKeywordsEnhanced()` | `RetrievalEngine.retrieve()` |
+| `MemoryPruner` | `pruneEnhanced()` | `SleepCycle.run()` |
+| `Consolidator` | `consolidateEnhanced()` | `SleepCycle.run()` |
+| `ErrorAnalyzer` | `classifyEnhanced()` / `extractLessonEnhanced()` | `SleepCycle.run()` |
+| `SelfImprover` | `analyzeEnhanced()` | `SleepCycle.run()` |
+| `SelfMonitor` | `evaluateEnhanced()` | `post-processors.js` metacognition step |
+| `ReflectionEngine` | `reflectEnhanced()` | `SleepCycle.run()` |
+| `ConfidenceScorer` | `scoreEnhanced()` | `RetrievalEngine.retrieve()` |
+| `ConfidenceEstimator` | `estimateEnhanced()` | `CognitiveSystem.buildContext()` → `ContextBuilder` confidence annotation |
 
 ---
 
@@ -66,7 +74,7 @@ Items that add value but need more design or whose complexity isn't justified to
 
 | Item | Status |
 |------|--------|
-| **Attention Gate** | Useful once memory exceeds ~500 facts. Embedding retrieval + consciousness confidence scoring partially solve this — revisit after confidence scoring is wired. |
+| **Attention Gate** | Useful once memory exceeds ~500 facts. Embedding retrieval + consciousness confidence scoring (now fully wired) partially solve this. Revisit when memory grows. |
 | **RAG for code context** | Embedding infrastructure is now available. Revisit when Motor System handles repos >10k LOC. |
 | **Motivation/Desires** | Adds personality, not capability. Scheduler already covers proactive behavior. |
 | **Affective State** | Identity rules handle tone. Emotional nuance is a polish item, not a gap. |

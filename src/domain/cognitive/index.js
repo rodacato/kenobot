@@ -103,9 +103,13 @@ export default class CognitiveSystem {
 
       const retrieved = await this.retrieval.retrieve(sessionId, messageText, limits, { chatContext })
 
+      // Assess retrieval confidence at the metacognition level
+      const confidenceAssessment = await this.metacognition.estimateConfidenceEnhanced(retrieved, messageText)
+
       this.logger.debug('cognitive', 'retrieval_used', {
         sessionId,
-        confidence: retrieved.confidence.level,
+        confidence: confidenceAssessment.level,
+        score: confidenceAssessment.score,
         resultCount: retrieved.facts.length + retrieved.procedures.length + retrieved.episodes.length
       })
 
@@ -119,7 +123,8 @@ export default class CognitiveSystem {
           chatContext
         },
         workingMemory,
-        retrieval: retrieved, // Include full retrieval metadata
+        retrieval: retrieved,
+        confidenceAssessment,
         isBootstrapping: false
       }
     }

@@ -138,4 +138,118 @@ describe('ConfidenceEstimator', () => {
       expect(result.score).toBeGreaterThanOrEqual(0.4)
     })
   })
+
+  describe('estimateEnhanced', () => {
+    const retrievalWithConsciousness = {
+      confidence: {
+        level: 'high',
+        score: 0.85,
+        metadata: { consciousnessReason: 'Facts directly address the query about dark mode' }
+      },
+      facts: [{ content: 'User prefers dark mode', score: 4 }],
+      procedures: [],
+      episodes: []
+    }
+
+    const retrievalHeuristic = {
+      confidence: { level: 'medium', score: 0.5, metadata: { totalResults: 1 } },
+      facts: [{ content: 'User prefers dark mode', score: 4 }],
+      procedures: [],
+      episodes: []
+    }
+
+    it('promotes pre-computed consciousness result from ConfidenceScorer', async () => {
+      const result = await estimator.estimateEnhanced(retrievalWithConsciousness, 'dark mode?')
+
+      expect(result.level).toBe('high')
+      expect(result.score).toBe(0.85)
+      expect(result.reason).toContain('dark mode')
+    })
+
+    it('does not call consciousness when scorer already evaluated', async () => {
+      const mockConsciousness = { evaluate: vi.fn() }
+      const withConsciousness = new ConfidenceEstimator({ consciousness: mockConsciousness })
+
+      await withConsciousness.estimateEnhanced(retrievalWithConsciousness, 'dark mode?')
+
+      expect(mockConsciousness.evaluate).not.toHaveBeenCalled()
+    })
+
+    it('calls consciousness when scorer used heuristic only', async () => {
+      const mockConsciousness = {
+        evaluate: vi.fn().mockResolvedValue({ level: 'high', score: 0.9, reason: 'Very relevant' })
+      }
+      const withConsciousness = new ConfidenceEstimator({ consciousness: mockConsciousness })
+
+      const result = await withConsciousness.estimateEnhanced(retrievalHeuristic, 'query')
+
+      expect(mockConsciousness.evaluate).toHaveBeenCalledWith(
+        'semantic-analyst',
+        'evaluate_confidence',
+        expect.objectContaining({ query: 'query' })
+      )
+      expect(result.level).toBe('high')
+      expect(result.score).toBe(0.9)
+    })
+
+    it('falls back to heuristic when no consciousness provided', async () => {
+      const result = await estimator.estimateEnhanced(retrievalHeuristic, 'query')
+
+      expect(result.level).toBeDefined()
+      expect(result.score).toBeDefined()
+    })
+
+    it('falls back to heuristic when consciousness throws', async () => {
+      const mockConsciousness = {
+        evaluate: vi.fn().mockRejectedValue(new Error('timeout'))
+      }
+      const withConsciousness = new ConfidenceEstimator({ consciousness: mockConsciousness })
+
+      const result = await withConsciousness.estimateEnhanced(retrievalHeuristic, 'query')
+
+      expect(result.level).toBeDefined()
+      expect(result.score).toBeDefined()
+    })
+
+    it('falls back to heuristic when consciousness returns invalid level', async () => {
+      const mockConsciousness = {
+        evaluate: vi.fn().mockResolvedValue({ level: 'ultra', score: 0.9, reason: 'test' })
+      }
+      const withConsciousness = new ConfidenceEstimator({ consciousness: mockConsciousness })
+
+      const result = await withConsciousness.estimateEnhanced(retrievalHeuristic, 'query')
+
+      expect(['none', 'low', 'medium', 'high']).toContain(result.level)
+    })
+
+    it('skips consciousness when no results', async () => {
+      const mockConsciousness = { evaluate: vi.fn() }
+      const withConsciousness = new ConfidenceEstimator({ consciousness: mockConsciousness })
+      const empty = { confidence: { level: 'none', score: 0, metadata: {} }, facts: [], procedures: [], episodes: [] }
+
+      await withConsciousness.estimateEnhanced(empty, 'query')
+
+      expect(mockConsciousness.evaluate).not.toHaveBeenCalled()
+    })
+
+    it('clamps score to 0-1 range when promoted from scorer', async () => {
+      const retrieval = {
+        confidence: { level: 'high', score: 1.5, metadata: { consciousnessReason: 'test' } },
+        facts: [{ content: 'f', score: 5 }],
+        procedures: [],
+        episodes: []
+      }
+
+      const result = await estimator.estimateEnhanced(retrieval, 'q')
+
+      expect(result.score).toBeLessThanOrEqual(1)
+    })
+
+    it('returns heuristic when retrieval result is null', async () => {
+      const result = await estimator.estimateEnhanced(null)
+
+      expect(result.level).toBe('low')
+      expect(result.score).toBe(0.2)
+    })
+  })
 })

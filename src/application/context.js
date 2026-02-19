@@ -131,6 +131,7 @@ export default class ContextBuilder {
     const chatLongTerm = context.memory.chatLongTerm
     const chatRecent = context.memory.chatRecent
     const workingMemoryResult = context.workingMemory
+    const confidenceAssessment = context.confidenceAssessment || null
 
     // Filter stale working memory (>7 days by default)
     const staleDays = this.config.workingMemoryStaleThreshold ?? 7
@@ -149,6 +150,13 @@ export default class ContextBuilder {
       '| `<chat-context>description</chat-context>` | Chat type, tone, participants | Per-chat (replaces previous) |\n',
       '_Use sparingly. One line per fact. Don\'t duplicate what\'s already saved._\n'
     ]
+
+    if (confidenceAssessment && (confidenceAssessment.level === 'low' || confidenceAssessment.level === 'none')) {
+      const note = confidenceAssessment.reason
+        ? `_Memory relevance: ${confidenceAssessment.level} — ${confidenceAssessment.reason}_`
+        : `_Memory relevance: ${confidenceAssessment.level} — retrieved context may not be fully relevant_`
+      lines.push(note + '\n')
+    }
 
     if (longTerm) {
       lines.push('### Long-term memory')

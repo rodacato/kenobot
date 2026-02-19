@@ -17,7 +17,7 @@ export default class MetacognitionSystem {
   constructor({ logger = defaultLogger, consciousness } = {}) {
     this.logger = logger
     this.selfMonitor = new SelfMonitor({ logger, consciousness })
-    this.confidenceEstimator = new ConfidenceEstimator({ logger })
+    this.confidenceEstimator = new ConfidenceEstimator({ logger, consciousness })
     this.reflectionEngine = new ReflectionEngine({ logger, consciousness })
   }
 
@@ -55,6 +55,18 @@ export default class MetacognitionSystem {
    */
   async evaluateResponseEnhanced(response, context = {}) {
     return this.selfMonitor.evaluateEnhanced(response, context)
+  }
+
+  /**
+   * Estimate confidence with consciousness-enhanced relevance evaluation.
+   * Falls back to heuristic estimateConfidence() on any failure.
+   *
+   * @param {Object} retrievalResult - Full result from RetrievalEngine.retrieve()
+   * @param {string} [query] - The user's original query
+   * @returns {Promise<{ level: 'none'|'low'|'medium'|'high', score: number, reason: string }>}
+   */
+  async estimateConfidenceEnhanced(retrievalResult, query = '') {
+    return this.confidenceEstimator.estimateEnhanced(retrievalResult, query)
   }
 
   /**
