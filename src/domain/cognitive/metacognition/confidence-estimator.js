@@ -103,7 +103,10 @@ export default class ConfidenceEstimator {
       }
     }
 
-    // ConfidenceScorer ran heuristic-only (e.g. it failed) — try calling consciousness here
+    // ConfidenceScorer already attempted consciousness but failed — don't retry
+    if (retrievalResult?.confidence?.metadata?.consciousnessAttempted) return heuristicResult
+
+    // ConfidenceScorer ran heuristic-only (consciousness disabled) — try calling consciousness here
     if (!this.consciousness) return heuristicResult
 
     const totalResults = (retrievalResult?.facts?.length || 0) +

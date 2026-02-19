@@ -190,6 +190,9 @@ export default class ConfidenceScorer {
       this.logger.warn('confidence-scorer', 'consciousness_failed', { error: error.message })
     }
 
-    return heuristicResult
+    return {
+      ...heuristicResult,
+      metadata: { ...heuristicResult.metadata, consciousnessAttempted: true }
+    }
   }
 }
