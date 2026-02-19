@@ -134,6 +134,15 @@ describe('ConsciousnessGateway', () => {
       expect(result).toEqual({ expanded: ['a', 'b'] })
     })
 
+    it('extracts JSON when model adds preamble text', async () => {
+      mockAdapter.call.mockResolvedValue('Sure! Here are the expanded terms:\n{"expanded": ["webhook", "api"]}')
+
+      const result = await gateway.evaluate('semantic-analyst', 'expand_keywords', {
+        keywords: 'webhook', chatContext: ''
+      })
+      expect(result).toEqual({ expanded: ['webhook', 'api'] })
+    })
+
     it('works with reliability-engineer classify_error task', async () => {
       mockAdapter.call.mockResolvedValue('{"category": "external", "confidence": 0.9}')
 

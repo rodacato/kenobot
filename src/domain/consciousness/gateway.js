@@ -122,6 +122,7 @@ export default class ConsciousnessGateway {
 
   /**
    * Parse JSON from model response, stripping markdown fences if present.
+   * Also handles preamble text before JSON (model ignored "JSON only" instruction).
    * @private
    */
   _parseJSON(raw) {
@@ -133,6 +134,16 @@ export default class ConsciousnessGateway {
       cleaned = fenceMatch[1].trim()
     }
 
-    return JSON.parse(cleaned)
+    // Try direct parse first
+    try {
+      return JSON.parse(cleaned)
+    } catch {
+      // If model added preamble text before JSON, extract from first { or [
+      const jsonStart = cleaned.search(/[{[]/)
+      if (jsonStart > 0) {
+        return JSON.parse(cleaned.slice(jsonStart))
+      }
+      throw new SyntaxError('No valid JSON found in response')
+    }
   }
 }

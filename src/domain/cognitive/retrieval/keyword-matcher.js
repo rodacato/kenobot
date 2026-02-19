@@ -119,9 +119,11 @@ export default class KeywordMatcher {
     if (heuristicKeywords.length === 0) return heuristicKeywords
 
     try {
+      // Truncate chatContext — it's a hint for expansion, not needed in full
+      const chatCtx = (context.chatContext || '').slice(0, 500)
       const result = await this.consciousness.evaluate('semantic-analyst', 'expand_keywords', {
         keywords: heuristicKeywords.join(', '),
-        chatContext: context.chatContext || ''
+        chatContext: chatCtx
       })
 
       if (result?.expanded && Array.isArray(result.expanded) && result.expanded.length > 0) {
