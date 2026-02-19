@@ -91,7 +91,7 @@ LONG-TERM MEMORY
 
 ### Retrieval Cues (Context-Dependent Memory)
 
-**Hallazgo clave:** Memory retrieval is better when retrieval context = encoding context.
+**Key finding:** Memory retrieval is better when retrieval context matches encoding context.
 
 **KenoBot implementation:**
 - **Session context:** Each chat has its own episodic memory
@@ -110,13 +110,13 @@ MemorySystem (Facade)
 ├── WorkingMemory          # Session scratchpad (7-day staleness)
 ├── SemanticMemory         # Global facts (permanent)
 ├── EpisodicMemory         # Chat-specific events (temporal)
-└── ProceduralMemory       # Learned patterns (Phase 4)
+└── ProceduralMemory       # Learned patterns
 ```
 
 **Persistence Layer:**
 ```
 MemoryStore (src/adapters/storage/memory-store.js)
-└── Filesystem: data/memory/ and ~/.kenobot/memory/
+└── Filesystem: ~/.kenobot/memory/
 ```
 
 **Key Design Principles:**
@@ -137,7 +137,7 @@ MemoryStore (src/adapters/storage/memory-store.js)
 - SemanticMemory doesn't know about ProceduralMemory
 - Each has its own file I/O and retrieval logic
 
-✅ **Retrieval is isolated (Phase 2)**
+✅ **Retrieval is isolated**
 - RetrievalEngine reads from MemorySystem (no writes)
 - Pluggable strategies (keyword → embeddings)
 - Can be enabled/disabled via config
@@ -178,7 +178,7 @@ MemoryStore (src/adapters/storage/memory-store.js)
 ```
 
 **Why hybrid?**
-- Structured fields (`task`, `context`, `pending`) facilitate pattern extraction (Phase 3)
+- Structured fields (`task`, `context`, `pending`) facilitate pattern extraction
 - `notes` free-form field captures nuance that doesn't fit structure
 
 **Storage:** `~/.kenobot/memory/working/{sessionId}.json`
@@ -258,7 +258,7 @@ Webhook returned 401 Unauthorized. We tried:
 - **Long-term:** `~/.kenobot/memory/MEMORY.md` (curated)
 - **Daily logs:** `~/.kenobot/memory/YYYY-MM-DD.md` (auto-extracted)
 
-**Consolidation (Phase 2):**
+**Consolidation:**
 - Daily logs → MEMORY.md after 30 days
 - Deduplication (case-insensitive substring matching)
 - Only salient facts (errors, successes, novel info)
@@ -304,7 +304,7 @@ Webhook returned 401 Unauthorized. We tried:
 
 **Storage:** `~/.kenobot/memory/procedural/patterns.json`
 
-**Learning (Phase 3):**
+**Learning:**
 - Sleep cycle detects repeated solutions in episodic memory
 - Proposes new pattern with confidence score
 - User approves → pattern added
@@ -323,10 +323,10 @@ Webhook returned 401 Unauthorized. We tried:
 │   ├── rules.json
 │   └── preferences.md
 │
-├── semantic/                      # Global facts (Phase 3+)
+├── semantic/                      # Global facts
 │   └── facts.md
 │
-├── procedural/                    # Learned patterns (Phase 4+)
+├── procedural/                    # Learned patterns
 │   └── patterns.json
 │
 ├── chats/                         # Per-chat episodic memory
@@ -385,11 +385,11 @@ class MemorySystem {
   async getWorkingMemory(sessionId)            // Returns {content, updatedAt} or null
   async replaceWorkingMemory(sessionId, content)  // Full replace
 
-  // Procedural (patterns - Phase 4)
+  // Procedural (patterns)
   async getPatterns()                          // All patterns
   async matchPatterns(messageText)             // Find matching patterns
 
-  // Compaction (Phase 2+)
+  // Compaction
   async listDailyLogs()
   async readDailyLog(filename)
   async writeLongTermMemory(content)
@@ -525,7 +525,7 @@ class ProceduralMemory {
 }
 ```
 
-**Persistence:** Patterns are stored in `data/memory/procedural/patterns.json` via `MemoryStore.writePatterns()`. The memory is lazy-loaded on first access (`_ensureLoaded()` pattern) and persisted after every add/remove.
+**Persistence:** Patterns are stored in `~/.kenobot/memory/procedural/patterns.json` via `MemoryStore.writePatterns()`. The memory is lazy-loaded on first access (`_ensureLoaded()` pattern) and persisted after every add/remove.
 
 **Pattern Matching:**
 ```javascript
@@ -540,30 +540,19 @@ async match(messageText) {
 
 ## Memory Retrieval
 
-### Selective Retrieval (Phase 2+)
+### Selective Retrieval
 
 **Problem:** Loading all memory on every message wastes tokens and increases cost.
 
-**Solution:** Retrieve only relevant memories based on keywords/embeddings.
+**Solution:** Retrieve only relevant memories based on keywords and (optionally) embeddings.
 
-**Current (Phase 1):** Load everything (MEMORY.md + last 3 days)
+The `RetrievalEngine` supports two modes:
+- **Keyword-only** (default): Extract keywords from user message, match against facts/episodes, score by overlap
+- **Hybrid** (when `EMBEDDING_ENABLED=true`): Run keyword + embedding search in parallel, merge with Reciprocal Rank Fusion (RRF)
 
-**Phase 2:** Keyword-based selective retrieval
-- Extract keywords from user message
-- Search facts with keyword matching
-- Return top N relevant facts (limit: 10)
+Keyword expansion uses the Consciousness Gateway (fast secondary LLM) to expand keywords with synonyms — falling back to raw keywords when the gateway is unavailable.
 
-**Phase 3:** LLM-based query expansion
-- Use Haiku to expand keywords with synonyms
-- Cache expansions to reduce cost
-
-**Phase 4:** Embedding-based retrieval
-- Generate embeddings for user message
-- Vector search in semantic memory
-- Return top N by cosine similarity
-
-
-### RetrievalEngine (Phase 2+)
+### RetrievalEngine
 
 **Purpose:** Selectively retrieve relevant memories.
 
@@ -580,7 +569,7 @@ class RetrievalEngine {
 }
 ```
 
-**Keyword Matching (Phase 2):**
+**Keyword Matching:**
 ```javascript
 function extractKeywords(message) {
   return message
@@ -874,8 +863,8 @@ MEMORY_DAYS=3                      # Days of recent notes to include (default: 3
 MEMORY_RETENTION_DAYS=30           # Days before compaction (default: 30)
 WORKING_MEMORY_STALE_DAYS=7        # Days before working memory expires (default: 7)
 
-# Retrieval (Phase 2+)
-USE_RETRIEVAL=false                # Enable selective retrieval (default: false)
+# Retrieval
+USE_RETRIEVAL=true                 # Enable selective retrieval (default: true)
 RETRIEVAL_LIMIT_FACTS=10           # Max facts to retrieve (default: 10)
 RETRIEVAL_LIMIT_EPISODES=3         # Max episodes to retrieve (default: 3)
 
@@ -888,7 +877,7 @@ DATA_DIR=~/.kenobot/data           # Data directory (default)
 
 ## Advanced Topics
 
-### Memory Compaction (Phase 2)
+### Memory Compaction
 
 **Goal:** Consolidate daily logs into MEMORY.md after 30 days.
 
@@ -899,9 +888,7 @@ DATA_DIR=~/.kenobot/data           # Data directory (default)
 4. Append unique entries to MEMORY.md
 5. Delete old log files
 
-**Strategies:**
-- **Heuristic** (Phase 1): Simple deduplication, zero cost
-- **LLM-based** (Phase 2): Use Haiku to summarize + merge
+**Strategy:** Heuristic deduplication (zero LLM cost). The Consolidator extracts facts and patterns from episodes using salience filtering.
 
 
 ### Memory Pruning
@@ -926,26 +913,27 @@ Pruning runs as Phase 3 of the sleep cycle (see `MemoryPruner`):
 - Rewrites MEMORY.md without duplicates
 - Idempotent: running multiple times produces the same result
 
-### Selective Retrieval with Embeddings (Phase 4)
+### Embeddings (Semantic Search)
 
-**Current:** Keyword matching (regex)
+Opt-in local vector storage for semantic memory retrieval. Disabled by default.
 
-**Future:** Embedding-based search
-```javascript
-// Generate embedding for user message
-const embedding = await getEmbedding(userMessage)
+**Enable:** `EMBEDDING_ENABLED=true` + `GEMINI_API_KEY` set.
 
-// Search vector DB
-const results = await vectorDB.search(embedding, limit: 10)
+**Architecture:**
+- `EmbeddingMatcher` (`src/domain/cognitive/retrieval/embedding-matcher.js`) — domain-level search
+- `GeminiEmbeddingProvider` (`src/adapters/consciousness/gemini-embedding.js`) — generates vectors
+- Storage backends: JSONL (default) or SQLite
 
-// Return most similar facts
-return results.map(r => r.content)
+**Hybrid retrieval:** When enabled, the `RetrievalEngine` runs keyword and embedding search in parallel and merges results using Reciprocal Rank Fusion (RRF). This gives the best of both exact keyword matches and semantic similarity.
+
+**Configuration:**
+```bash
+EMBEDDING_ENABLED=true              # Enable vector embeddings
+EMBEDDING_PROVIDER=gemini-embedding # Embedding provider
+EMBEDDING_MODEL=gemini-embedding-001 # Embedding model
+EMBEDDING_BACKEND=jsonl             # Storage: jsonl or sqlite
+EMBEDDING_DIMENSIONS=768            # Vector dimensions
 ```
-
-**Vector DB options:**
-- Pinecone (cloud)
-- Qdrant (self-hosted)
-- ChromaDB (embedded)
 
 
 ### Memory Health
