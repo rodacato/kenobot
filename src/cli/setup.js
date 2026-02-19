@@ -1,4 +1,5 @@
 import { mkdir, cp, readdir, readFile, writeFile, appendFile } from 'node:fs/promises'
+import crypto from 'node:crypto'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { exec } from 'node:child_process'
@@ -121,6 +122,16 @@ export default async function init(args, paths) {
     join(paths.home, 'memory', 'MEMORY.md'),
     'memory/MEMORY.md'
   )
+
+  // Auto-generate API key if API_ENABLED=true but no key present
+  try {
+    const envContent = await readFile(paths.envFile, 'utf8')
+    if (envContent.includes('API_ENABLED=true') && !envContent.match(/^API_KEY=kb-/m)) {
+      const key = 'kb-' + crypto.randomBytes(32).toString('hex')
+      await appendFile(paths.envFile, `\nAPI_KEY=${key}\n`)
+      info('Generated API_KEY in .env')
+    }
+  } catch { /* .env may not exist yet — that's fine */ }
 
   console.log(`\nNext steps:`)
   console.log(`  kenobot config edit     # Set your tokens and provider`)

@@ -112,6 +112,15 @@ async function checkConfig(paths) {
     issues.push('WEBHOOK_SECRET required when HTTP_ENABLED=true')
   }
 
+  // REST API
+  if (env.API_ENABLED === 'true') {
+    if (!env.API_KEY) {
+      issues.push('API_KEY required when API_ENABLED=true')
+    } else if (!env.API_KEY.startsWith('kb-') || env.API_KEY.length < 67) {
+      issues.push('API_KEY format invalid (expected kb-<64 hex chars>)')
+    }
+  }
+
   if (issues.length > 0) {
     return {
       status: 'fail',

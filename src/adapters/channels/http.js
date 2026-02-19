@@ -30,6 +30,7 @@ export default class HTTPChannel extends BaseChannel {
     this._responseHandler = null
     this._sockets = new Set()
     this._stats = config.stats || null
+    this._apiHandler = config.apiHandler || null
   }
 
   get name() { return 'http' }
@@ -37,6 +38,7 @@ export default class HTTPChannel extends BaseChannel {
   async start() {
     this._responseHandler = (msg) => this._handleBusResponse(msg)
     this.bus.on(MESSAGE_OUT, this._responseHandler)
+    this._apiHandler?.subscribe(this.bus)
 
     this.server = createServer((req, res) => this._route(req, res))
     this.server.on('connection', (socket) => {
@@ -56,6 +58,8 @@ export default class HTTPChannel extends BaseChannel {
   }
 
   async stop() {
+    this._apiHandler?.unsubscribe()
+
     if (this._responseHandler) {
       this.bus.off(MESSAGE_OUT, this._responseHandler)
       this._responseHandler = null
@@ -85,6 +89,9 @@ export default class HTTPChannel extends BaseChannel {
    * @private
    */
   _route(req, res) {
+    if (this._apiHandler && req.url.startsWith('/api/')) {
+      return this._apiHandler.handle(req, res)
+    }
     if (req.method === 'GET' && req.url === '/') {
       return this._handleIndex(res)
     }

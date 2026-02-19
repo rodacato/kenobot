@@ -26,6 +26,7 @@ import { createRunCommand } from './adapters/actions/shell.js'
 import { createReadFile, createWriteFile, createListFiles } from './adapters/actions/file.js'
 import { createGithubSetupWorkspace } from './adapters/actions/github.js'
 import TaskStore from './adapters/storage/task-store.js'
+import APIHandler from './adapters/channels/api-handler.js'
 import { ConsciousnessGateway } from './domain/consciousness/index.js'
 import CLIConsciousnessAdapter from './adapters/consciousness/cli-adapter.js'
 import APIConsciousnessAdapter from './adapters/consciousness/api-adapter.js'
@@ -212,8 +213,20 @@ export function createApp(config, provider, options = {}) {
     if (!config.http.webhookSecret) {
       throw new Error('WEBHOOK_SECRET is required when HTTP_ENABLED=true')
     }
-    const httpChannel = new HTTPChannel(bus, { ...config.http, logger, stats })
-    channels.push(httpChannel)
+    const httpConfig = { ...config.http, logger, stats }
+
+    if (config.api?.enabled) {
+      if (!config.api.apiKey) {
+        throw new Error('API_KEY is required when API_ENABLED=true')
+      }
+      httpConfig.apiHandler = new APIHandler({
+        bus, ...config.api,
+        storage, memory, scheduler, sleepCycle, agent, taskStore,
+        costTracker, stats, logger,
+      })
+    }
+
+    channels.push(new HTTPChannel(bus, httpConfig))
   }
 
   // Error handler
