@@ -263,7 +263,15 @@ Clean shutdown!
 
 Once mock works, switch to a real provider:
 
-**Option A: Claude API** (requires Anthropic API key -- recommended)
+**Option A: Claude CLI** (default — uses your Claude Code subscription)
+```bash
+# .env
+PROVIDER=claude-cli
+MODEL=sonnet
+```
+Requires `claude` CLI installed and authenticated. ~20s latency per response.
+
+**Option B: Claude API** (faster — requires Anthropic API key)
 ```bash
 # .env
 PROVIDER=claude-api
@@ -271,14 +279,23 @@ MODEL=sonnet
 ANTHROPIC_API_KEY=your_api_key_here
 ```
 
-**Option B: Claude CLI** (requires non-root user)
+**Option C: Gemini** (Google AI)
 ```bash
 # .env
-PROVIDER=claude-cli
-MODEL=sonnet
+PROVIDER=gemini-api
+MODEL=flash
+GEMINI_API_KEY=your_gemini_key_here
 ```
 
-See [configuration.md](configuration.md) for all environment variables.
+**Option D: Cerebras** (fast inference)
+```bash
+# .env
+PROVIDER=cerebras-api
+MODEL=llama-4-scout-17b-16e-instruct
+CEREBRAS_API_KEY=your_cerebras_key_here
+```
+
+See [configuration.md](configuration.md) for all environment variables and provider options.
 
 ---
 
@@ -372,9 +389,8 @@ Set at minimum:
 ```bash
 TELEGRAM_BOT_TOKEN=your_token_here         # From @BotFather on Telegram
 TELEGRAM_ALLOWED_USERS=your_chat_id        # Your Telegram user ID (from @userinfobot)
-PROVIDER=claude-api                         # Recommended provider
+PROVIDER=claude-cli                         # Default provider (uses Claude Code CLI)
 MODEL=sonnet
-ANTHROPIC_API_KEY=sk-ant-api03-...         # If using claude-api
 ```
 
 Verify config (secrets redacted):
@@ -496,10 +512,10 @@ kenobot stop && kenobot start -d
 The following directories contain your bot's state and should be backed up:
 
 ```
-~/.kenobot/config/        # .env, identities
+~/.kenobot/config/        # .env
+~/.kenobot/memory/        # All memory + identity files
 ~/.kenobot/data/
   sessions/               # Conversation history
-  memory/                 # Daily logs + MEMORY.md
   logs/                   # Structured JSONL logs
   scheduler/              # Scheduled task definitions
 ```
@@ -510,11 +526,16 @@ The following directories contain your bot's state and should be backed up:
 ~/.kenobot/                   # KENOBOT_HOME (override with env var)
   config/
     .env                      # Bot configuration
-    identities/kenobot/       # Bot identity (SOUL.md, IDENTITY.md, USER.md)
+  memory/
+    identity/                 # Bot identity (core.md, rules.json, preferences.md)
+    MEMORY.md                 # Long-term curated facts
+    chats/                    # Per-chat episodic memory
+    working/                  # Session scratchpad
+    procedural/               # Learned patterns
   data/
     sessions/                 # Per-chat JSONL history
-    memory/                   # MEMORY.md + daily logs
     logs/                     # Structured JSONL logs (daily rotation)
+    nervous/                  # Audit trail
     scheduler/                # Cron task definitions
     kenobot.pid               # PID file (when running)
 ```
@@ -784,20 +805,21 @@ Because it lets you verify the **entire flow works** before setting up API keys 
 
 Options:
 1. **Mock** (current): Testing without a real LLM
-2. **Claude API**: Requires an Anthropic API key
-3. **Claude CLI**: Requires a non-root user
+2. **Claude CLI** (default): Uses Claude Code CLI subscription
+3. **Claude API**: Requires an Anthropic API key
+4. **Gemini API/CLI**, **Cerebras API**: Alternative providers
 
 ### When should I switch to real Claude?
 
 After validating that mock works:
 
 ```bash
-# Option 1: Claude API (recommended)
+# Option 1: Claude CLI (default — uses your subscription)
+PROVIDER=claude-cli
+
+# Option 2: Claude API (faster, requires API key)
 PROVIDER=claude-api
 ANTHROPIC_API_KEY=your_api_key
-
-# Option 2: Claude CLI (requires non-root user setup)
-PROVIDER=claude-cli
 ```
 
 ---
