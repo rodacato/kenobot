@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai'
-import { registerEmbeddingProvider } from './registry.js'
 import logger from '../../infrastructure/logger.js'
+import { registerEmbeddingProvider } from './registry.js'
 
 const MAX_RETRIES = 3
 const BASE_DELAY_MS = 1000
@@ -73,4 +73,4 @@ export default class GeminiEmbeddingProvider {
   }
 }
 
-registerEmbeddingProvider('gemini', (config) => new GeminiEmbeddingProvider(config))
+registerEmbeddingProvider('gemini-embedding', (config) => new GeminiEmbeddingProvider(config))
