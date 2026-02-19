@@ -29,6 +29,7 @@ import TaskStore from './adapters/storage/task-store.js'
 import { ConsciousnessGateway } from './domain/consciousness/index.js'
 import CLIConsciousnessAdapter from './adapters/consciousness/cli-adapter.js'
 import APIConsciousnessAdapter from './adapters/consciousness/api-adapter.js'
+import CerebrasConsciousnessAdapter from './adapters/consciousness/cerebras-adapter.js'
 import ResponseTracker from './domain/nervous/response-tracker.js'
 import CostTracker from './domain/cognitive/utils/cost-tracker.js'
 
@@ -125,29 +126,42 @@ export function createApp(config, provider, options = {}) {
   }
 
   // Consciousness Layer: fast secondary model for semantic evaluation
-  let consciousnessAdapter = null
-  if (config.consciousness?.enabled !== false) {
-    if (config.consciousness?.provider === 'gemini-api') {
-      consciousnessAdapter = new APIConsciousnessAdapter({
-        model: config.consciousness?.model,
-        timeout: config.consciousness?.timeout,
-        logger
-      })
-    } else {
-      consciousnessAdapter = new CLIConsciousnessAdapter({
-        command: config.consciousness?.provider === 'gemini-cli' ? 'gemini' : config.consciousness?.provider,
-        model: config.consciousness?.model,
-        timeout: config.consciousness?.timeout,
-        logger
-      })
-    }
-  }
   const profilesDir = join(import.meta.dirname, '..', 'templates', 'experts')
+
+  function createConsciousnessAdapter({ provider, model, timeout }) {
+    if (provider === 'gemini-api') {
+      return new APIConsciousnessAdapter({ model, timeout, logger })
+    }
+    if (provider === 'cerebras-api') {
+      return new CerebrasConsciousnessAdapter({ model, timeout, logger })
+    }
+    return new CLIConsciousnessAdapter({
+      command: provider === 'gemini-cli' ? 'gemini' : provider,
+      model,
+      timeout,
+      logger
+    })
+  }
+
+  const consciousnessEnabled = config.consciousness?.enabled !== false
   const consciousness = new ConsciousnessGateway({
-    adapter: consciousnessAdapter,
+    adapter: consciousnessEnabled
+      ? createConsciousnessAdapter(config.consciousness)
+      : null,
     profilesDir,
     logger,
-    enabled: config.consciousness?.enabled !== false
+    enabled: consciousnessEnabled
+  })
+
+  // Consolidation gateway: heavier model for sleep cycle batch tasks.
+  // Falls back to consciousness config if CONSOLIDATION_* vars are not set.
+  const consolidationConsciousness = new ConsciousnessGateway({
+    adapter: consciousnessEnabled
+      ? createConsciousnessAdapter(config.consolidation)
+      : null,
+    profilesDir,
+    logger,
+    enabled: consciousnessEnabled
   })
 
   // Embedding System: initialized lazily in start() via dynamic import
@@ -159,7 +173,7 @@ export function createApp(config, provider, options = {}) {
 
   // Cognitive System: Memory System + Identity System (with Motor System integration for self-improvement)
   const memoryStore = new MemoryStore(memoryDir, { logger })
-  const cognitiveOpts = { logger, bus, toolRegistry, consciousness }
+  const cognitiveOpts = { logger, bus, toolRegistry, consciousness, consolidationConsciousness }
   cognitiveOpts.identityPath = join(memoryDir, 'identity')
   const cognitive = new CognitiveSystem(config, memoryStore, circuitBreaker, cognitiveOpts)
   const memory = cognitive.getMemorySystem()

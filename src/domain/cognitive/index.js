@@ -24,7 +24,7 @@ import { homedir } from 'node:os'
  *   await cognitive.saveMemory(sessionId, memoryTags)
  */
 export default class CognitiveSystem {
-  constructor(config, memoryStore, provider, { logger = defaultLogger, identityPath: optIdentityPath, bus, toolRegistry, consciousness, embeddingProvider, embeddingStore } = {}) {
+  constructor(config, memoryStore, provider, { logger = defaultLogger, identityPath: optIdentityPath, bus, toolRegistry, consciousness, consolidationConsciousness, embeddingProvider, embeddingStore } = {}) {
     this.config = config
     this.provider = provider
     this.logger = logger
@@ -47,8 +47,9 @@ export default class CognitiveSystem {
     this.useIdentity = config.useIdentity !== false // Default: true
 
     // Sleep Cycle (consolidation + self-improvement with Motor System integration)
+    // Uses consolidationConsciousness (heavier model) when configured, falls back to consciousness
     const selfRepo = config.motor?.selfRepo || ''
-    this.sleepCycle = new SleepCycle(this.memory, { logger, dataDir: config.dataDir, bus, toolRegistry, repo: selfRepo, consciousness })
+    this.sleepCycle = new SleepCycle(this.memory, { logger, dataDir: config.dataDir, bus, toolRegistry, repo: selfRepo, consciousness: consolidationConsciousness || consciousness })
 
     // Metacognition (self-monitoring, confidence, reflection — with consciousness for enhanced evaluation)
     this.metacognition = new MetacognitionSystem({ logger, consciousness })
