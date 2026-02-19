@@ -104,7 +104,8 @@ All config lives in `~/.kenobot/config/.env`. The minimum:
 | `TELEGRAM_ALLOWED_USERS` | Yes | Your Telegram user ID |
 | `PROVIDER` | No | `claude-api` (default), `gemini-api`, `claude-cli`, `gemini-cli`, `mock` |
 | `ANTHROPIC_API_KEY` | For `claude-api` | From [console.anthropic.com](https://console.anthropic.com) |
-| `GOOGLE_API_KEY` | For `gemini-api` | From [AI Studio](https://aistudio.google.com) |
+| `GEMINI_API_KEY` | For `gemini-api`, `gemini-cli`, consciousness | From [AI Studio](https://aistudio.google.com) |
+| `CEREBRAS_API_KEY` | For `cerebras-api` | From [cloud.cerebras.ai](https://cloud.cerebras.ai) |
 
 20+ additional settings (memory retention, session limits, webhooks, circuit breaker, etc.): [docs/configuration.md](docs/configuration.md)
 
@@ -116,6 +117,7 @@ All config lives in `~/.kenobot/config/.env`. The minimum:
 | `claude-cli` | Using existing Claude CLI subscription | ~20s | CLI subscription |
 | `gemini-api` | Google AI alternative, production | ~3s | Per-token (Google billing) |
 | `gemini-cli` | Using existing Gemini CLI | ~15s | CLI subscription |
+| `cerebras-api` | Ultra-fast inference (Llama models) | <1s | Per-token (Cerebras billing) |
 | `mock` | Testing, development | Instant | Free |
 
 ## CLI

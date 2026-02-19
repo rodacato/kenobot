@@ -180,12 +180,12 @@ async function checkProvider(paths) {
   }
 
   if (provider === 'gemini-api') {
-    const key = env.GOOGLE_API_KEY || ''
+    const key = env.GEMINI_API_KEY || ''
     if (!key) {
       return {
         status: 'fail',
-        label: 'Provider: gemini-api — GOOGLE_API_KEY not set',
-        fix: "Run 'kenobot config edit' and set GOOGLE_API_KEY",
+        label: 'Provider: gemini-api — GEMINI_API_KEY not set',
+        fix: "Run 'kenobot config edit' and set GEMINI_API_KEY",
       }
     }
     return { status: 'ok', label: 'Provider: gemini-api' }
