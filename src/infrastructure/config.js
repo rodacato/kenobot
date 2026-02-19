@@ -52,6 +52,7 @@ export function createConfig(env = process.env) {
       token: env.TELEGRAM_BOT_TOKEN,
       allowedUsers: env.TELEGRAM_ALLOWED_USERS?.split(',').map(id => id.trim()) || [],
       allowedChatIds: env.TELEGRAM_ALLOWED_CHAT_IDS?.split(',').map(id => id.trim()) || [],
+      debounceMs: int('TELEGRAM_DEBOUNCE_MS', 5000, { min: 0, max: 30000 }),
     },
 
     dataDir: env.DATA_DIR || './data',

@@ -4,16 +4,26 @@ import { THINKING_START, MESSAGE_OUT, NOTIFICATION } from '../../infrastructure/
 import { markdownToHTML } from '../../infrastructure/format/telegram.js'
 // logger inherited from BaseChannel via this.logger
 
+// Duplicated from loop.js intentionally — adapters cannot import application layer
+const CANCEL_PATTERN = /^(para|stop|cancel|cancelar)$/i
+
 /**
  * TelegramChannel - Telegram Bot API integration via grammy
  *
  * Handles incoming messages and sends responses back to Telegram.
  * Inherits permission checking and bus wiring from BaseChannel.
+ *
+ * Message debouncing: consecutive messages from the same chat sent within
+ * `debounceMs` are accumulated and processed as a single request. This
+ * prevents the bot from replying to each fragment when the user hits Enter
+ * mid-thought. Cancel commands bypass the buffer immediately.
  */
 export default class TelegramChannel extends BaseChannel {
   constructor(bus, config) {
     super(bus, config)
     this.bot = new Bot(config.token)
+    this._debounceMs = config.debounceMs ?? 1500
+    this._debounceBuffers = new Map() // chatId → { timer, texts[], meta }
   }
 
   async start() {
@@ -60,7 +70,7 @@ export default class TelegramChannel extends BaseChannel {
         }
       }
 
-      this._publishMessage({
+      this._bufferOrPublish({
         text,
         chatId: String(ctx.chat.id),
         userId: String(ctx.from.id),
@@ -122,6 +132,10 @@ export default class TelegramChannel extends BaseChannel {
   }
 
   async stop() {
+    // Flush any pending debounce buffers — do not lose messages on shutdown
+    for (const chatId of this._debounceBuffers.keys()) {
+      this._flushBuffer(chatId)
+    }
     this.logger.info('telegram', 'stopping')
     this.bus.off(THINKING_START, this._onThinking)
     this.bus.off(MESSAGE_OUT, this._onMessageOut)
@@ -145,6 +159,68 @@ export default class TelegramChannel extends BaseChannel {
 
   get name() {
     return 'telegram'
+  }
+
+  /**
+   * Buffer message or publish immediately.
+   *
+   * When debouncing is enabled (debounceMs > 0), messages from the same chat
+   * arriving within the window are accumulated and fired as one. Cancel commands
+   * always bypass the buffer and fire immediately.
+   *
+   * @param {Object} message - {text, chatId, userId, timestamp, metadata}
+   * @protected
+   */
+  _bufferOrPublish(message) {
+    // Fast path: debounce disabled
+    if (!this._debounceMs) {
+      this._publishMessage(message)
+      return
+    }
+
+    const { chatId } = message
+
+    // Cancel commands bypass debounce — flush any pending batch first so the
+    // cancel arrives after all prior content, maintaining causal order
+    if (CANCEL_PATTERN.test(message.text.trim())) {
+      this._flushBuffer(chatId)
+      this._publishMessage(message)
+      return
+    }
+
+    const existing = this._debounceBuffers.get(chatId)
+    if (existing) {
+      clearTimeout(existing.timer)
+      existing.texts.push(message.text)
+      // Let the user know the bot received this message while still accumulating
+      try { this.bot.api.sendChatAction(chatId, 'typing') } catch { /* ignore */ }
+    } else {
+      this._debounceBuffers.set(chatId, { texts: [message.text], meta: message })
+    }
+
+    const entry = this._debounceBuffers.get(chatId)
+    entry.timer = setTimeout(() => this._flushBuffer(chatId), this._debounceMs)
+  }
+
+  /**
+   * Flush the debounce buffer for a chat, joining accumulated texts and firing
+   * a single MESSAGE_IN event.
+   *
+   * @param {string} chatId
+   * @private
+   */
+  _flushBuffer(chatId) {
+    const entry = this._debounceBuffers.get(chatId)
+    if (!entry) return
+    this._debounceBuffers.delete(chatId)
+    clearTimeout(entry.timer)
+    const text = entry.texts.join('\n')
+    this.logger.debug('telegram', 'debounce_flushed', {
+      chatId,
+      messageCount: entry.texts.length,
+      totalLength: text.length
+    })
+    this._publishMessage({ ...entry.meta, text })
   }
 
   /**

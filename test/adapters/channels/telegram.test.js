@@ -198,4 +198,200 @@ describe('TelegramChannel', () => {
       expect(emitted).toHaveLength(1)
     })
   })
+
+  describe('_bufferOrPublish (debouncing)', () => {
+    const msg = (text, chatId = '111') => ({
+      text, chatId, userId: '111', timestamp: Date.now(), metadata: {}
+    })
+
+    let ch
+
+    beforeEach(() => {
+      vi.useFakeTimers()
+      ch = new TelegramChannel(bus, {
+        token: 'fake',
+        allowedUsers: ['111'],
+        allowedChatIds: [],
+        debounceMs: 1500
+      })
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('fires immediately when debounceMs is 0', () => {
+      const instant = new TelegramChannel(bus, {
+        token: 'fake', allowedUsers: ['111'], allowedChatIds: [], debounceMs: 0
+      })
+      const emitted = []
+      bus.on('message:in', m => emitted.push(m))
+
+      instant._bufferOrPublish(msg('hello'))
+
+      expect(emitted).toHaveLength(1)
+      expect(emitted[0].text).toBe('hello')
+    })
+
+    it('does not fire before window expires', () => {
+      const emitted = []
+      bus.on('message:in', m => emitted.push(m))
+
+      ch._bufferOrPublish(msg('hello'))
+      vi.advanceTimersByTime(1499)
+
+      expect(emitted).toHaveLength(0)
+    })
+
+    it('fires single message after window expires', () => {
+      const emitted = []
+      bus.on('message:in', m => emitted.push(m))
+
+      ch._bufferOrPublish(msg('hello'))
+      vi.advanceTimersByTime(1500)
+
+      expect(emitted).toHaveLength(1)
+      expect(emitted[0].text).toBe('hello')
+    })
+
+    it('batches two rapid messages into one', () => {
+      const emitted = []
+      bus.on('message:in', m => emitted.push(m))
+
+      ch._bufferOrPublish(msg('hola'))
+      vi.advanceTimersByTime(500)
+      ch._bufferOrPublish(msg('como estas'))
+      vi.advanceTimersByTime(1500)
+
+      expect(emitted).toHaveLength(1)
+      expect(emitted[0].text).toBe('hola\ncomo estas')
+    })
+
+    it('batches three rapid messages into one', () => {
+      const emitted = []
+      bus.on('message:in', m => emitted.push(m))
+
+      ch._bufferOrPublish(msg('parte 1'))
+      ch._bufferOrPublish(msg('parte 2'))
+      ch._bufferOrPublish(msg('parte 3'))
+      vi.advanceTimersByTime(1500)
+
+      expect(emitted).toHaveLength(1)
+      expect(emitted[0].text).toBe('parte 1\nparte 2\nparte 3')
+    })
+
+    it('resets window on each new message', () => {
+      const emitted = []
+      bus.on('message:in', m => emitted.push(m))
+
+      ch._bufferOrPublish(msg('a'))
+      vi.advanceTimersByTime(1000)
+      ch._bufferOrPublish(msg('b'))
+      vi.advanceTimersByTime(1000)    // only 1000ms after last message
+      expect(emitted).toHaveLength(0) // window not expired yet
+      vi.advanceTimersByTime(500)     // now 1500ms after last message
+
+      expect(emitted).toHaveLength(1)
+      expect(emitted[0].text).toBe('a\nb')
+    })
+
+    it('keeps messages from different chats independent', () => {
+      const emitted = []
+      bus.on('message:in', m => emitted.push(m))
+
+      const ch2 = new TelegramChannel(bus, {
+        token: 'fake', allowedUsers: ['222'], allowedChatIds: [], debounceMs: 1500
+      })
+
+      ch._bufferOrPublish(msg('hello', '111'))
+      ch2._bufferOrPublish({ text: 'world', chatId: '222', userId: '222', timestamp: Date.now(), metadata: {} })
+      vi.advanceTimersByTime(1500)
+
+      expect(emitted).toHaveLength(2)
+      const texts = emitted.map(e => e.text)
+      expect(texts).toContain('hello')
+      expect(texts).toContain('world')
+    })
+
+    it('cancel command bypasses buffer and fires immediately', () => {
+      const emitted = []
+      bus.on('message:in', m => emitted.push(m))
+
+      ch._bufferOrPublish(msg('para'))
+
+      expect(emitted).toHaveLength(1)
+      expect(emitted[0].text).toBe('para')
+    })
+
+    it('cancel flushes pending batch before firing', () => {
+      const emitted = []
+      bus.on('message:in', m => emitted.push(m))
+
+      ch._bufferOrPublish(msg('quiero que'))
+      ch._bufferOrPublish(msg('stop'))
+
+      expect(emitted).toHaveLength(2)
+      expect(emitted[0].text).toBe('quiero que')
+      expect(emitted[1].text).toBe('stop')
+    })
+
+    it('all cancel variants bypass buffer', () => {
+      for (const word of ['para', 'stop', 'cancel', 'cancelar', 'STOP', 'Para']) {
+        const localBus = new (Object.getPrototypeOf(bus).constructor)()
+        const localCh = new TelegramChannel(localBus, {
+          token: 'fake', allowedUsers: ['111'], allowedChatIds: [], debounceMs: 1500
+        })
+        const emitted = []
+        localBus.on('message:in', m => emitted.push(m))
+
+        localCh._bufferOrPublish(msg(word))
+
+        expect(emitted).toHaveLength(1)
+      }
+    })
+
+    it('flushes pending buffer when _flushBuffer is called directly', () => {
+      const emitted = []
+      bus.on('message:in', m => emitted.push(m))
+
+      ch._bufferOrPublish(msg('mensaje pendiente'))
+      expect(emitted).toHaveLength(0)
+
+      ch._flushBuffer('111')
+
+      expect(emitted).toHaveLength(1)
+      expect(emitted[0].text).toBe('mensaje pendiente')
+    })
+
+    it('attempts typing action when second message arrives in buffer', () => {
+      const typingCalls = []
+      ch.bot = {
+        api: {
+          sendChatAction: vi.fn().mockImplementation((chatId, action) => {
+            typingCalls.push({ chatId, action })
+            return Promise.resolve()
+          })
+        }
+      }
+
+      ch._bufferOrPublish(msg('mensaje 1'))
+      ch._bufferOrPublish(msg('mensaje 2'))
+
+      expect(typingCalls).toHaveLength(1)
+      expect(typingCalls[0].action).toBe('typing')
+    })
+
+    it('ignores typing action errors gracefully', () => {
+      ch.bot = {
+        api: {
+          sendChatAction: vi.fn().mockImplementation(() => { throw new Error('network') })
+        }
+      }
+
+      expect(() => {
+        ch._bufferOrPublish(msg('msg 1'))
+        ch._bufferOrPublish(msg('msg 2'))
+      }).not.toThrow()
+    })
+  })
 })

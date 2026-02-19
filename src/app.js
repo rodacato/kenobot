@@ -189,6 +189,7 @@ export function createApp(config, provider, options = {}) {
     token: config.telegram.token,
     allowedUsers: config.telegram.allowedUsers,
     allowedChatIds: config.telegram.allowedChatIds,
+    debounceMs: config.telegram.debounceMs,
     logger,
   })
   channels.push(telegram)
