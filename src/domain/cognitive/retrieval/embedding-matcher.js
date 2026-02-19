@@ -33,11 +33,11 @@ export default class EmbeddingMatcher {
 
     const results = await this.embeddingStore.search(vectors[0], topK, { ...filter, type })
 
-    this.logger.debug('embedding-matcher', 'search_complete', {
+    this.logger.info('embedding-matcher', 'search_complete', {
       type,
       topK,
       resultCount: results.length,
-      latency: Date.now() - startTime
+      durationMs: Date.now() - startTime
     })
 
     return results

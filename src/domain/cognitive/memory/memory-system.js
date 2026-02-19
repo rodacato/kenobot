@@ -164,9 +164,11 @@ export default class MemorySystem {
     if (!this.embeddingProvider || !this.embeddingStore) return
 
     const id = `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const embedStart = Date.now()
 
     this.embeddingProvider.embed([text]).then(vectors => {
       if (!vectors) return
+      this.logger.info('memory-system', 'embedded', { type, durationMs: Date.now() - embedStart })
       return this.embeddingStore.add({
         id,
         text,

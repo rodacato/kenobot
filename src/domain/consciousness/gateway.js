@@ -62,8 +62,10 @@ export default class ConsciousnessGateway {
       })
       return null
     } finally {
-      this._stats.totalLatencyMs += Date.now() - evalStart
+      const durationMs = Date.now() - evalStart
+      this._stats.totalLatencyMs += durationMs
       this._stats.lastCallAt = Date.now()
+      this.logger.info('consciousness', 'evaluate_complete', { expertName, taskName, durationMs })
     }
   }
 
