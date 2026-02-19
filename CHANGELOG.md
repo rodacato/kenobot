@@ -7,6 +7,57 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-02-19
+
+### Added
+
+**Consciousness System**
+- Secondary LLM gateway (`ConsciousnessGateway`) for fast one-shot expert evaluations
+- Gemini API adapter for low-latency consciousness calls
+- Cerebras Inference API adapter for ultra-fast consciousness calls (~200ms)
+- Two-tier consolidation: fast model for filtering, slow model for synthesis
+- Confidence scoring with semantic relevance evaluation via expert profiles
+- Quality-reviewer and strategist expert profiles
+- Consciousness wired into context building, post-processors, sleep cycle, metacognition, and consolidation subsystems
+- Consciousness wired into keyword expansion and error classification
+
+**Embeddings & Hybrid Retrieval**
+- Embedding-based memory retrieval foundation
+- SQLite backend for vector storage with contract tests
+- Hybrid retrieval combining keyword and semantic search (fire-and-forget embedding)
+- Gemini Embedding API adapter (`gemini-embedding-001`, 768-dim)
+- Embedding system wired into app lifecycle
+
+**Providers**
+- Cerebras Inference API provider (fast inference, compatible with OpenAI SDK)
+- Codex CLI provider
+
+**Observability**
+- Runtime stats aggregation and `kenobot stats` CLI subcommand
+- `ResponseTracker` ring buffer for response latency metrics (avg, max, p95, error rate)
+- `durationMs` logging added to embeddings and consciousness calls
+
+**Channels**
+- Message debouncing in `TelegramChannel` — configurable `TELEGRAM_DEBOUNCE_MS` (default 5s)
+
+**Cognitive**
+- Per-chat context for behavioral adaptation (`chat-context` memory tier)
+
+### Changed
+- Memory directory relocated from `data/memory/` to `~/.kenobot/memory/` (top-level separation from runtime data)
+- Logging: per-message noise downgraded from `info` to `debug`; added debug level, value filtering, and smart console formatting
+- Web tools (`search_web`, `fetch_url`) moved from domain to adapters layer with SSRF protection
+- Tool registry wiring moved to composition root (`app.js`)
+- ESLint boundary rules relaxed to allow `adapters → domain` imports
+
+### Fixed
+- `readPatterns()` now guards against non-array return values
+- `expand_keywords` handles truncated JSON and oversized `chatContext`
+- Redundant `evaluate_confidence` call eliminated on quota failure
+- Gemini `embedContent` API parameters corrected
+- Gemini embedding provider registration name corrected to `'gemini-embedding'`
+- Claude CLI `--debug` flag no longer swallows prompts (uses `--` separator)
+
 ## [0.6.0] - 2026-02-15
 
 ### Added
