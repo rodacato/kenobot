@@ -78,7 +78,7 @@ Each test file should have:
 | JSONL sessions | OpenClaw | Append-safe, git-friendly, streamable |
 | Deny-by-default auth | Inverted from Nanobot | `--dangerously-skip-permissions` demands restricted access |
 | Template Method channels | Nanobot | Permission checking inherited, channels are < 100 LOC |
-| Max iterations safety valve | Nanobot | Prevents infinite tool loops (default: 20) |
+| Max iterations safety valve | Nanobot | Prevents infinite tool loops (default: 15) |
 | Directory-based identity | Custom | core.md + rules.json + preferences.md split for modularity |
 | Cognitive memory system | Custom | 4-tier memory (working, episodic, semantic, procedural) with retrieval engine |
 
@@ -88,10 +88,31 @@ Each test file should have:
 - Keep `CLAUDE.md` in sync when architecture, commands, or tech stack change
 - Keep this file in sync when adding conventions or rules
 - Reference docs, don't duplicate:
-  - Architecture, Nervous System, Cognitive System → `docs/architecture.md`
+  - Architecture (all bounded contexts, REST API) → `docs/architecture.md`
   - Configuration and env vars → `docs/configuration.md`
   - Signal schema → `docs/events.md`
   - Setup, deployment, operations → `docs/getting-started.md`
-  - Memory System → `docs/memory.md`
+  - Memory System + Embeddings → `docs/memory.md`
   - Identity System → `docs/identity.md`
   - Design & Research → `docs/design/`
+
+### Mandatory Update Triggers
+
+| When you... | Update... |
+|---|---|
+| Add/change/remove an env var | `templates/env.example` + `docs/configuration.md` |
+| Add/change a signal type | `src/infrastructure/events.js` + `docs/events.md` |
+| Add/change a bounded context | `docs/architecture.md` + `CLAUDE.md` |
+| Add/change a provider | `docs/architecture.md` (provider list) + `docs/configuration.md` |
+| Change memory paths or behavior | `docs/memory.md` + `docs/architecture.md` (Data Flow) |
+| Add a new tool to Motor System | `docs/architecture.md` (Motor System section) |
+| Add a Consciousness expert/task | `templates/experts/` + `docs/architecture.md` (Consciousness section) |
+| Add/change an API endpoint | `docs/architecture.md` (REST API section) |
+| Change CLI commands | `CLAUDE.md` (Commands section) |
+
+### Anti-patterns
+
+- Don't use Phase N/roadmap language — describe what **is**, not what was planned
+- Don't duplicate the same info in multiple docs — pick one canonical location, link from others
+- Don't create new standalone docs when a section in an existing file suffices
+- `templates/env.example` is the canonical env var reference — `docs/configuration.md` adds context
