@@ -82,9 +82,15 @@ export default class ClaudeCLIProvider extends BaseProvider {
    */
   _spawn(command, args, options = {}) {
     return new Promise((resolve, reject) => {
+      // Exclude ANTHROPIC_API_KEY — the claude binary uses its own stored
+      // credentials (~/.claude/) and will fail if given an unexpected key format
+      const env = { ...process.env }
+      delete env.ANTHROPIC_API_KEY
+
       const child = spawn(command, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
-        cwd: options.cwd || undefined
+        cwd: options.cwd || undefined,
+        env,
       })
 
       let stdout = ''
