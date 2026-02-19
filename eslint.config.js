@@ -25,8 +25,8 @@ export default [
           // application/ → domain/ and infrastructure/, not adapters/
           { from: 'application', allow: ['application', 'domain', 'infrastructure'] },
 
-          // adapters/ → only infrastructure/ and itself, not domain/ or application/
-          { from: 'adapters', allow: ['adapters', 'infrastructure'] },
+          // adapters/ → can depend on domain/ and infrastructure/ (hexagonal: adapters implement/call domain ports)
+          { from: 'adapters', allow: ['adapters', 'domain', 'infrastructure'] },
 
           // infrastructure/ → only itself (no upward dependencies)
           { from: 'infrastructure', allow: ['infrastructure'] },
